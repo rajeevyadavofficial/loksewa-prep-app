@@ -1,0 +1,24 @@
+{
+  "users": [],
+  "exams": [],
+  "questions": [],
+  "payments": [],
+  "settings": {
+    "key": "payment_config",
+    "whatsappNumber": "+977-9705419699",
+    "whatsappLink": "https://wa.me/9779705419699",
+    "whatsappQrUrl": "https://res.cloudinary.com/rajeevyadav/image/upload/v1791720922/loksewa_prep/s2kdezawa20cg6ycco7d.jpg",
+    "paymentQrUrl": "https://res.cloudinary.com/rajeevyadav/image/upload/v1791720911/loksewa_prep/wxs7zoxae5cwyczac6lx.jpg",
+    "esewaId": "9800000000",
+    "khaltiId": "9800000001",
+    "fonepayMerchant": "LokSewa Prep Nepal (FonePay QR)",
+    "bankName": "Rastriya Banijya Bank (RBB)",
+    "bankAccountName": "LokSewa Prep Nepal Pvt. Ltd.",
+    "bankAccountNumber": "1010001007180003",
+    "bankBranch": "Singhadurbar Plaza Branch, Kathmandu",
+    "supportEmail": "support@loksewaprep.com.np",
+    "supportPhone": "+977-01-4200000 / 9800000000",
+    "officeAddress": "Putalisadak, Kathmandu, Nepal",
+    "verificationNote": "After completing payment via eSewa, Khalti, FonePay QR, or Bank Transfer, please send your payment screenshot along with your registered Email Address to our official WhatsApp number or scan the WhatsApp QR code below. Your Pro plan will be activated immediately upon verification."
+  }
+}
