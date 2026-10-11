@@ -39,6 +39,7 @@ router.get('/stats', requireAuth, requireAdmin, async (req, res) => {
         name: u.name,
         email: u.email,
         plan: u.plan,
+        planExpiresAt: u.planExpiresAt || null,
         isAdmin: !!u.isAdmin,
         createdAt: u.createdAt,
       })),
@@ -52,21 +53,22 @@ router.get('/stats', requireAuth, requireAdmin, async (req, res) => {
 // PUT /api/admin/users/:id/plan
 router.put('/users/:id/plan', requireAuth, requireAdmin, async (req, res) => {
   try {
-    const { plan } = req.body;
+    const { plan, durationDays, expiresAt } = req.body;
     if (!['free', 'basic', 'premium'].includes(plan)) {
       return res.status(400).json({ error: 'Invalid plan' });
     }
-    const updated = await DB.updateUserPlan(req.params.id, plan);
+    const updated = await DB.updateUserPlan(req.params.id, plan, { durationDays, expiresAt });
     if (!updated) {
       return res.status(404).json({ error: 'User not found' });
     }
     return res.json({
-      message: `Updated ${updated.name}'s plan to ${plan}`,
+      message: `Updated ${updated.name}'s plan to ${plan === 'free' ? 'FREE' : 'PRO (रू 199)'}`,
       user: {
         uid: updated._id,
         name: updated.name,
         email: updated.email,
         plan: updated.plan,
+        planExpiresAt: updated.planExpiresAt || null,
       },
     });
   } catch (err) {
@@ -78,18 +80,18 @@ router.put('/users/:id/plan', requireAuth, requireAdmin, async (req, res) => {
 // PUT /api/admin/payments/:id/verify (Admin Only — Verify WhatsApp screenshot & activate plan or reject)
 router.put('/payments/:id/verify', requireAuth, requireAdmin, async (req, res) => {
   try {
-    const { action } = req.body || {};
+    const { action, durationDays, expiresAt } = req.body || {};
     if (!['approve', 'reject'].includes(action)) {
       return res.status(400).json({ error: 'Action must be approve or reject' });
     }
-    const result = await DB.verifyPayment(req.params.id, action);
+    const result = await DB.verifyPayment(req.params.id, action, { durationDays, expiresAt });
     if (!result) {
       return res.status(404).json({ error: 'Payment record not found' });
     }
     return res.json({
       message:
         action === 'approve'
-          ? `Payment verified! Activated PRO Plan (रू 299) for ${result.payment.userName}.`
+          ? `Payment verified! Activated PRO Plan (रू 199) for ${result.payment.userName}.`
           : `Payment request from ${result.payment.userName} rejected.`,
       payment: result.payment,
       user: result.user,

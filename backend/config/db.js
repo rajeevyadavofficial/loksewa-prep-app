@@ -225,24 +225,48 @@ const DB = {
     return true;
   },
 
+  // Helper: Check and auto-downgrade expired subscriptions
+  async _checkAndExpireUser(u) {
+    if (!u || u.isAdmin || !u.plan || u.plan === 'free' || !u.planExpiresAt) return u;
+    const expTime = new Date(u.planExpiresAt).getTime();
+    if (!isNaN(expTime) && expTime <= Date.now()) {
+      const uid = u._id ? u._id.toString() : '';
+      if (isMongoConnected && uid) {
+        await User.findByIdAndUpdate(uid, { $set: { plan: 'free', planExpiresAt: null } });
+      }
+      const idx = (localStore.users || []).findIndex(
+        (item) => String(item._id) === String(uid) || item.email === u.email
+      );
+      if (idx >= 0) {
+        localStore.users[idx].plan = 'free';
+        localStore.users[idx].planExpiresAt = null;
+        saveLocalStore();
+      }
+      return { ...u, plan: 'free', planExpiresAt: null };
+    }
+    return u;
+  },
+
   // USERS
   async findUserByEmail(email) {
     const cleanEmail = email.toLowerCase().trim();
     if (isMongoConnected) {
       const u = await User.findOne({ email: cleanEmail }).lean();
       if (!u) return null;
-      return { ...u, _id: u._id.toString() };
+      return await this._checkAndExpireUser({ ...u, _id: u._id.toString() });
     }
-    return localStore.users.find((u) => u.email === cleanEmail) || null;
+    const found = localStore.users.find((u) => u.email === cleanEmail) || null;
+    return await this._checkAndExpireUser(found);
   },
 
   async findUserById(id) {
     if (isMongoConnected) {
       const u = await User.findById(id).lean();
       if (!u) return null;
-      return { ...u, _id: u._id.toString() };
+      return await this._checkAndExpireUser({ ...u, _id: u._id.toString() });
     }
-    return localStore.users.find((u) => u._id === id) || null;
+    const found = localStore.users.find((u) => u._id === id) || null;
+    return await this._checkAndExpireUser(found);
   },
 
   async createUser({ name, email, passwordHash, plan = 'free', isAdmin = false }) {
@@ -298,8 +322,19 @@ const DB = {
     return localStore.users[idx];
   },
 
-  async updateUserPlan(userId, plan) {
-    const expiresAt = plan === 'free' ? null : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+  async updateUserPlan(userId, plan, options = {}) {
+    let expiresAt = null;
+    if (plan !== 'free') {
+      if (options.expiresAt) {
+        const parsed = new Date(options.expiresAt);
+        expiresAt = !isNaN(parsed.getTime())
+          ? parsed.toISOString()
+          : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+      } else {
+        const days = Number(options.durationDays) > 0 ? Number(options.durationDays) : 30;
+        expiresAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
+      }
+    }
     if (isMongoConnected) {
       const updated = await User.findByIdAndUpdate(
         userId,
@@ -329,9 +364,17 @@ const DB = {
   async getAllUsers() {
     if (isMongoConnected) {
       const users = await User.find().sort({ createdAt: -1 }).lean();
-      return users.map((u) => ({ ...u, _id: u._id.toString() }));
+      const checked = [];
+      for (const u of users) {
+        checked.push(await this._checkAndExpireUser({ ...u, _id: u._id.toString() }));
+      }
+      return checked;
     }
-    return [...localStore.users].reverse();
+    const checked = [];
+    for (const u of [...localStore.users].reverse()) {
+      checked.push(await this._checkAndExpireUser(u));
+    }
+    return checked;
   },
 
   async deleteUser(userId) {
@@ -436,7 +479,7 @@ const DB = {
     return [...localStore.payments].reverse();
   },
 
-  async verifyPayment(paymentId, action) {
+  async verifyPayment(paymentId, action, options = {}) {
     const newStatus = action === 'approve' ? 'completed' : 'rejected';
     if (isMongoConnected) {
       const payment = await Payment.findByIdAndUpdate(
@@ -447,7 +490,7 @@ const DB = {
       if (!payment) return null;
       let updatedUser = null;
       if (action === 'approve' && payment.userId && payment.plan) {
-        updatedUser = await this.updateUserPlan(payment.userId, payment.plan);
+        updatedUser = await this.updateUserPlan(payment.userId, payment.plan, options);
       }
       return { payment, user: updatedUser };
     }
@@ -457,7 +500,7 @@ const DB = {
     saveLocalStore();
     let updatedUser = null;
     if (action === 'approve' && p.userId && p.plan) {
-      updatedUser = await this.updateUserPlan(p.userId, p.plan);
+      updatedUser = await this.updateUserPlan(p.userId, p.plan, options);
     }
     return { payment: p, user: updatedUser };
   },

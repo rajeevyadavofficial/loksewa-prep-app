@@ -90,7 +90,9 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
                             ),
                           ),
                           child: Text(
-                            'Active Plan: ${user.plan == SubscriptionPlan.free ? "FREE" : "PRO (रू 299)"}',
+                            user.plan == SubscriptionPlan.free
+                                ? 'Active Plan: FREE'
+                                : 'Active Plan: PRO (रू 199)${user.planExpiresAt != null ? " • Expires: ${user.planExpiresAt!.toLocal().toString().split(' ').first}" : ""}',
                             style: TextStyle(
                               color: user.plan == SubscriptionPlan.free ? AppTheme.textPrimary : AppTheme.iconRedDark,
                               fontWeight: FontWeight.w800,
@@ -176,9 +178,9 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
       _FullPlanCard(
         plan: SubscriptionPlan.premium,
         name: 'Pro Plan',
-        price: 'रू २९९',
-        priceSub: '/month',
-        monthlyPrice: 299,
+        price: 'रू १९९',
+        priceSub: 'full exam pass',
+        monthlyPrice: 199,
         features: const [
           ('Full Access to Your Enrolled Exam', true),
           ('Paper I + Paper II + Paper III Unlocked', true),
@@ -634,7 +636,7 @@ class _PaymentVerificationDialogState extends State<_PaymentVerificationDialog> 
   @override
   Widget build(BuildContext context) {
     final s = widget.settings;
-    const price = 'रू 299';
+    const price = 'रू 199';
 
     return AlertDialog(
       backgroundColor: Colors.white,
@@ -645,7 +647,7 @@ class _PaymentVerificationDialogState extends State<_PaymentVerificationDialog> 
           SizedBox(width: 8),
           Expanded(
             child: Text(
-              'Upgrade to PRO Plan ($price/month)',
+              'Upgrade to PRO Plan ($price)',
               style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17),
             ),
           ),
@@ -680,7 +682,7 @@ class _PaymentVerificationDialogState extends State<_PaymentVerificationDialog> 
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '1. Scan the Payment QR (or transfer रू 299 to eSewa: ${s.esewaId} / Khalti: ${s.khaltiId})\n'
+                      '1. Scan the Payment QR (or transfer रू 199 to eSewa: ${s.esewaId} / Khalti: ${s.khaltiId})\n'
                       '2. Send your payment screenshot + your email (${widget.user.email}) to WhatsApp: ${s.whatsappNumber} or scan the WhatsApp QR below.',
                       style: const TextStyle(fontSize: 12, color: AppTheme.textPrimary, height: 1.45),
                     ),
@@ -820,7 +822,7 @@ class _PaymentVerificationDialogState extends State<_PaymentVerificationDialog> 
                   duration: const Duration(seconds: 5),
                   content: Text(
                     submitted
-                        ? 'Verification request submitted! Admin will verify your WhatsApp screenshot and activate your PRO Plan (रू 299).'
+                        ? 'Verification request submitted! Admin will verify your WhatsApp screenshot and activate your PRO Plan (रू 199).'
                         : 'Please log in first to submit a payment verification request.',
                   ),
                   backgroundColor: submitted ? AppTheme.primaryColor : AppTheme.iconRed,
@@ -848,7 +850,7 @@ class _ComparisonTable extends StatelessWidget {
           children: [
             TableRow(
               decoration: const BoxDecoration(color: Color(0xFFF4F4F5)),
-              children: ['Feature', 'Free Starter', 'Pro Plan (रू २९९)'].map((h) =>
+              children: ['Feature', 'Free Starter', 'Pro Plan (रू १९९)'].map((h) =>
                 Padding(
                   padding: const EdgeInsets.all(12),
                   child: Text(h, style: const TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.w800, fontSize: 12.5)),
@@ -863,7 +865,7 @@ class _ComparisonTable extends StatelessWidget {
               ('Paper II & III Access', 'Locked', 'Full Access'),
               ('Bilingual (Nepali/EN)', 'Included', 'Included'),
               ('Official Syllabus', 'Included', 'Included'),
-              ('Price / Month', 'Free', 'रू २९९'),
+              ('Price', 'Free', 'रू १९९'),
             ].map((row) => TableRow(
               decoration: const BoxDecoration(color: Colors.white),
               children: [row.$1, row.$2, row.$3].map((c) =>

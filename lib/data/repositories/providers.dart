@@ -25,6 +25,13 @@ class AuthProvider extends ChangeNotifier {
     _restore();
   }
 
+  DateTime? _parseExpiry(dynamic raw) {
+    if (raw == null) return null;
+    final str = raw.toString().trim();
+    if (str.isEmpty) return null;
+    return DateTime.tryParse(str);
+  }
+
   Future<void> _restore() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -36,6 +43,7 @@ class AuthProvider extends ChangeNotifier {
           name: prefs.getString(AppConstants.prefUserName) ?? 'User',
           email: prefs.getString(AppConstants.prefUserEmail) ?? '',
           plan: _plan(prefs.getString(AppConstants.prefUserPlan) ?? 'free'),
+          planExpiresAt: _parseExpiry(prefs.getString(AppConstants.prefPlanExpiresAt)),
           isAdmin: prefs.getBool(AppConstants.prefIsAdmin) ?? false,
           enrolledExams: savedEnrolled,
         );
@@ -55,7 +63,7 @@ class AuthProvider extends ChangeNotifier {
       final res = await http.get(
         Uri.parse('${AppConstants.apiBaseUrl}/auth/me'),
         headers: {'Authorization': 'Bearer $_token'},
-      ).timeout(const Duration(seconds: 4));
+      ).timeout(const Duration(seconds: 6));
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
         final u = data['user'];
@@ -65,13 +73,11 @@ class AuthProvider extends ChangeNotifier {
           name: u['name'] ?? '',
           email: u['email'] ?? '',
           plan: _plan(u['plan'] ?? 'free'),
+          planExpiresAt: _parseExpiry(u['planExpiresAt']),
           isAdmin: u['isAdmin'] == true,
           enrolledExams: enrolled,
         );
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString(AppConstants.prefUserPlan, _user!.plan.name);
-        await prefs.setBool(AppConstants.prefIsAdmin, _user!.isAdmin);
-        await prefs.setStringList(AppConstants.prefEnrolledExams, _user!.enrolledExams);
+        await _saveSession();
         notifyListeners();
       }
     } catch (_) {
@@ -95,7 +101,7 @@ class AuthProvider extends ChangeNotifier {
         Uri.parse('${AppConstants.apiBaseUrl}/auth/login'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'email': email, 'password': password}),
-      ).timeout(const Duration(seconds: 5));
+      ).timeout(const Duration(seconds: 8));
 
       final data = jsonDecode(res.body);
       if (res.statusCode == 200) {
@@ -106,6 +112,7 @@ class AuthProvider extends ChangeNotifier {
           name: u['name'] ?? 'User',
           email: u['email'] ?? email,
           plan: _plan(u['plan'] ?? 'free'),
+          planExpiresAt: _parseExpiry(u['planExpiresAt']),
           isAdmin: u['isAdmin'] == true,
           enrolledExams: List<String>.from(u['enrolledExams'] ?? []),
         );
@@ -137,7 +144,7 @@ class AuthProvider extends ChangeNotifier {
         Uri.parse('${AppConstants.apiBaseUrl}/auth/register'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'name': name, 'email': email, 'password': password}),
-      ).timeout(const Duration(seconds: 5));
+      ).timeout(const Duration(seconds: 8));
 
       final data = jsonDecode(res.body);
       if (res.statusCode == 201 || res.statusCode == 200) {
@@ -148,6 +155,7 @@ class AuthProvider extends ChangeNotifier {
           name: u['name'] ?? name,
           email: u['email'] ?? email,
           plan: _plan(u['plan'] ?? 'free'),
+          planExpiresAt: _parseExpiry(u['planExpiresAt']),
           isAdmin: u['isAdmin'] == true,
           enrolledExams: List<String>.from(u['enrolledExams'] ?? []),
         );
@@ -185,6 +193,11 @@ class AuthProvider extends ChangeNotifier {
     await prefs.setString(AppConstants.prefUserName, _user!.name);
     await prefs.setString(AppConstants.prefUserEmail, _user!.email);
     await prefs.setString(AppConstants.prefUserPlan, _user!.plan.name);
+    if (_user!.planExpiresAt != null) {
+      await prefs.setString(AppConstants.prefPlanExpiresAt, _user!.planExpiresAt!.toIso8601String());
+    } else {
+      await prefs.remove(AppConstants.prefPlanExpiresAt);
+    }
     await prefs.setBool(AppConstants.prefIsAdmin, _user!.isAdmin);
     await prefs.setStringList(AppConstants.prefEnrolledExams, _user!.enrolledExams);
   }

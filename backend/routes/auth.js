@@ -107,7 +107,7 @@ router.post('/upgrade', requireAuth, async (req, res) => {
       return res.status(400).json({ error: 'Invalid subscription plan' });
     }
     const normalizedPlan = 'premium';
-    const amount = 299;
+    const amount = 199;
 
     const payment = await DB.createPayment({
       userId: String(req.user._id),
@@ -122,7 +122,7 @@ router.post('/upgrade', requireAuth, async (req, res) => {
 
     return res.json({
       status: 'pending',
-      message: `Payment verification request submitted for PRO Plan (रू 299)! Admin will verify your WhatsApp screenshot and activate your plan.`,
+      message: `Payment verification request submitted for PRO Plan (रू 199)! Admin will verify your WhatsApp screenshot and activate your plan.`,
       payment,
       user: sanitizeUser(req.user),
     });

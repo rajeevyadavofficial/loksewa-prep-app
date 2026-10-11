@@ -1,11 +1,11 @@
 {
-    "name": "loksewa_prep_app",
-    "short_name": "loksewa_prep_app",
+    "name": "LoksewaHero",
+    "short_name": "LoksewaHero",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#FFFFFF",
+    "theme_color": "#DC2626",
+    "description": "LoksewaHero — Nepal's #1 Lok Sewa Exam Preparation Platform",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

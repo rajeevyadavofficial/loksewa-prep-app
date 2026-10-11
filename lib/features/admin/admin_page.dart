@@ -62,9 +62,169 @@ class _AdminPageState extends State<AdminPage> {
     }
   }
 
+  Future<Map<String, dynamic>?> _promptExpiryDuration(String title) async {
+    int selectedDays = 30;
+    DateTime? customDate;
+    final daysCtrl = TextEditingController(text: '30');
+
+    return showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          final previewDate = customDate ?? DateTime.now().add(Duration(days: selectedDays));
+          final previewStr = previewDate.toLocal().toString().split(' ').first;
+          return AlertDialog(
+            backgroundColor: Colors.white,
+            surfaceTintColor: Colors.transparent,
+            title: Row(
+              children: [
+                const Icon(Icons.timer_outlined, color: AppTheme.iconRed, size: 22),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(title, style: const TextStyle(fontSize: 16.5, fontWeight: FontWeight.w800)),
+                ),
+              ],
+            ),
+            content: SizedBox(
+              width: 460,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Select how long the Pro Plan (रू 199) should remain active before expiring:',
+                    style: TextStyle(fontSize: 13, color: AppTheme.textMuted),
+                  ),
+                  const SizedBox(height: 14),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      (7, '7 Days'),
+                      (15, '15 Days'),
+                      (30, '30 Days (1 Mo)'),
+                      (90, '90 Days (3 Mo)'),
+                      (180, '180 Days (6 Mo)'),
+                      (365, '365 Days (1 Yr)'),
+                    ].map((preset) {
+                      final isSelected = customDate == null && selectedDays == preset.$1;
+                      return ChoiceChip(
+                        label: Text(preset.$2),
+                        selected: isSelected,
+                        selectedColor: AppTheme.iconRedLight,
+                        labelStyle: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: isSelected ? AppTheme.iconRedDark : AppTheme.textPrimary,
+                        ),
+                        onSelected: (_) {
+                          setDialogState(() {
+                            customDate = null;
+                            selectedDays = preset.$1;
+                            daysCtrl.text = '${preset.$1}';
+                          });
+                        },
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: daysCtrl,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(
+                            labelText: 'Custom Duration (Days)',
+                            suffixText: 'days',
+                          ),
+                          onChanged: (v) {
+                            final parsed = int.tryParse(v.trim());
+                            if (parsed != null && parsed > 0) {
+                              setDialogState(() {
+                                customDate = null;
+                                selectedDays = parsed;
+                              });
+                            }
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      OutlinedButton.icon(
+                        icon: const Icon(Icons.calendar_today_outlined, size: 15, color: AppTheme.iconRed),
+                        label: const Text('Pick Exact Date', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                        onPressed: () async {
+                          final picked = await showDatePicker(
+                            context: ctx,
+                            initialDate: previewDate,
+                            firstDate: DateTime.now().add(const Duration(days: 1)),
+                            lastDate: DateTime.now().add(const Duration(days: 3650)),
+                          );
+                          if (picked != null) {
+                            setDialogState(() {
+                              customDate = DateTime(picked.year, picked.month, picked.day, 23, 59, 59);
+                            });
+                          }
+                        },
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: AppTheme.bgSurface,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: AppTheme.divider),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.event_available_rounded, size: 16, color: AppTheme.iconRed),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Plan will expire on: $previewStr',
+                          style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: AppTheme.textPrimary),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, null),
+                child: const Text('Cancel', style: TextStyle(color: AppTheme.textMuted)),
+              ),
+              FilledButton.icon(
+                style: FilledButton.styleFrom(backgroundColor: AppTheme.iconRed, foregroundColor: Colors.white),
+                icon: const Icon(Icons.check_circle_outline_rounded, size: 16, color: Colors.white),
+                label: Text('Activate Until $previewStr'),
+                onPressed: () {
+                  Navigator.pop(ctx, {
+                    'durationDays': selectedDays,
+                    'expiresAt': previewDate.toIso8601String(),
+                  });
+                },
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
   Future<void> _updateUserPlan(String userId, String newPlan) async {
     final token = context.read<AuthProvider>().token;
     if (token == null) return;
+
+    Map<String, dynamic>? expiryConfig;
+    if (newPlan != 'free') {
+      expiryConfig = await _promptExpiryDuration('Set Pro Plan Expiry Time');
+      if (expiryConfig == null || !mounted) return;
+    }
+
     try {
       final res = await http.put(
         Uri.parse('${AppConstants.apiBaseUrl}/admin/users/$userId/plan'),
@@ -72,12 +232,16 @@ class _AdminPageState extends State<AdminPage> {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
         },
-        body: jsonEncode({'plan': newPlan}),
+        body: jsonEncode({
+          'plan': newPlan,
+          if (expiryConfig != null) ...expiryConfig,
+        }),
       );
       if (res.statusCode == 200 && mounted) {
+        final label = newPlan == 'free' ? 'FREE' : 'PRO (रू 199)';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('User plan updated to ${newPlan.toUpperCase()} in MongoDB Atlas!'),
+            content: Text('User plan updated to $label in MongoDB Atlas!'),
             backgroundColor: AppTheme.primaryColor,
           ),
         );
@@ -89,6 +253,13 @@ class _AdminPageState extends State<AdminPage> {
   Future<void> _verifyPayment(String paymentId, String action) async {
     final token = context.read<AuthProvider>().token;
     if (token == null) return;
+
+    Map<String, dynamic>? expiryConfig;
+    if (action == 'approve') {
+      expiryConfig = await _promptExpiryDuration('Verify Payment & Set Plan Expiry');
+      if (expiryConfig == null || !mounted) return;
+    }
+
     try {
       final res = await http.put(
         Uri.parse('${AppConstants.apiBaseUrl}/admin/payments/$paymentId/verify'),
@@ -96,7 +267,10 @@ class _AdminPageState extends State<AdminPage> {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
         },
-        body: jsonEncode({'action': action}),
+        body: jsonEncode({
+          'action': action,
+          if (expiryConfig != null) ...expiryConfig,
+        }),
       );
       if (res.statusCode == 200 && mounted) {
         final data = jsonDecode(res.body);
@@ -105,7 +279,7 @@ class _AdminPageState extends State<AdminPage> {
             content: Text(
               data['message']?.toString() ??
                   (action == 'approve'
-                      ? 'Payment verified & candidate plan activated!'
+                      ? 'Payment verified & candidate Pro plan activated!'
                       : 'Payment request rejected.'),
             ),
             backgroundColor: action == 'approve' ? AppTheme.primaryColor : AppTheme.iconRed,
@@ -638,7 +812,7 @@ class _AdminPageState extends State<AdminPage> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text('LokSewa Admin CMS — Multi-Exam & Question Manager'),
+        title: const Text('LoksewaHero Admin CMS — Multi-Exam & Question Manager'),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh_rounded, color: AppTheme.iconRed),
@@ -1385,6 +1559,14 @@ class _UsersPanel extends StatelessWidget {
             final uEmail = u['email']?.toString() ?? '';
             final isAdminUser = u['isAdmin'] == true;
             final currentPlan = u['plan']?.toString() ?? 'free';
+            final rawExpiry = u['planExpiresAt']?.toString();
+            String? expiryText;
+            if (currentPlan != 'free' && rawExpiry != null && rawExpiry.isNotEmpty) {
+              try {
+                final dt = DateTime.parse(rawExpiry).toLocal();
+                expiryText = '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
+              } catch (_) {}
+            }
             return Container(
               margin: const EdgeInsets.only(bottom: 10),
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
@@ -1442,6 +1624,25 @@ class _UsersPanel extends StatelessWidget {
                                   ),
                                 ),
                               ),
+                              if (expiryText != null) ...[
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: AppTheme.iconRedLight,
+                                    borderRadius: BorderRadius.circular(5),
+                                    border: Border.all(color: AppTheme.iconRed.withOpacity(0.3)),
+                                  ),
+                                  child: Text(
+                                    'Expires: $expiryText',
+                                    style: const TextStyle(
+                                      fontSize: 10.5,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppTheme.iconRed,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ],
                           ),
                           const SizedBox(height: 3),
@@ -1468,7 +1669,7 @@ class _UsersPanel extends StatelessWidget {
                           isDense: false,
                           items: const [
                             DropdownMenuItem(value: 'free', child: Text('Plan: Free', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600))),
-                            DropdownMenuItem(value: 'premium', child: Text('Plan: Pro (रू 299)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600))),
+                            DropdownMenuItem(value: 'premium', child: Text('Plan: Pro (रू 199)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600))),
                           ],
                           onChanged: (val) {
                             if (val != null && val != (currentPlan == 'free' ? 'free' : 'premium')) {
@@ -1477,6 +1678,19 @@ class _UsersPanel extends StatelessWidget {
                           },
                         ),
                       ),
+                      if (currentPlan != 'free')
+                        OutlinedButton.icon(
+                          onPressed: () => onUpdatePlan(uid, 'premium'),
+                          icon: const Icon(Icons.event_available_rounded, size: 15, color: AppTheme.primaryColor),
+                          label: const Text(
+                            'Set Expiry',
+                            style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: AppTheme.primaryColor),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                            side: const BorderSide(color: AppTheme.primaryColor),
+                          ),
+                        ),
                       if (isAdminUser)
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),

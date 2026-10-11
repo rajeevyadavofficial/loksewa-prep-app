@@ -140,7 +140,7 @@ class _Logo extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'LokSewa Prep Nepal',
+              'LoksewaHero',
               style: TextStyle(
                 color: AppTheme.textPrimary,
                 fontWeight: FontWeight.w800,
@@ -829,15 +829,15 @@ class _PricingSection extends StatelessWidget {
     _PlanCard(
       plan: SubscriptionPlan.premium,
       name: 'Pro Plan',
-      price: 'रू २९९',
-      subtitle: 'per month',
+      price: 'रू १९९',
+      subtitle: 'full exam pass',
       features: const [
         'Full Access to Your Enrolled Exam',
         'Paper I + Paper II + Paper III Unlocked',
         'All Questions Unlocked',
         'Unlimited Timed Mock Tests & Analytics',
       ],
-      cta: 'Upgrade to Pro (रू 299)',
+      cta: 'Upgrade to Pro (रू 199)',
       isPopular: true,
       onTap: () => GoRouter.of(context).go(AppConstants.routeSubscription),
     ),
@@ -1091,7 +1091,7 @@ class _Footer extends StatelessWidget {
           _Logo(),
           const Spacer(),
           const Text(
-            '© 2082 BS LokSewa Prep Nepal • Pure Minimalist UI & MongoDB Atlas Cloud',
+            '© 2082 BS LoksewaHero • Pure Minimalist UI & MongoDB Atlas Cloud',
             style: TextStyle(color: AppTheme.textMuted, fontSize: 12),
           ),
         ],

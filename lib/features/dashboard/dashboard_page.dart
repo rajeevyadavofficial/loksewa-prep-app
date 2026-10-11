@@ -193,7 +193,7 @@ class _SideNav extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'LokSewa Prep',
+                              'LoksewaHero',
                               style: TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.w800, fontSize: 15.5, letterSpacing: -0.3),
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -417,8 +417,8 @@ class _PlanBadgeWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (label, isRed) = switch (plan) {
-      SubscriptionPlan.premium => ('PRO PLAN (रू 299)', true),
-      SubscriptionPlan.basic => ('PRO PLAN (रू 299)', true),
+      SubscriptionPlan.premium => ('PRO PLAN (रू 199)', true),
+      SubscriptionPlan.basic => ('PRO PLAN (रू 199)', true),
       SubscriptionPlan.free => ('FREE STARTER PLAN', false),
     };
     return Container(
@@ -1115,7 +1115,7 @@ class _UpgradeBanner extends StatelessWidget {
                 ),
                 SizedBox(height: 2),
                 Text(
-                  'Get full access to Paper I, Paper II & Paper III model answers — रू 299/month',
+                  'Get full access to Paper I, Paper II & Paper III model answers — रू 199',
                   style: TextStyle(color: AppTheme.textMuted, fontSize: 12),
                 ),
               ],
@@ -2567,7 +2567,7 @@ class _PaywallCard extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           const Text(
-            'Upgrade to Pro Plan (रू 299/month) to unlock all Paper I, Paper II & Paper III model answers.',
+            'Upgrade to Pro Plan (रू 199) to unlock all Paper I, Paper II & Paper III model answers.',
             textAlign: TextAlign.center,
             style: TextStyle(color: AppTheme.textMuted, fontSize: 13, height: 1.5),
           ),

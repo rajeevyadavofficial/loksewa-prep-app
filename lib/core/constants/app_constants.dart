@@ -1,6 +1,6 @@
 class AppConstants {
   // App Info
-  static const String appName = 'LokSewa Prep';
+  static const String appName = 'LoksewaHero';
   static const String appTagline = 'Nepal\'s #1 Loksewa Exam Preparation Platform';
   static const String appVersion = '1.0.0';
 
@@ -16,9 +16,9 @@ class AppConstants {
   static const String basicPlanName = 'Pro';
   static const String premiumPlanName = 'Pro';
 
-  static const double basicPlanMonthlyPrice = 299; // NPR
-  static const double premiumPlanMonthlyPrice = 299; // NPR
-  static const double premiumPlanYearlyPrice = 2999; // NPR
+  static const double basicPlanMonthlyPrice = 199; // NPR
+  static const double premiumPlanMonthlyPrice = 199; // NPR
+  static const double premiumPlanYearlyPrice = 1999; // NPR
 
   // Free plan limits
   static const int freeQuestionsLimit = 10;
@@ -45,6 +45,7 @@ class AppConstants {
   static const String prefUserName = 'user_name';
   static const String prefUserEmail = 'user_email';
   static const String prefUserPlan = 'user_plan';
+  static const String prefPlanExpiresAt = 'user_plan_expires_at';
   static const String prefIsAdmin = 'is_admin';
   static const String prefEnrolledExams = 'user_enrolled_exams';
   static const String prefProgress = 'user_progress';
