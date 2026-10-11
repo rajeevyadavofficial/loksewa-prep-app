@@ -50,7 +50,7 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
                 color: Colors.white,
                 border: Border(bottom: BorderSide(color: AppTheme.divider, width: 1)),
               ),
-              padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 24),
+              padding: EdgeInsets.symmetric(vertical: isNarrow ? 28 : 40, horizontal: isNarrow ? 16 : 24),
               child: Column(
                 children: [
                   Container(
@@ -62,14 +62,15 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
                     child: const Icon(Icons.workspace_premium_outlined, color: AppTheme.iconRed, size: 26),
                   ),
                   const SizedBox(height: 14),
-                  const Text(
+                  Text(
                     'One Pass for All Lok Sewa Exams',
-                    style: TextStyle(color: AppTheme.textPrimary, fontSize: 28, fontWeight: FontWeight.w800, letterSpacing: -0.5),
+                    style: TextStyle(color: AppTheme.textPrimary, fontSize: isNarrow ? 22 : 28, fontWeight: FontWeight.w800, letterSpacing: -0.5),
+                    textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 8),
-                  const Text(
+                  Text(
                     'Pay via QR / eSewa / Khalti / Bank & send screenshot to our Official WhatsApp. Admin will verify your screenshot and activate your plan.',
-                    style: TextStyle(color: AppTheme.textMuted, fontSize: 15),
+                    style: TextStyle(color: AppTheme.textMuted, fontSize: isNarrow ? 13.5 : 15),
                     textAlign: TextAlign.center,
                   ),
                   if (user != null) ...[
@@ -81,7 +82,7 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
                       alignment: WrapAlignment.center,
                       children: [
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                           decoration: BoxDecoration(
                             color: user.plan == SubscriptionPlan.free ? AppTheme.bgSurface : AppTheme.iconRedLight,
                             borderRadius: BorderRadius.circular(20),
@@ -93,6 +94,7 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
                             user.plan == SubscriptionPlan.free
                                 ? 'Active Plan: FREE'
                                 : 'Active Plan: PRO (रू 199)${user.planExpiresAt != null ? " • Expires: ${user.planExpiresAt!.toLocal().toString().split(' ').first}" : ""}',
+                            textAlign: TextAlign.center,
                             style: TextStyle(
                               color: user.plan == SubscriptionPlan.free ? AppTheme.textPrimary : AppTheme.iconRedDark,
                               fontWeight: FontWeight.w800,
@@ -127,7 +129,7 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
               ),
             ),
             Padding(
-              padding: EdgeInsets.symmetric(horizontal: isNarrow ? 16 : 60, vertical: 40),
+              padding: EdgeInsets.symmetric(horizontal: isNarrow ? 14 : 60, vertical: isNarrow ? 24 : 40),
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 960),
                 child: Column(
@@ -346,7 +348,7 @@ class _PaymentAndWhatsAppVerificationHub extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(28),
+      padding: EdgeInsets.all(isNarrow ? 16 : 28),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
@@ -637,10 +639,86 @@ class _PaymentVerificationDialogState extends State<_PaymentVerificationDialog> 
   Widget build(BuildContext context) {
     final s = widget.settings;
     const price = 'रू 199';
+    final isMobile = MediaQuery.of(context).size.width < 580;
+
+    final qrStep1 = Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppTheme.divider),
+      ),
+      child: Column(
+        children: [
+          const Text('Step 1: Payment QR', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12)),
+          const SizedBox(height: 8),
+          SizedBox(
+            height: 130,
+            width: 130,
+            child: Image.network(
+              s.paymentQrUrl,
+              fit: BoxFit.contain,
+              errorBuilder: (_, __, ___) => const Icon(Icons.qr_code_2_rounded, size: 80),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text('eSewa: ${s.esewaId}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+        ],
+      ),
+    );
+
+    final qrStep2 = Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppTheme.iconRed.withOpacity(0.45)),
+      ),
+      child: Column(
+        children: [
+          const Text('Step 2: WhatsApp QR', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12, color: AppTheme.iconRed)),
+          const SizedBox(height: 8),
+          SizedBox(
+            height: 130,
+            width: 130,
+            child: Image.network(
+              s.whatsappQrUrl,
+              fit: BoxFit.contain,
+              errorBuilder: (_, __, ___) => const Icon(Icons.qr_code_rounded, size: 80, color: AppTheme.iconRed),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text('WA: ${s.whatsappNumber}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppTheme.iconRedDark)),
+        ],
+      ),
+    );
+
+    final methodDropdown = DropdownButtonFormField<String>(
+      value: _selectedMethod,
+      decoration: const InputDecoration(labelText: 'Payment Method Used'),
+      items: const [
+        DropdownMenuItem(value: 'esewa', child: Text('eSewa Wallet')),
+        DropdownMenuItem(value: 'khalti', child: Text('Khalti Wallet')),
+        DropdownMenuItem(value: 'fonepay', child: Text('FonePay QR')),
+        DropdownMenuItem(value: 'bank', child: Text('Bank Transfer')),
+      ],
+      onChanged: (v) => setState(() => _selectedMethod = v!),
+    );
+
+    final refField = TextField(
+      controller: _refCtrl,
+      decoration: const InputDecoration(
+        labelText: 'Transaction Code / WhatsApp Sent Note',
+        hintText: 'e.g. Sent screenshot on WhatsApp',
+      ),
+    );
 
     return AlertDialog(
       backgroundColor: Colors.white,
       surfaceTintColor: Colors.transparent,
+      insetPadding: EdgeInsets.symmetric(horizontal: isMobile ? 14 : 40, vertical: 20),
       title: const Row(
         children: [
           Icon(Icons.verified_outlined, color: AppTheme.iconRed, size: 22),
@@ -648,7 +726,7 @@ class _PaymentVerificationDialogState extends State<_PaymentVerificationDialog> 
           Expanded(
             child: Text(
               'Upgrade to PRO Plan ($price)',
-              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17),
+              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16.5),
             ),
           ),
         ],
@@ -674,9 +752,11 @@ class _PaymentVerificationDialogState extends State<_PaymentVerificationDialog> 
                       children: [
                         Icon(Icons.chat_bubble_outline_rounded, size: 15, color: AppTheme.iconRed),
                         SizedBox(width: 6),
-                        Text(
-                          'WhatsApp Screenshot Verification Required',
-                          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12.5, color: AppTheme.iconRedDark),
+                        Expanded(
+                          child: Text(
+                            'WhatsApp Screenshot Verification Required',
+                            style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12.5, color: AppTheme.iconRedDark),
+                          ),
                         ),
                       ],
                     ),
@@ -690,108 +770,56 @@ class _PaymentVerificationDialogState extends State<_PaymentVerificationDialog> 
                 ),
               ),
               const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: AppTheme.divider),
-                      ),
-                      child: Column(
-                        children: [
-                          const Text('Step 1: Payment QR', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12)),
-                          const SizedBox(height: 8),
-                          SizedBox(
-                            height: 130,
-                            width: 130,
-                            child: Image.network(
-                              s.paymentQrUrl,
-                              fit: BoxFit.contain,
-                              errorBuilder: (_, __, ___) => const Icon(Icons.qr_code_2_rounded, size: 80),
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Text('eSewa: ${s.esewaId}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: AppTheme.iconRed.withOpacity(0.45)),
-                      ),
-                      child: Column(
-                        children: [
-                          const Text('Step 2: WhatsApp QR', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12, color: AppTheme.iconRed)),
-                          const SizedBox(height: 8),
-                          SizedBox(
-                            height: 130,
-                            width: 130,
-                            child: Image.network(
-                              s.whatsappQrUrl,
-                              fit: BoxFit.contain,
-                              errorBuilder: (_, __, ___) => const Icon(Icons.qr_code_rounded, size: 80, color: AppTheme.iconRed),
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Text('WA: ${s.whatsappNumber}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppTheme.iconRedDark)),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+              if (isMobile)
+                Column(
+                  children: [
+                    qrStep1,
+                    const SizedBox(height: 12),
+                    qrStep2,
+                  ],
+                )
+              else
+                Row(
+                  children: [
+                    Expanded(child: qrStep1),
+                    const SizedBox(width: 12),
+                    Expanded(child: qrStep2),
+                  ],
+                ),
               const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: DropdownButtonFormField<String>(
-                      value: _selectedMethod,
-                      decoration: const InputDecoration(labelText: 'Payment Method Used'),
-                      items: const [
-                        DropdownMenuItem(value: 'esewa', child: Text('eSewa Wallet')),
-                        DropdownMenuItem(value: 'khalti', child: Text('Khalti Wallet')),
-                        DropdownMenuItem(value: 'fonepay', child: Text('FonePay QR')),
-                        DropdownMenuItem(value: 'bank', child: Text('Bank Transfer')),
-                      ],
-                      onChanged: (v) => setState(() => _selectedMethod = v!),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: TextField(
-                      controller: _refCtrl,
-                      decoration: const InputDecoration(
-                        labelText: 'Transaction Code / WhatsApp Sent Note',
-                        hintText: 'e.g. Sent screenshot on WhatsApp',
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+              if (isMobile)
+                Column(
+                  children: [
+                    methodDropdown,
+                    const SizedBox(height: 12),
+                    refField,
+                  ],
+                )
+              else
+                Row(
+                  children: [
+                    Expanded(child: methodDropdown),
+                    const SizedBox(width: 12),
+                    Expanded(child: refField),
+                  ],
+                ),
               const SizedBox(height: 12),
               Row(
                 children: [
                   const Icon(Icons.copy_rounded, size: 14, color: AppTheme.iconRed),
                   const SizedBox(width: 6),
-                  InkWell(
-                    onTap: () {
-                      Clipboard.setData(ClipboardData(text: s.whatsappNumber));
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Copied WhatsApp Number: ${s.whatsappNumber}')),
-                      );
-                    },
-                    child: Text(
-                      'Click to Copy WhatsApp Number (${s.whatsappNumber})',
-                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppTheme.iconRed, decoration: TextDecoration.underline),
+                  Expanded(
+                    child: InkWell(
+                      onTap: () {
+                        Clipboard.setData(ClipboardData(text: s.whatsappNumber));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Copied WhatsApp Number: ${s.whatsappNumber}')),
+                        );
+                      },
+                      child: Text(
+                        'Click to Copy WhatsApp Number (${s.whatsappNumber})',
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppTheme.iconRed, decoration: TextDecoration.underline),
+                      ),
                     ),
                   ),
                 ],
@@ -808,7 +836,7 @@ class _PaymentVerificationDialogState extends State<_PaymentVerificationDialog> 
         FilledButton.icon(
           style: FilledButton.styleFrom(backgroundColor: AppTheme.iconRed, foregroundColor: Colors.white),
           icon: const Icon(Icons.send_rounded, size: 16, color: Colors.white),
-          label: const Text('I Sent Screenshot on WhatsApp — Request Verification'),
+          label: Text(isMobile ? 'Submit Verification Request' : 'I Sent Screenshot on WhatsApp — Request Verification'),
           onPressed: () async {
             final submitted = await context.read<AuthProvider>().upgradePlan(
                   SubscriptionPlan.premium,

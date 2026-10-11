@@ -71,11 +71,13 @@ class _AdminPageState extends State<AdminPage> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) {
+          final isDialogNarrow = MediaQuery.of(ctx).size.width < 520;
           final previewDate = customDate ?? DateTime.now().add(Duration(days: selectedDays));
           final previewStr = previewDate.toLocal().toString().split(' ').first;
           return AlertDialog(
             backgroundColor: Colors.white,
             surfaceTintColor: Colors.transparent,
+            insetPadding: EdgeInsets.symmetric(horizontal: isDialogNarrow ? 14 : 40, vertical: 20),
             title: Row(
               children: [
                 const Icon(Icons.timer_outlined, color: AppTheme.iconRed, size: 22),
@@ -87,109 +89,116 @@ class _AdminPageState extends State<AdminPage> {
             ),
             content: SizedBox(
               width: 460,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Select how long the Pro Plan (रू 199) should remain active before expiring:',
-                    style: TextStyle(fontSize: 13, color: AppTheme.textMuted),
-                  ),
-                  const SizedBox(height: 14),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      (7, '7 Days'),
-                      (15, '15 Days'),
-                      (30, '30 Days (1 Mo)'),
-                      (90, '90 Days (3 Mo)'),
-                      (180, '180 Days (6 Mo)'),
-                      (365, '365 Days (1 Yr)'),
-                    ].map((preset) {
-                      final isSelected = customDate == null && selectedDays == preset.$1;
-                      return ChoiceChip(
-                        label: Text(preset.$2),
-                        selected: isSelected,
-                        selectedColor: AppTheme.iconRedLight,
-                        labelStyle: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: isSelected ? AppTheme.iconRedDark : AppTheme.textPrimary,
-                        ),
-                        onSelected: (_) {
-                          setDialogState(() {
-                            customDate = null;
-                            selectedDays = preset.$1;
-                            daysCtrl.text = '${preset.$1}';
-                          });
-                        },
-                      );
-                    }).toList(),
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: daysCtrl,
-                          keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(
-                            labelText: 'Custom Duration (Days)',
-                            suffixText: 'days',
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Select how long the Pro Plan (रू 199) should remain active before expiring:',
+                      style: TextStyle(fontSize: 13, color: AppTheme.textMuted),
+                    ),
+                    const SizedBox(height: 14),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        (7, '7 Days'),
+                        (15, '15 Days'),
+                        (30, '30 Days (1 Mo)'),
+                        (90, '90 Days (3 Mo)'),
+                        (180, '180 Days (6 Mo)'),
+                        (365, '365 Days (1 Yr)'),
+                      ].map((preset) {
+                        final isSelected = customDate == null && selectedDays == preset.$1;
+                        return ChoiceChip(
+                          label: Text(preset.$2),
+                          selected: isSelected,
+                          selectedColor: AppTheme.iconRedLight,
+                          labelStyle: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: isSelected ? AppTheme.iconRedDark : AppTheme.textPrimary,
                           ),
-                          onChanged: (v) {
-                            final parsed = int.tryParse(v.trim());
-                            if (parsed != null && parsed > 0) {
+                          onSelected: (_) {
+                            setDialogState(() {
+                              customDate = null;
+                              selectedDays = preset.$1;
+                              daysCtrl.text = '${preset.$1}';
+                            });
+                          },
+                        );
+                      }).toList(),
+                    ),
+                    const SizedBox(height: 16),
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 10,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        SizedBox(
+                          width: isDialogNarrow ? double.infinity : 220,
+                          child: TextField(
+                            controller: daysCtrl,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(
+                              labelText: 'Custom Duration (Days)',
+                              suffixText: 'days',
+                            ),
+                            onChanged: (v) {
+                              final parsed = int.tryParse(v.trim());
+                              if (parsed != null && parsed > 0) {
+                                setDialogState(() {
+                                  customDate = null;
+                                  selectedDays = parsed;
+                                });
+                              }
+                            },
+                          ),
+                        ),
+                        OutlinedButton.icon(
+                          icon: const Icon(Icons.calendar_today_outlined, size: 15, color: AppTheme.iconRed),
+                          label: const Text('Pick Exact Date', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                          onPressed: () async {
+                            final picked = await showDatePicker(
+                              context: ctx,
+                              initialDate: previewDate,
+                              firstDate: DateTime.now().add(const Duration(days: 1)),
+                              lastDate: DateTime.now().add(const Duration(days: 3650)),
+                            );
+                            if (picked != null) {
                               setDialogState(() {
-                                customDate = null;
-                                selectedDays = parsed;
+                                customDate = DateTime(picked.year, picked.month, picked.day, 23, 59, 59);
                               });
                             }
                           },
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      OutlinedButton.icon(
-                        icon: const Icon(Icons.calendar_today_outlined, size: 15, color: AppTheme.iconRed),
-                        label: const Text('Pick Exact Date', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
-                        onPressed: () async {
-                          final picked = await showDatePicker(
-                            context: ctx,
-                            initialDate: previewDate,
-                            firstDate: DateTime.now().add(const Duration(days: 1)),
-                            lastDate: DateTime.now().add(const Duration(days: 3650)),
-                          );
-                          if (picked != null) {
-                            setDialogState(() {
-                              customDate = DateTime(picked.year, picked.month, picked.day, 23, 59, 59);
-                            });
-                          }
-                        },
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: AppTheme.bgSurface,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: AppTheme.divider),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.event_available_rounded, size: 16, color: AppTheme.iconRed),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Plan will expire on: $previewStr',
-                          style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: AppTheme.textPrimary),
-                        ),
                       ],
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 14),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: AppTheme.bgSurface,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: AppTheme.divider),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.event_available_rounded, size: 16, color: AppTheme.iconRed),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Plan will expire on: $previewStr',
+                              style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: AppTheme.textPrimary),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
             actions: [
@@ -365,164 +374,197 @@ class _AdminPageState extends State<AdminPage> {
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-          backgroundColor: Colors.white,
-          surfaceTintColor: Colors.transparent,
-          title: const Text('Add New Lok Sewa Exam / Post'),
-          content: SizedBox(
-            width: 560,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: idCtrl,
-                          decoration: const InputDecoration(labelText: 'Unique Exam ID (e.g. nbl_l4)'),
-                        ),
+        builder: (ctx, setDialogState) {
+          final isDialogNarrow = MediaQuery.of(ctx).size.width < 560;
+          return AlertDialog(
+            backgroundColor: Colors.white,
+            surfaceTintColor: Colors.transparent,
+            insetPadding: EdgeInsets.symmetric(horizontal: isDialogNarrow ? 14 : 40, vertical: 20),
+            title: const Text('Add New Lok Sewa Exam / Post'),
+            content: SizedBox(
+              width: 560,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (isDialogNarrow) ...[
+                      TextField(
+                        controller: idCtrl,
+                        decoration: const InputDecoration(labelText: 'Unique Exam ID (e.g. nbl_l4)'),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: DropdownButtonFormField<String>(
-                          value: category,
-                          decoration: const InputDecoration(labelText: 'Category'),
-                          items: const [
-                            DropdownMenuItem(value: 'Civil Service', child: Text('Civil Service (निजामती)')),
-                            DropdownMenuItem(value: 'Banking', child: Text('Banking (बैंकिङ)')),
-                            DropdownMenuItem(value: 'IT & Technical', child: Text('IT & Technical (प्राविधिक)')),
-                            DropdownMenuItem(value: 'Sansthan', child: Text('Sansthan (संस्थान)')),
-                          ],
-                          onChanged: (v) => setDialogState(() => category = v!),
-                        ),
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<String>(
+                        value: category,
+                        decoration: const InputDecoration(labelText: 'Category'),
+                        items: const [
+                          DropdownMenuItem(value: 'Civil Service', child: Text('Civil Service (निजामती)')),
+                          DropdownMenuItem(value: 'Banking', child: Text('Banking (बैंकिङ)')),
+                          DropdownMenuItem(value: 'IT & Technical', child: Text('IT & Technical (प्राविधिक)')),
+                          DropdownMenuItem(value: 'Sansthan', child: Text('Sansthan (संस्थान)')),
+                        ],
+                        onChanged: (v) => setDialogState(() => category = v!),
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: titleCtrl,
-                    decoration: const InputDecoration(labelText: 'Exam / Post Title (English) *'),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: titleNpCtrl,
-                    decoration: const InputDecoration(labelText: 'Exam / Post Title (Nepali — नेपाली नाम) *'),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: orgCtrl,
-                          decoration: const InputDecoration(labelText: 'Conducting Organization'),
-                        ),
+                    ] else
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: idCtrl,
+                              decoration: const InputDecoration(labelText: 'Unique Exam ID (e.g. nbl_l4)'),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: DropdownButtonFormField<String>(
+                              value: category,
+                              decoration: const InputDecoration(labelText: 'Category'),
+                              items: const [
+                                DropdownMenuItem(value: 'Civil Service', child: Text('Civil Service (निजामती)')),
+                                DropdownMenuItem(value: 'Banking', child: Text('Banking (बैंकिङ)')),
+                                DropdownMenuItem(value: 'IT & Technical', child: Text('IT & Technical (प्राविधिक)')),
+                                DropdownMenuItem(value: 'Sansthan', child: Text('Sansthan (संस्थान)')),
+                              ],
+                              onChanged: (v) => setDialogState(() => category = v!),
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: TextField(
-                          controller: levelCtrl,
-                          decoration: const InputDecoration(labelText: 'Post Level / Class'),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: descCtrl,
-                    decoration: const InputDecoration(labelText: 'Short Course Description'),
-                    maxLines: 2,
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: schemeCtrl,
-                    decoration: const InputDecoration(labelText: 'Exam Scheme (1 line per paper/stage)'),
-                    maxLines: 3,
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: topicsCtrl,
-                    decoration: const InputDecoration(labelText: 'Core Syllabus Topics (1 line per unit)'),
-                    maxLines: 4,
-                  ),
-                  const SizedBox(height: 12),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: AppTheme.bgSurface,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: AppTheme.divider),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: titleCtrl,
+                      decoration: const InputDecoration(labelText: 'Exam / Post Title (English) *'),
                     ),
-                    child: SwitchListTile(
-                      title: const Text(
-                        'Mark as "Coming Soon" (Not Clickable for Candidates)',
-                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppTheme.textPrimary),
-                      ),
-                      subtitle: Text(
-                        isComingSoon
-                            ? 'Exam will display a COMING SOON badge and remain locked.'
-                            : 'Exam will be LIVE and immediately clickable by candidates.',
-                        style: const TextStyle(fontSize: 11.5, color: AppTheme.textMuted),
-                      ),
-                      activeColor: AppTheme.iconRed,
-                      value: isComingSoon,
-                      onChanged: (v) => setDialogState(() => isComingSoon = v),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: titleNpCtrl,
+                      decoration: const InputDecoration(labelText: 'Exam / Post Title (Nepali — नेपाली नाम) *'),
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 12),
+                    if (isDialogNarrow) ...[
+                      TextField(
+                        controller: orgCtrl,
+                        decoration: const InputDecoration(labelText: 'Conducting Organization'),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: levelCtrl,
+                        decoration: const InputDecoration(labelText: 'Post Level / Class'),
+                      ),
+                    ] else
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: orgCtrl,
+                              decoration: const InputDecoration(labelText: 'Conducting Organization'),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: TextField(
+                              controller: levelCtrl,
+                              decoration: const InputDecoration(labelText: 'Post Level / Class'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: descCtrl,
+                      decoration: const InputDecoration(labelText: 'Short Course Description'),
+                      maxLines: 2,
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: schemeCtrl,
+                      decoration: const InputDecoration(labelText: 'Exam Scheme (1 line per paper/stage)'),
+                      maxLines: 3,
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: topicsCtrl,
+                      decoration: const InputDecoration(labelText: 'Core Syllabus Topics (1 line per unit)'),
+                      maxLines: 4,
+                    ),
+                    const SizedBox(height: 12),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: AppTheme.bgSurface,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: AppTheme.divider),
+                      ),
+                      child: SwitchListTile(
+                        title: const Text(
+                          'Mark as "Coming Soon" (Not Clickable for Candidates)',
+                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppTheme.textPrimary),
+                        ),
+                        subtitle: Text(
+                          isComingSoon
+                              ? 'Exam will display a COMING SOON badge and remain locked.'
+                              : 'Exam will be LIVE and immediately clickable by candidates.',
+                          style: const TextStyle(fontSize: 11.5, color: AppTheme.textMuted),
+                        ),
+                        activeColor: AppTheme.iconRed,
+                        value: isComingSoon,
+                        onChanged: (v) => setDialogState(() => isComingSoon = v),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel', style: TextStyle(color: AppTheme.textMuted))),
-            FilledButton.icon(
-              icon: const Icon(Icons.cloud_upload_outlined, size: 18, color: Colors.white),
-              label: const Text('Save Exam to MongoDB'),
-              style: FilledButton.styleFrom(backgroundColor: AppTheme.iconRed, foregroundColor: Colors.white),
-              onPressed: () async {
-                final token = context.read<AuthProvider>().token ?? '';
-                final schemeList = schemeCtrl.text
-                    .split('\n')
-                    .map((s) => s.trim())
-                    .where((s) => s.isNotEmpty)
-                    .toList();
-                final topicList = topicsCtrl.text
-                    .split('\n')
-                    .map((s) => s.trim())
-                    .where((s) => s.isNotEmpty)
-                    .toList();
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel', style: TextStyle(color: AppTheme.textMuted))),
+              FilledButton.icon(
+                icon: const Icon(Icons.cloud_upload_outlined, size: 18, color: Colors.white),
+                label: const Text('Save Exam to MongoDB'),
+                style: FilledButton.styleFrom(backgroundColor: AppTheme.iconRed, foregroundColor: Colors.white),
+                onPressed: () async {
+                  final token = context.read<AuthProvider>().token ?? '';
+                  final schemeList = schemeCtrl.text
+                      .split('\n')
+                      .map((s) => s.trim())
+                      .where((s) => s.isNotEmpty)
+                      .toList();
+                  final topicList = topicsCtrl.text
+                      .split('\n')
+                      .map((s) => s.trim())
+                      .where((s) => s.isNotEmpty)
+                      .toList();
 
-                final ok = await context.read<QuestionProvider>().addExamToMongo({
-                  'id': idCtrl.text.trim(),
-                  'title': titleCtrl.text.trim(),
-                  'title_nepali': titleNpCtrl.text.trim().isEmpty ? titleCtrl.text.trim() : titleNpCtrl.text.trim(),
-                  'category': category,
-                  'organization': orgCtrl.text.trim(),
-                  'level': levelCtrl.text.trim(),
-                  'description': descCtrl.text.trim(),
-                  'is_coming_soon': isComingSoon,
-                  'exam_scheme': schemeList,
-                  'syllabus_sections': [
-                    {
-                      'title': 'Official Curriculum & Core Units',
-                      'topics': topicList,
-                    }
-                  ],
-                }, token);
+                  final ok = await context.read<QuestionProvider>().addExamToMongo({
+                    'id': idCtrl.text.trim(),
+                    'title': titleCtrl.text.trim(),
+                    'title_nepali': titleNpCtrl.text.trim().isEmpty ? titleCtrl.text.trim() : titleNpCtrl.text.trim(),
+                    'category': category,
+                    'organization': orgCtrl.text.trim(),
+                    'level': levelCtrl.text.trim(),
+                    'description': descCtrl.text.trim(),
+                    'is_coming_soon': isComingSoon,
+                    'exam_scheme': schemeList,
+                    'syllabus_sections': [
+                      {
+                        'title': 'Official Curriculum & Core Units',
+                        'topics': topicList,
+                      }
+                    ],
+                  }, token);
 
-                if (mounted) {
-                  Navigator.pop(ctx);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(ok ? 'New Exam saved to MongoDB Atlas!' : 'Failed to save exam'),
-                      backgroundColor: ok ? AppTheme.primaryColor : AppTheme.iconRed,
-                    ),
-                  );
-                  _fetchAdminStats();
-                }
-              },
-            ),
-          ],
-        ),
+                  if (mounted) {
+                    Navigator.pop(ctx);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(ok ? 'New Exam saved to MongoDB Atlas!' : 'Failed to save exam'),
+                        backgroundColor: ok ? AppTheme.primaryColor : AppTheme.iconRed,
+                      ),
+                    );
+                    _fetchAdminStats();
+                  }
+                },
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -559,210 +601,239 @@ class _AdminPageState extends State<AdminPage> {
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-          backgroundColor: Colors.white,
-          surfaceTintColor: Colors.transparent,
-          title: const Text('Add Question to Exam (MongoDB Atlas)'),
-          content: SizedBox(
-            width: 580,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  DropdownButtonFormField<String>(
-                    value: exams.any((e) => e.id == selectedExamId) ? selectedExamId : (exams.isNotEmpty ? exams.first.id : 'rbb_it_5'),
-                    decoration: const InputDecoration(labelText: 'Select Target Lok Sewa Exam *'),
-                    items: exams
-                        .map((e) => DropdownMenuItem(value: e.id, child: Text('${e.title} (${e.category})')))
-                        .toList(),
-                    onChanged: (v) => setDialogState(() => selectedExamId = v!),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: DropdownButtonFormField<String>(
-                          value: qType,
-                          decoration: const InputDecoration(labelText: 'Question Type'),
-                          items: const [
-                            DropdownMenuItem(value: 'subjective', child: Text('Subjective (Written Q&A)')),
-                            DropdownMenuItem(value: 'mcq', child: Text('Objective MCQ (4 Options)')),
-                          ],
-                          onChanged: (v) => setDialogState(() {
-                            qType = v!;
-                            marks = qType == 'mcq' ? 1 : 5;
-                          }),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: DropdownButtonFormField<String>(
-                          value: paper,
-                          decoration: const InputDecoration(labelText: 'Paper'),
-                          items: const [
-                            DropdownMenuItem(value: 'paper1', child: Text('Paper I')),
-                            DropdownMenuItem(value: 'paper2', child: Text('Paper II')),
-                          ],
-                          onChanged: (v) => setDialogState(() => paper = v!),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: DropdownButtonFormField<int>(
-                          value: unitNum,
-                          decoration: const InputDecoration(labelText: 'Unit No.'),
-                          items: [1, 2, 3, 4, 5, 6]
-                              .map((u) => DropdownMenuItem(value: u, child: Text('Unit $u')))
-                              .toList(),
-                          onChanged: (v) => setDialogState(() => unitNum = v!),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: DropdownButtonFormField<int>(
-                          value: marks,
-                          decoration: const InputDecoration(labelText: 'Marks'),
-                          items: const [
-                            DropdownMenuItem(value: 1, child: Text('1 Mark (MCQ)')),
-                            DropdownMenuItem(value: 2, child: Text('2 Marks (MCQ)')),
-                            DropdownMenuItem(value: 5, child: Text('5 Marks (Short)')),
-                            DropdownMenuItem(value: 10, child: Text('10 Marks (Long)')),
-                          ],
-                          onChanged: (v) => setDialogState(() => marks = v!),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: TextField(
-                          controller: yearCtrl,
-                          decoration: const InputDecoration(labelText: 'Year Asked'),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: unitTitleCtrl,
-                    decoration: const InputDecoration(labelText: 'Unit / Topic Title'),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: qNpCtrl,
-                    decoration: const InputDecoration(labelText: 'Question in Nepali (नेपाली प्रश्न) *'),
-                    maxLines: 2,
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: qEnCtrl,
-                    decoration: const InputDecoration(labelText: 'Question in English *'),
-                    maxLines: 2,
-                  ),
-                  const SizedBox(height: 12),
-                  if (qType == 'subjective') ...[
-                    TextField(
-                      controller: ansNpCtrl,
-                      decoration: const InputDecoration(labelText: 'Model Answer (Nepali — लोकसेवा उत्तर)'),
-                      maxLines: 4,
+        builder: (ctx, setDialogState) {
+          final isDialogNarrow = MediaQuery.of(ctx).size.width < 560;
+          return AlertDialog(
+            backgroundColor: Colors.white,
+            surfaceTintColor: Colors.transparent,
+            insetPadding: EdgeInsets.symmetric(horizontal: isDialogNarrow ? 14 : 40, vertical: 20),
+            title: const Text('Add Question to Exam (MongoDB Atlas)'),
+            content: SizedBox(
+              width: 580,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    DropdownButtonFormField<String>(
+                      isExpanded: true,
+                      value: exams.any((e) => e.id == selectedExamId) ? selectedExamId : (exams.isNotEmpty ? exams.first.id : 'rbb_it_5'),
+                      decoration: const InputDecoration(labelText: 'Select Target Lok Sewa Exam *'),
+                      items: exams
+                          .map((e) => DropdownMenuItem(value: e.id, child: Text('${e.title} (${e.category})', overflow: TextOverflow.ellipsis)))
+                          .toList(),
+                      onChanged: (v) => setDialogState(() => selectedExamId = v!),
                     ),
                     const SizedBox(height: 12),
-                    TextField(
-                      controller: ansEnCtrl,
-                      decoration: const InputDecoration(labelText: 'Model Answer (English)'),
-                      maxLines: 4,
-                    ),
-                  ] else ...[
-                    TextField(controller: optACtrl, decoration: const InputDecoration(labelText: 'Option A')),
-                    const SizedBox(height: 8),
-                    TextField(controller: optBCtrl, decoration: const InputDecoration(labelText: 'Option B')),
-                    const SizedBox(height: 8),
-                    TextField(controller: optCCtrl, decoration: const InputDecoration(labelText: 'Option C')),
-                    const SizedBox(height: 8),
-                    TextField(controller: optDCtrl, decoration: const InputDecoration(labelText: 'Option D')),
+                    if (isDialogNarrow) ...[
+                      DropdownButtonFormField<String>(
+                        value: qType,
+                        decoration: const InputDecoration(labelText: 'Question Type'),
+                        items: const [
+                          DropdownMenuItem(value: 'subjective', child: Text('Subjective (Written Q&A)')),
+                          DropdownMenuItem(value: 'mcq', child: Text('Objective MCQ (4 Options)')),
+                        ],
+                        onChanged: (v) => setDialogState(() {
+                          qType = v!;
+                          marks = qType == 'mcq' ? 1 : 5;
+                        }),
+                      ),
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<String>(
+                        value: paper,
+                        decoration: const InputDecoration(labelText: 'Paper'),
+                        items: const [
+                          DropdownMenuItem(value: 'paper1', child: Text('Paper I')),
+                          DropdownMenuItem(value: 'paper2', child: Text('Paper II')),
+                        ],
+                        onChanged: (v) => setDialogState(() => paper = v!),
+                      ),
+                    ] else
+                      Row(
+                        children: [
+                          Expanded(
+                            child: DropdownButtonFormField<String>(
+                              value: qType,
+                              decoration: const InputDecoration(labelText: 'Question Type'),
+                              items: const [
+                                DropdownMenuItem(value: 'subjective', child: Text('Subjective (Written Q&A)')),
+                                DropdownMenuItem(value: 'mcq', child: Text('Objective MCQ (4 Options)')),
+                              ],
+                              onChanged: (v) => setDialogState(() {
+                                qType = v!;
+                                marks = qType == 'mcq' ? 1 : 5;
+                              }),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: DropdownButtonFormField<String>(
+                              value: paper,
+                              decoration: const InputDecoration(labelText: 'Paper'),
+                              items: const [
+                                DropdownMenuItem(value: 'paper1', child: Text('Paper I')),
+                                DropdownMenuItem(value: 'paper2', child: Text('Paper II')),
+                              ],
+                              onChanged: (v) => setDialogState(() => paper = v!),
+                            ),
+                          ),
+                        ],
+                      ),
                     const SizedBox(height: 12),
-                    DropdownButtonFormField<int>(
-                      value: correctIdx,
-                      decoration: const InputDecoration(labelText: 'Correct Option'),
-                      items: const [
-                        DropdownMenuItem(value: 0, child: Text('Option A')),
-                        DropdownMenuItem(value: 1, child: Text('Option B')),
-                        DropdownMenuItem(value: 2, child: Text('Option C')),
-                        DropdownMenuItem(value: 3, child: Text('Option D')),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: DropdownButtonFormField<int>(
+                            value: unitNum,
+                            decoration: const InputDecoration(labelText: 'Unit No.'),
+                            items: [1, 2, 3, 4, 5, 6]
+                                .map((u) => DropdownMenuItem(value: u, child: Text('Unit $u')))
+                                .toList(),
+                            onChanged: (v) => setDialogState(() => unitNum = v!),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: DropdownButtonFormField<int>(
+                            value: marks,
+                            decoration: const InputDecoration(labelText: 'Marks'),
+                            items: const [
+                              DropdownMenuItem(value: 1, child: Text('1M')),
+                              DropdownMenuItem(value: 2, child: Text('2M')),
+                              DropdownMenuItem(value: 5, child: Text('5M')),
+                              DropdownMenuItem(value: 10, child: Text('10M')),
+                            ],
+                            onChanged: (v) => setDialogState(() => marks = v!),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: TextField(
+                            controller: yearCtrl,
+                            decoration: const InputDecoration(labelText: 'Year Asked'),
+                          ),
+                        ),
                       ],
-                      onChanged: (v) => setDialogState(() => correctIdx = v!),
                     ),
                     const SizedBox(height: 12),
                     TextField(
-                      controller: expCtrl,
-                      decoration: const InputDecoration(labelText: 'Answer Explanation'),
+                      controller: unitTitleCtrl,
+                      decoration: const InputDecoration(labelText: 'Unit / Topic Title'),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: qNpCtrl,
+                      decoration: const InputDecoration(labelText: 'Question in Nepali (नेपाली प्रश्न) *'),
                       maxLines: 2,
                     ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: qEnCtrl,
+                      decoration: const InputDecoration(labelText: 'Question in English *'),
+                      maxLines: 2,
+                    ),
+                    const SizedBox(height: 12),
+                    if (qType == 'subjective') ...[
+                      TextField(
+                        controller: ansNpCtrl,
+                        decoration: const InputDecoration(labelText: 'Model Answer (Nepali — लोकसेवा उत्तर)'),
+                        maxLines: 4,
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: ansEnCtrl,
+                        decoration: const InputDecoration(labelText: 'Model Answer (English)'),
+                        maxLines: 4,
+                      ),
+                    ] else ...[
+                      TextField(controller: optACtrl, decoration: const InputDecoration(labelText: 'Option A')),
+                      const SizedBox(height: 8),
+                      TextField(controller: optBCtrl, decoration: const InputDecoration(labelText: 'Option B')),
+                      const SizedBox(height: 8),
+                      TextField(controller: optCCtrl, decoration: const InputDecoration(labelText: 'Option C')),
+                      const SizedBox(height: 8),
+                      TextField(controller: optDCtrl, decoration: const InputDecoration(labelText: 'Option D')),
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<int>(
+                        value: correctIdx,
+                        decoration: const InputDecoration(labelText: 'Correct Option'),
+                        items: const [
+                          DropdownMenuItem(value: 0, child: Text('Option A')),
+                          DropdownMenuItem(value: 1, child: Text('Option B')),
+                          DropdownMenuItem(value: 2, child: Text('Option C')),
+                          DropdownMenuItem(value: 3, child: Text('Option D')),
+                        ],
+                        onChanged: (v) => setDialogState(() => correctIdx = v!),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: expCtrl,
+                        decoration: const InputDecoration(labelText: 'Answer Explanation'),
+                        maxLines: 2,
+                      ),
+                    ],
+                    const SizedBox(height: 8),
+                    SwitchListTile(
+                      activeColor: AppTheme.iconRed,
+                      title: const Text('Require Paid Subscription (Basic/Premium)'),
+                      value: isPremium,
+                      onChanged: (v) => setDialogState(() => isPremium = v),
+                    ),
                   ],
-                  const SizedBox(height: 8),
-                  SwitchListTile(
-                    activeColor: AppTheme.iconRed,
-                    title: const Text('Require Paid Subscription (Basic/Premium)'),
-                    value: isPremium,
-                    onChanged: (v) => setDialogState(() => isPremium = v),
-                  ),
-                ],
+                ),
               ),
             ),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel', style: TextStyle(color: AppTheme.textMuted))),
-            FilledButton.icon(
-              icon: const Icon(Icons.save_outlined, size: 18, color: Colors.white),
-              label: const Text('Save Question to MongoDB'),
-              style: FilledButton.styleFrom(backgroundColor: AppTheme.iconRed, foregroundColor: Colors.white),
-              onPressed: () async {
-                final token = context.read<AuthProvider>().token ?? '';
-                final payload = <String, dynamic>{
-                  'id': idCtrl.text.trim(),
-                  'exam_id': selectedExamId,
-                  'paper': paper,
-                  'section': section,
-                  'unit_number': unitNum,
-                  'unit_title': unitTitleCtrl.text.trim(),
-                  'marks': marks,
-                  'type': qType,
-                  'years_asked': [yearCtrl.text.trim()],
-                  'question_nepali': qNpCtrl.text.trim(),
-                  'question_english': qEnCtrl.text.trim(),
-                  'is_premium': isPremium,
-                };
-                if (qType == 'subjective') {
-                  payload['answer_nepali'] = ansNpCtrl.text.trim();
-                  payload['answer_english'] = ansEnCtrl.text.trim();
-                } else {
-                  payload['options'] = [
-                    optACtrl.text.trim(),
-                    optBCtrl.text.trim(),
-                    optCCtrl.text.trim(),
-                    optDCtrl.text.trim(),
-                  ];
-                  payload['correct_option_index'] = correctIdx;
-                  payload['explanation'] = expCtrl.text.trim();
-                }
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel', style: TextStyle(color: AppTheme.textMuted))),
+              FilledButton.icon(
+                icon: const Icon(Icons.save_outlined, size: 18, color: Colors.white),
+                label: const Text('Save Question to MongoDB'),
+                style: FilledButton.styleFrom(backgroundColor: AppTheme.iconRed, foregroundColor: Colors.white),
+                onPressed: () async {
+                  final token = context.read<AuthProvider>().token ?? '';
+                  final payload = <String, dynamic>{
+                    'id': idCtrl.text.trim(),
+                    'exam_id': selectedExamId,
+                    'paper': paper,
+                    'section': section,
+                    'unit_number': unitNum,
+                    'unit_title': unitTitleCtrl.text.trim(),
+                    'marks': marks,
+                    'type': qType,
+                    'years_asked': [yearCtrl.text.trim()],
+                    'question_nepali': qNpCtrl.text.trim(),
+                    'question_english': qEnCtrl.text.trim(),
+                    'is_premium': isPremium,
+                  };
+                  if (qType == 'subjective') {
+                    payload['answer_nepali'] = ansNpCtrl.text.trim();
+                    payload['answer_english'] = ansEnCtrl.text.trim();
+                  } else {
+                    payload['options'] = [
+                      optACtrl.text.trim(),
+                      optBCtrl.text.trim(),
+                      optCCtrl.text.trim(),
+                      optDCtrl.text.trim(),
+                    ];
+                    payload['correct_option_index'] = correctIdx;
+                    payload['explanation'] = expCtrl.text.trim();
+                  }
 
-                final ok = await context.read<QuestionProvider>().addQuestionToMongo(payload, token);
-                if (mounted) {
-                  Navigator.pop(ctx);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(ok ? 'Question saved to MongoDB Atlas!' : 'Failed to save question'),
-                      backgroundColor: ok ? AppTheme.primaryColor : AppTheme.iconRed,
-                    ),
-                  );
-                  _fetchAdminStats();
-                }
-              },
-            ),
-          ],
-        ),
+                  final ok = await context.read<QuestionProvider>().addQuestionToMongo(payload, token);
+                  if (mounted) {
+                    Navigator.pop(ctx);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(ok ? 'Question saved to MongoDB Atlas!' : 'Failed to save question'),
+                        backgroundColor: ok ? AppTheme.primaryColor : AppTheme.iconRed,
+                      ),
+                    );
+                    _fetchAdminStats();
+                  }
+                },
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -780,22 +851,29 @@ class _AdminPageState extends State<AdminPage> {
       return Scaffold(
         backgroundColor: Colors.white,
         body: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.lock_outline_rounded, size: 56, color: AppTheme.iconRed),
-              const SizedBox(height: 16),
-              const Text('Admin Access Required', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-              const SizedBox(height: 8),
-              const Text('Please sign in via the dedicated Admin Portal (/admin/adminlogin).', style: TextStyle(color: AppTheme.textMuted)),
-              const SizedBox(height: 16),
-              FilledButton.icon(
-                onPressed: () => GoRouter.of(context).go(AppConstants.routeAdminLogin),
-                icon: const Icon(Icons.admin_panel_settings_outlined, size: 18, color: Colors.white),
-                label: const Text('Go to Admin Login'),
-                style: FilledButton.styleFrom(backgroundColor: AppTheme.iconRed, foregroundColor: Colors.white),
-              ),
-            ],
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.lock_outline_rounded, size: 56, color: AppTheme.iconRed),
+                const SizedBox(height: 16),
+                const Text('Admin Access Required', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+                const SizedBox(height: 8),
+                const Text(
+                  'Please sign in via the dedicated Admin Portal (/admin/adminlogin).',
+                  style: TextStyle(color: AppTheme.textMuted),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                FilledButton.icon(
+                  onPressed: () => GoRouter.of(context).go(AppConstants.routeAdminLogin),
+                  icon: const Icon(Icons.admin_panel_settings_outlined, size: 18, color: Colors.white),
+                  label: const Text('Go to Admin Login'),
+                  style: FilledButton.styleFrom(backgroundColor: AppTheme.iconRed, foregroundColor: Colors.white),
+                ),
+              ],
+            ),
           ),
         ),
       );
@@ -809,10 +887,38 @@ class _AdminPageState extends State<AdminPage> {
       });
     }
 
+    final isMobile = MediaQuery.of(context).size.width < 750;
+    final tabContent = _loadingStats
+        ? const Center(child: CircularProgressIndicator(color: AppTheme.iconRed))
+        : IndexedStack(
+            index: _tab,
+            children: [
+              _AdminOverview(
+                stats: _liveStats,
+                onAddExam: _showAddExamDialog,
+                onAddQuestion: _showAddQuestionDialog,
+                onOpenQrSettings: () => setState(() => _tab = 4),
+                onVerifyPayment: _verifyPayment,
+              ),
+              _ExamsManagerPanel(onAddExam: _showAddExamDialog),
+              _QuestionsManagerPanel(onAddQuestion: _showAddQuestionDialog),
+              _UsersPanel(
+                stats: _liveStats,
+                onUpdatePlan: _updateUserPlan,
+                onVerifyPayment: _verifyPayment,
+                onDeleteUser: _deleteUser,
+              ),
+              const _PaymentQrSettingsPanel(),
+            ],
+          );
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text('LoksewaHero Admin CMS — Multi-Exam & Question Manager'),
+        title: Text(
+          isMobile ? 'LoksewaHero Admin' : 'LoksewaHero Admin CMS — Multi-Exam & Question Manager',
+          style: TextStyle(fontSize: isMobile ? 16 : 18, fontWeight: FontWeight.w800),
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh_rounded, color: AppTheme.iconRed),
@@ -823,61 +929,77 @@ class _AdminPageState extends State<AdminPage> {
             },
           ),
           Padding(
-            padding: const EdgeInsets.only(right: 12),
+            padding: const EdgeInsets.only(right: 10),
             child: OutlinedButton.icon(
-              icon: const Icon(Icons.arrow_back_rounded, color: AppTheme.primaryColor, size: 17),
-              label: const Text('Candidate View', style: TextStyle(color: AppTheme.textPrimary)),
+              icon: const Icon(Icons.arrow_back_rounded, color: AppTheme.primaryColor, size: 16),
+              label: Text(
+                isMobile ? 'App' : 'Candidate View',
+                style: const TextStyle(color: AppTheme.textPrimary, fontSize: 12.5, fontWeight: FontWeight.w700),
+              ),
               onPressed: () => GoRouter.of(context).go(AppConstants.routeDashboard),
               style: OutlinedButton.styleFrom(
                 side: const BorderSide(color: AppTheme.divider),
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                padding: EdgeInsets.symmetric(horizontal: isMobile ? 10 : 14, vertical: 8),
               ),
             ),
           ),
         ],
       ),
-      body: Row(
-        children: [
-          NavigationRail(
-            selectedIndex: _tab,
-            onDestinationSelected: (i) => setState(() => _tab = i),
-            labelType: NavigationRailLabelType.all,
-            destinations: const [
-              NavigationRailDestination(icon: Icon(Icons.dashboard_outlined), selectedIcon: Icon(Icons.dashboard_rounded), label: Text('Overview')),
-              NavigationRailDestination(icon: Icon(Icons.library_books_outlined), selectedIcon: Icon(Icons.library_books_rounded), label: Text('Exams')),
-              NavigationRailDestination(icon: Icon(Icons.quiz_outlined), selectedIcon: Icon(Icons.quiz_rounded), label: Text('Questions')),
-              NavigationRailDestination(icon: Icon(Icons.people_outline), selectedIcon: Icon(Icons.people_rounded), label: Text('Users')),
-              NavigationRailDestination(icon: Icon(Icons.qr_code_scanner_rounded), selectedIcon: Icon(Icons.qr_code_2_rounded), label: Text('QR & Contacts')),
-            ],
-          ),
-          const VerticalDivider(width: 1, color: AppTheme.divider),
-          Expanded(
-            child: _loadingStats
-                ? const Center(child: CircularProgressIndicator(color: AppTheme.iconRed))
-                : IndexedStack(
-                    index: _tab,
-                    children: [
-                      _AdminOverview(
-                        stats: _liveStats,
-                        onAddExam: _showAddExamDialog,
-                        onAddQuestion: _showAddQuestionDialog,
-                        onOpenQrSettings: () => setState(() => _tab = 4),
-                        onVerifyPayment: _verifyPayment,
-                      ),
-                      _ExamsManagerPanel(onAddExam: _showAddExamDialog),
-                      _QuestionsManagerPanel(onAddQuestion: _showAddQuestionDialog),
-                      _UsersPanel(
-                        stats: _liveStats,
-                        onUpdatePlan: _updateUserPlan,
-                        onVerifyPayment: _verifyPayment,
-                        onDeleteUser: _deleteUser,
-                      ),
-                      const _PaymentQrSettingsPanel(),
-                    ],
-                  ),
-          ),
-        ],
-      ),
+      body: isMobile
+          ? tabContent
+          : Row(
+              children: [
+                NavigationRail(
+                  selectedIndex: _tab,
+                  onDestinationSelected: (i) => setState(() => _tab = i),
+                  labelType: NavigationRailLabelType.all,
+                  destinations: const [
+                    NavigationRailDestination(icon: Icon(Icons.dashboard_outlined), selectedIcon: Icon(Icons.dashboard_rounded), label: Text('Overview')),
+                    NavigationRailDestination(icon: Icon(Icons.library_books_outlined), selectedIcon: Icon(Icons.library_books_rounded), label: Text('Exams')),
+                    NavigationRailDestination(icon: Icon(Icons.quiz_outlined), selectedIcon: Icon(Icons.quiz_rounded), label: Text('Questions')),
+                    NavigationRailDestination(icon: Icon(Icons.people_outline), selectedIcon: Icon(Icons.people_rounded), label: Text('Users')),
+                    NavigationRailDestination(icon: Icon(Icons.qr_code_scanner_rounded), selectedIcon: Icon(Icons.qr_code_2_rounded), label: Text('QR & Contacts')),
+                  ],
+                ),
+                const VerticalDivider(width: 1, color: AppTheme.divider),
+                Expanded(child: tabContent),
+              ],
+            ),
+      bottomNavigationBar: isMobile
+          ? NavigationBar(
+              selectedIndex: _tab,
+              onDestinationSelected: (i) => setState(() => _tab = i),
+              backgroundColor: Colors.white,
+              indicatorColor: AppTheme.iconRedLight,
+              destinations: const [
+                NavigationDestination(
+                  icon: Icon(Icons.dashboard_outlined),
+                  selectedIcon: Icon(Icons.dashboard_rounded, color: AppTheme.iconRed),
+                  label: 'Overview',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.library_books_outlined),
+                  selectedIcon: Icon(Icons.library_books_rounded, color: AppTheme.iconRed),
+                  label: 'Exams',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.quiz_outlined),
+                  selectedIcon: Icon(Icons.quiz_rounded, color: AppTheme.iconRed),
+                  label: 'Questions',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.people_outline),
+                  selectedIcon: Icon(Icons.people_rounded, color: AppTheme.iconRed),
+                  label: 'Users',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.qr_code_scanner_rounded),
+                  selectedIcon: Icon(Icons.qr_code_2_rounded, color: AppTheme.iconRed),
+                  label: 'QR Setup',
+                ),
+              ],
+            )
+          : null,
     );
   }
 }
@@ -907,9 +1029,11 @@ class _AdminOverview extends StatelessWidget {
     final recentPayments = (stats?['recentPayments'] as List<dynamic>?) ?? [];
     final pendingPayments = (stats?['pendingPayments'] as List<dynamic>?) ??
         recentPayments.where((p) => p['status'] == 'pending').toList();
+    final screenW = MediaQuery.of(context).size.width;
+    final isMobile = screenW < 650;
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(isMobile ? 14 : 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -931,9 +1055,11 @@ class _AdminOverview extends StatelessWidget {
                   children: [
                     const Icon(Icons.cloud_done_outlined, color: AppTheme.iconRed, size: 20),
                     const SizedBox(width: 10),
-                    Text(
-                      'Database Status: $dbMode',
-                      style: const TextStyle(fontWeight: FontWeight.w700, color: AppTheme.textPrimary, fontSize: 13.5),
+                    Flexible(
+                      child: Text(
+                        'Database Status: $dbMode',
+                        style: const TextStyle(fontWeight: FontWeight.w700, color: AppTheme.textPrimary, fontSize: 13.5),
+                      ),
                     ),
                   ],
                 ),
@@ -966,10 +1092,10 @@ class _AdminOverview extends StatelessWidget {
           GridView.count(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            crossAxisCount: MediaQuery.of(context).size.width > 800 ? 4 : 2,
-            childAspectRatio: 1.65,
-            crossAxisSpacing: 16,
-            mainAxisSpacing: 16,
+            crossAxisCount: screenW > 800 ? 4 : 2,
+            childAspectRatio: isMobile ? 1.42 : 1.65,
+            crossAxisSpacing: isMobile ? 10 : 16,
+            mainAxisSpacing: isMobile ? 10 : 16,
             children: [
               _AdminStatCard('Active Exams', '${qp.exams.length}', Icons.library_books_outlined, true),
               _AdminStatCard('Pending Verifications', '${pendingPayments.length}', Icons.pending_actions_rounded, true),
@@ -980,7 +1106,7 @@ class _AdminOverview extends StatelessWidget {
           const SizedBox(height: 24),
           // Pending Payment Verification Queue
           Container(
-            padding: const EdgeInsets.all(20),
+            padding: EdgeInsets.all(isMobile ? 14 : 20),
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(12),
@@ -996,9 +1122,11 @@ class _AdminOverview extends StatelessWidget {
                   children: [
                     const Icon(Icons.verified_user_outlined, color: AppTheme.iconRed, size: 20),
                     const SizedBox(width: 8),
-                    Text(
-                      'Pending WhatsApp Screenshot Verifications (${pendingPayments.length})',
-                      style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15.5, color: AppTheme.textPrimary),
+                    Expanded(
+                      child: Text(
+                        'Pending WhatsApp Screenshot Verifications (${pendingPayments.length})',
+                        style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15.5, color: AppTheme.textPrimary),
+                      ),
                     ),
                   ],
                 ),
@@ -1037,14 +1165,15 @@ class _AdminOverview extends StatelessWidget {
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Row(
-                                mainAxisSize: MainAxisSize.min,
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 4,
+                                crossAxisAlignment: WrapCrossAlignment.center,
                                 children: [
                                   Text(
                                     '${p['userName']} (${p['userEmail']})',
                                     style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: AppTheme.textPrimary),
                                   ),
-                                  const SizedBox(width: 8),
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                     decoration: BoxDecoration(
@@ -1065,15 +1194,15 @@ class _AdminOverview extends StatelessWidget {
                               ),
                             ],
                           ),
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
                             children: [
                               OutlinedButton.icon(
                                 onPressed: () => onVerifyPayment(payId, 'reject'),
                                 icon: const Icon(Icons.close_rounded, size: 15, color: AppTheme.iconRed),
                                 label: const Text('Reject', style: TextStyle(fontSize: 12, color: AppTheme.iconRed, fontWeight: FontWeight.w700)),
                               ),
-                              const SizedBox(width: 8),
                               FilledButton.icon(
                                 onPressed: () => onVerifyPayment(payId, 'approve'),
                                 icon: const Icon(Icons.check_circle_outline_rounded, size: 16, color: Colors.white),
@@ -1094,7 +1223,7 @@ class _AdminOverview extends StatelessWidget {
           ),
           const SizedBox(height: 20),
           Container(
-            padding: const EdgeInsets.all(20),
+            padding: EdgeInsets.all(isMobile ? 14 : 20),
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(12),
@@ -1156,8 +1285,9 @@ class _AdminStatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isNarrow = MediaQuery.of(context).size.width < 480;
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(isNarrow ? 12 : 16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -1167,10 +1297,20 @@ class _AdminStatCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, color: isRed ? AppTheme.iconRed : AppTheme.primaryColor, size: 22),
-          const SizedBox(height: 8),
-          Text(value, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: AppTheme.textPrimary)),
-          Text(label, style: const TextStyle(color: AppTheme.textMuted, fontSize: 11.5)),
+          Icon(icon, color: isRed ? AppTheme.iconRed : AppTheme.primaryColor, size: isNarrow ? 20 : 22),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(fontSize: isNarrow ? 19 : 22, fontWeight: FontWeight.w800, color: AppTheme.textPrimary),
+          ),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(color: AppTheme.textMuted, fontSize: 11.5),
+          ),
         ],
       ),
     );
@@ -1186,19 +1326,23 @@ class _ExamsManagerPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final qp = context.watch<QuestionProvider>();
     final token = context.read<AuthProvider>().token ?? '';
+    final isMobile = MediaQuery.of(context).size.width < 650;
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(isMobile ? 14 : 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          Wrap(
+            spacing: 12,
+            runSpacing: 10,
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               Text(
                 'Lok Sewa Exam Courses (${qp.exams.length})',
-                style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w800, color: AppTheme.textPrimary),
+                style: TextStyle(fontSize: isMobile ? 18 : 21, fontWeight: FontWeight.w800, color: AppTheme.textPrimary),
               ),
-              const Spacer(),
               FilledButton.icon(
                 onPressed: onAddExam,
                 icon: const Icon(Icons.add_rounded, size: 18, color: Colors.white),
@@ -1218,6 +1362,7 @@ class _ExamsManagerPanel extends StatelessWidget {
             final isComingSoon = exam.isComingSoon;
             return Container(
               margin: const EdgeInsets.only(bottom: 12),
+              padding: EdgeInsets.symmetric(horizontal: isMobile ? 14 : 20, vertical: 14),
               decoration: BoxDecoration(
                 color: isComingSoon ? AppTheme.bgSurface : Colors.white,
                 borderRadius: BorderRadius.circular(12),
@@ -1226,134 +1371,143 @@ class _ExamsManagerPanel extends StatelessWidget {
                   width: isComingSoon ? 1.0 : 1.5,
                 ),
               ),
-              child: ListTile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                leading: Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: isComingSoon ? Colors.white : AppTheme.iconRedLight,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: isComingSoon ? AppTheme.divider : AppTheme.iconRed.withOpacity(0.25)),
-                  ),
-                  child: Icon(
-                    isComingSoon ? Icons.lock_clock_outlined : Icons.library_books_outlined,
-                    color: isComingSoon ? AppTheme.textMuted : AppTheme.iconRed,
-                    size: 20,
-                  ),
-                ),
-                title: Wrap(
-                  spacing: 10,
-                  runSpacing: 6,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    Text(
-                      '${exam.title}  •  [${exam.category}]',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 14.5,
-                        color: isComingSoon ? AppTheme.textBody : AppTheme.textPrimary,
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: isComingSoon ? Colors.white : AppTheme.iconRedLight,
-                        borderRadius: BorderRadius.circular(5),
-                        border: Border.all(
-                          color: isComingSoon ? AppTheme.divider : AppTheme.iconRed.withOpacity(0.35),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            isComingSoon ? Icons.lock_outline_rounded : Icons.check_circle_rounded,
-                            size: 12,
-                            color: isComingSoon ? AppTheme.textMuted : AppTheme.iconRed,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            isComingSoon ? 'COMING SOON (LOCKED)' : 'LIVE & CLICKABLE',
-                            style: TextStyle(
-                              fontSize: 10.5,
-                              fontWeight: FontWeight.w800,
-                              color: isComingSoon ? AppTheme.textMuted : AppTheme.iconRed,
-                              letterSpacing: 0.4,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                subtitle: Padding(
-                  padding: const EdgeInsets.only(top: 4),
-                  child: Column(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(exam.titleNepali, style: const TextStyle(fontSize: 12.5, color: AppTheme.textBody)),
-                      Text(
-                        'ID: ${exam.id} • ${exam.organization} • ${exam.level} • $qCount Questions',
-                        style: const TextStyle(fontSize: 11.5, color: AppTheme.textMuted),
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: isComingSoon ? Colors.white : AppTheme.iconRedLight,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: isComingSoon ? AppTheme.divider : AppTheme.iconRed.withOpacity(0.25)),
+                        ),
+                        child: Icon(
+                          isComingSoon ? Icons.lock_clock_outlined : Icons.library_books_outlined,
+                          color: isComingSoon ? AppTheme.textMuted : AppTheme.iconRed,
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Wrap(
+                              spacing: 10,
+                              runSpacing: 6,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              children: [
+                                Text(
+                                  '${exam.title}  •  [${exam.category}]',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 14.5,
+                                    color: isComingSoon ? AppTheme.textBody : AppTheme.textPrimary,
+                                  ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: isComingSoon ? Colors.white : AppTheme.iconRedLight,
+                                    borderRadius: BorderRadius.circular(5),
+                                    border: Border.all(
+                                      color: isComingSoon ? AppTheme.divider : AppTheme.iconRed.withOpacity(0.35),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        isComingSoon ? Icons.lock_outline_rounded : Icons.check_circle_rounded,
+                                        size: 12,
+                                        color: isComingSoon ? AppTheme.textMuted : AppTheme.iconRed,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        isComingSoon ? 'COMING SOON (LOCKED)' : 'LIVE & CLICKABLE',
+                                        style: TextStyle(
+                                          fontSize: 10.5,
+                                          fontWeight: FontWeight.w800,
+                                          color: isComingSoon ? AppTheme.textMuted : AppTheme.iconRed,
+                                          letterSpacing: 0.4,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Text(exam.titleNepali, style: const TextStyle(fontSize: 12.5, color: AppTheme.textBody)),
+                            Text(
+                              'ID: ${exam.id} • ${exam.organization} • ${exam.level} • $qCount Questions',
+                              style: const TextStyle(fontSize: 11.5, color: AppTheme.textMuted),
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),
-                ),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    OutlinedButton.icon(
-                      onPressed: () async {
-                        final newStatus = !isComingSoon;
-                        final ok = await qp.toggleExamComingSoon(exam.id, newStatus, token);
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                ok
-                                    ? '${exam.title} is now ${newStatus ? "COMING SOON (Not Clickable)" : "LIVE (Clickable)"}!'
-                                    : 'Failed to update exam status',
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      OutlinedButton.icon(
+                        onPressed: () async {
+                          final newStatus = !isComingSoon;
+                          final ok = await qp.toggleExamComingSoon(exam.id, newStatus, token);
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  ok
+                                      ? '${exam.title} is now ${newStatus ? "COMING SOON (Not Clickable)" : "LIVE (Clickable)"}!'
+                                      : 'Failed to update exam status',
+                                ),
+                                backgroundColor: ok ? AppTheme.primaryColor : AppTheme.iconRed,
                               ),
-                              backgroundColor: ok ? AppTheme.primaryColor : AppTheme.iconRed,
-                            ),
-                          );
-                        }
-                      },
-                      icon: Icon(
-                        isComingSoon ? Icons.rocket_launch_outlined : Icons.pause_circle_outline_rounded,
-                        size: 15,
-                        color: isComingSoon ? AppTheme.iconRed : AppTheme.textPrimary,
-                      ),
-                      label: Text(
-                        isComingSoon ? 'Make Live' : 'Set Coming Soon',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
+                            );
+                          }
+                        },
+                        icon: Icon(
+                          isComingSoon ? Icons.rocket_launch_outlined : Icons.pause_circle_outline_rounded,
+                          size: 15,
                           color: isComingSoon ? AppTheme.iconRed : AppTheme.textPrimary,
                         ),
-                      ),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        side: BorderSide(
-                          color: isComingSoon ? AppTheme.iconRed : AppTheme.divider,
+                        label: Text(
+                          isComingSoon ? 'Make Live' : 'Set Coming Soon',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: isComingSoon ? AppTheme.iconRed : AppTheme.textPrimary,
+                          ),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          side: BorderSide(
+                            color: isComingSoon ? AppTheme.iconRed : AppTheme.divider,
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    IconButton(
-                      icon: const Icon(Icons.delete_outline_rounded, color: AppTheme.iconRed),
-                      tooltip: 'Delete Exam from MongoDB',
-                      onPressed: () async {
-                        final ok = await qp.deleteExamFromMongo(exam.id, token);
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text(ok ? 'Deleted exam ${exam.title}' : 'Failed to delete exam')),
-                          );
-                        }
-                      },
-                    ),
-                  ],
-                ),
+                      const SizedBox(width: 8),
+                      IconButton(
+                        icon: const Icon(Icons.delete_outline_rounded, color: AppTheme.iconRed),
+                        tooltip: 'Delete Exam from MongoDB',
+                        onPressed: () async {
+                          final ok = await qp.deleteExamFromMongo(exam.id, token);
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text(ok ? 'Deleted exam ${exam.title}' : 'Failed to delete exam')),
+                            );
+                          }
+                        },
+                      ),
+                    ],
+                  ),
+                ],
               ),
             );
           }),
@@ -1372,37 +1526,47 @@ class _QuestionsManagerPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final qp = context.watch<QuestionProvider>();
     final token = context.read<AuthProvider>().token ?? '';
+    final isMobile = MediaQuery.of(context).size.width < 650;
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(isMobile ? 14 : 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          Wrap(
+            spacing: 12,
+            runSpacing: 10,
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               Text(
                 'Question Bank (${qp.questions.length} shown)',
-                style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w800, color: AppTheme.textPrimary),
+                style: TextStyle(fontSize: isMobile ? 18 : 21, fontWeight: FontWeight.w800, color: AppTheme.textPrimary),
               ),
-              const Spacer(),
-              DropdownButton<String>(
-                value: qp.exams.any((e) => e.id == qp.selectedExamId) || qp.selectedExamId == 'all'
-                    ? qp.selectedExamId
-                    : 'all',
-                items: [
-                  const DropdownMenuItem(value: 'all', child: Text('Filter: All Exams')),
-                  ...qp.exams.map((e) => DropdownMenuItem(value: e.id, child: Text(e.title))),
+              Wrap(
+                spacing: 10,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  DropdownButton<String>(
+                    value: qp.exams.any((e) => e.id == qp.selectedExamId) || qp.selectedExamId == 'all'
+                        ? qp.selectedExamId
+                        : 'all',
+                    items: [
+                      const DropdownMenuItem(value: 'all', child: Text('Filter: All Exams')),
+                      ...qp.exams.map((e) => DropdownMenuItem(value: e.id, child: Text(e.title))),
+                    ],
+                    onChanged: (v) {
+                      if (v != null) qp.selectExam(v);
+                    },
+                  ),
+                  FilledButton.icon(
+                    icon: const Icon(Icons.add_rounded, size: 16, color: Colors.white),
+                    label: const Text('Add Question'),
+                    style: FilledButton.styleFrom(backgroundColor: AppTheme.iconRed, foregroundColor: Colors.white),
+                    onPressed: onAddQuestion,
+                  ),
                 ],
-                onChanged: (v) {
-                  if (v != null) qp.selectExam(v);
-                },
-              ),
-              const SizedBox(width: 12),
-              FilledButton.icon(
-                icon: const Icon(Icons.add_rounded, size: 16, color: Colors.white),
-                label: const Text('Add Question'),
-                style: FilledButton.styleFrom(backgroundColor: AppTheme.iconRed, foregroundColor: Colors.white),
-                onPressed: onAddQuestion,
               ),
             ],
           ),
@@ -1439,7 +1603,7 @@ class _QuestionsManagerPanel extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   if (q.isPremium) const Icon(Icons.lock_outline_rounded, size: 15, color: AppTheme.iconRed),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 4),
                   IconButton(
                     icon: const Icon(Icons.delete_outline_rounded, size: 18, color: AppTheme.iconRed),
                     tooltip: 'Delete from MongoDB',
@@ -1481,15 +1645,16 @@ class _UsersPanel extends StatelessWidget {
     final recentPayments = (stats?['recentPayments'] as List<dynamic>?) ?? [];
     final pendingPayments = (stats?['pendingPayments'] as List<dynamic>?) ??
         recentPayments.where((p) => p['status'] == 'pending').toList();
+    final isMobile = MediaQuery.of(context).size.width < 650;
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(isMobile ? 14 : 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'MongoDB User & Subscription Management',
-            style: TextStyle(fontSize: 21, fontWeight: FontWeight.w800, color: AppTheme.textPrimary),
+            style: TextStyle(fontSize: isMobile ? 18 : 21, fontWeight: FontWeight.w800, color: AppTheme.textPrimary),
           ),
           const SizedBox(height: 6),
           const Text(
@@ -1499,7 +1664,7 @@ class _UsersPanel extends StatelessWidget {
           if (pendingPayments.isNotEmpty) ...[
             const SizedBox(height: 20),
             Container(
-              padding: const EdgeInsets.all(18),
+              padding: EdgeInsets.all(isMobile ? 14 : 18),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(12),
@@ -1512,9 +1677,11 @@ class _UsersPanel extends StatelessWidget {
                     children: [
                       const Icon(Icons.pending_actions_rounded, color: AppTheme.iconRed, size: 20),
                       const SizedBox(width: 8),
-                      Text(
-                        'Pending Payment Verifications (${pendingPayments.length})',
-                        style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: AppTheme.textPrimary),
+                      Expanded(
+                        child: Text(
+                          'Pending Payment Verifications (${pendingPayments.length})',
+                          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: AppTheme.textPrimary),
+                        ),
                       ),
                     ],
                   ),
@@ -1523,26 +1690,32 @@ class _UsersPanel extends StatelessWidget {
                     final payId = p['_id']?.toString() ?? '';
                     final planName = (p['plan']?.toString() ?? 'basic').toUpperCase();
                     return Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: Row(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: Wrap(
+                        spacing: 10,
+                        runSpacing: 8,
+                        alignment: WrapAlignment.spaceBetween,
+                        crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
-                          Expanded(
-                            child: Text(
-                              '${p['userName']} (${p['userEmail']}) • Requested: $planName (रू ${p['amount']}) via ${p['method']?.toString().toUpperCase()} — "${p['transactionRef']}"',
-                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.textPrimary),
-                            ),
+                          Text(
+                            '${p['userName']} (${p['userEmail']}) • Requested: $planName (रू ${p['amount']}) via ${p['method']?.toString().toUpperCase()} — "${p['transactionRef']}"',
+                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.textPrimary),
                           ),
-                          const SizedBox(width: 8),
-                          OutlinedButton(
-                            onPressed: () => onVerifyPayment(payId, 'reject'),
-                            child: const Text('Reject', style: TextStyle(fontSize: 12, color: AppTheme.iconRed)),
-                          ),
-                          const SizedBox(width: 8),
-                          FilledButton.icon(
-                            onPressed: () => onVerifyPayment(payId, 'approve'),
-                            icon: const Icon(Icons.check_circle_outline_rounded, size: 15, color: Colors.white),
-                            label: Text('Verify & Activate $planName', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
-                            style: FilledButton.styleFrom(backgroundColor: AppTheme.iconRed, foregroundColor: Colors.white),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              OutlinedButton(
+                                onPressed: () => onVerifyPayment(payId, 'reject'),
+                                child: const Text('Reject', style: TextStyle(fontSize: 12, color: AppTheme.iconRed)),
+                              ),
+                              FilledButton.icon(
+                                onPressed: () => onVerifyPayment(payId, 'approve'),
+                                icon: const Icon(Icons.check_circle_outline_rounded, size: 15, color: Colors.white),
+                                label: Text('Verify & Activate $planName', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                                style: FilledButton.styleFrom(backgroundColor: AppTheme.iconRed, foregroundColor: Colors.white),
+                              ),
+                            ],
                           ),
                         ],
                       ),
@@ -1569,7 +1742,7 @@ class _UsersPanel extends StatelessWidget {
             }
             return Container(
               margin: const EdgeInsets.only(bottom: 10),
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+              padding: EdgeInsets.symmetric(horizontal: isMobile ? 14 : 20, vertical: 14),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(12),
@@ -1597,62 +1770,63 @@ class _UsersPanel extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 14),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                uName,
-                                style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14.5, color: AppTheme.textPrimary),
-                              ),
-                              const SizedBox(width: 8),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: isAdminUser ? AppTheme.primaryColor : AppTheme.bgSurface,
-                                  borderRadius: BorderRadius.circular(5),
-                                  border: Border.all(color: AppTheme.divider),
+                      Flexible(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 4,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              children: [
+                                Text(
+                                  uName,
+                                  style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14.5, color: AppTheme.textPrimary),
                                 ),
-                                child: Text(
-                                  isAdminUser ? 'ADMIN' : 'CANDIDATE',
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w800,
-                                    color: isAdminUser ? Colors.white : AppTheme.textMuted,
-                                  ),
-                                ),
-                              ),
-                              if (expiryText != null) ...[
-                                const SizedBox(width: 8),
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                   decoration: BoxDecoration(
-                                    color: AppTheme.iconRedLight,
+                                    color: isAdminUser ? AppTheme.primaryColor : AppTheme.bgSurface,
                                     borderRadius: BorderRadius.circular(5),
-                                    border: Border.all(color: AppTheme.iconRed.withOpacity(0.3)),
+                                    border: Border.all(color: AppTheme.divider),
                                   ),
                                   child: Text(
-                                    'Expires: $expiryText',
-                                    style: const TextStyle(
-                                      fontSize: 10.5,
-                                      fontWeight: FontWeight.w700,
-                                      color: AppTheme.iconRed,
+                                    isAdminUser ? 'ADMIN' : 'CANDIDATE',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w800,
+                                      color: isAdminUser ? Colors.white : AppTheme.textMuted,
                                     ),
                                   ),
                                 ),
+                                if (expiryText != null)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: AppTheme.iconRedLight,
+                                      borderRadius: BorderRadius.circular(5),
+                                      border: Border.all(color: AppTheme.iconRed.withOpacity(0.3)),
+                                    ),
+                                    child: Text(
+                                      'Expires: $expiryText',
+                                      style: const TextStyle(
+                                        fontSize: 10.5,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppTheme.iconRed,
+                                      ),
+                                    ),
+                                  ),
                               ],
-                            ],
-                          ),
-                          const SizedBox(height: 3),
-                          Text(uEmail, style: const TextStyle(fontSize: 12.5, color: AppTheme.textMuted)),
-                        ],
+                            ),
+                            const SizedBox(height: 3),
+                            Text(uEmail, style: const TextStyle(fontSize: 12.5, color: AppTheme.textMuted)),
+                          ],
+                        ),
                       ),
                     ],
                   ),
                   Wrap(
-                    spacing: 12,
+                    spacing: 10,
                     runSpacing: 8,
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
@@ -1912,32 +2086,244 @@ class _PaymentQrSettingsPanelState extends State<_PaymentQrSettingsPanel> {
     });
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
+  Widget _buildPaymentQrCard(bool isMobile) {
+    return Container(
+      padding: EdgeInsets.all(isMobile ? 16 : 20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppTheme.divider),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.qr_code_2_rounded, color: AppTheme.primaryColor, size: 20),
+                  SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      '1. Payment QR Code (eSewa / Khalti / FonePay / Bank)',
+                      style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14.5),
+                    ),
+                  ),
+                ],
+              ),
+              FilledButton.icon(
+                onPressed: _uploadingPaymentQr
+                    ? null
+                    : () => _pickAndUploadToCloudinary(
+                          targetField: 'paymentQrUrl',
+                          controller: _paymentQrCtrl,
+                          isPaymentQr: true,
+                        ),
+                icon: _uploadingPaymentQr
+                    ? const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Icon(Icons.cloud_upload_rounded, size: 15, color: Colors.white),
+                label: Text(
+                  _uploadingPaymentQr ? 'Uploading...' : 'Upload to Cloudinary',
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                ),
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppTheme.primaryColor,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                ),
+              ),
+            ],
+          ),
+          const Divider(height: 20, color: AppTheme.divider),
           Row(
             children: [
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Payment QR, WhatsApp Verification QR & Contact Settings',
-                      style: TextStyle(fontSize: 21, fontWeight: FontWeight.w800, color: AppTheme.textPrimary),
+              Container(
+                width: isMobile ? 96 : 120,
+                height: isMobile ? 96 : 120,
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppTheme.divider),
+                ),
+                child: Image.network(
+                  _paymentQrCtrl.text,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) => const Icon(Icons.qr_code_2_rounded, size: 54),
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: TextField(
+                  controller: _paymentQrCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Payment QR Image URL (Cloudinary / Direct URL)',
+                    helperText: 'Upload to Cloudinary or paste URL',
+                  ),
+                  onChanged: (_) => setState(() {}),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWhatsappQrCard(bool isMobile) {
+    return Container(
+      padding: EdgeInsets.all(isMobile ? 16 : 20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppTheme.iconRed.withOpacity(0.45)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.chat_bubble_outline_rounded, color: AppTheme.iconRed, size: 19),
+                  SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      '2. WhatsApp Verification QR & Number',
+                      style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14.5, color: AppTheme.textPrimary),
                     ),
-                    SizedBox(height: 4),
-                    Text(
-                      'Upload QR images directly to Cloudinary (cloud: rajeevyadav) or configure Wallets, Bank Account & WhatsApp Contacts.',
-                      style: TextStyle(color: AppTheme.textMuted, fontSize: 13),
+                  ),
+                ],
+              ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextButton.icon(
+                    onPressed: _autoGenerateWhatsappQr,
+                    icon: const Icon(Icons.auto_fix_high_rounded, size: 15, color: AppTheme.iconRed),
+                    label: const Text('Auto-QR', style: TextStyle(fontSize: 11.5, color: AppTheme.iconRed, fontWeight: FontWeight.w700)),
+                  ),
+                  const SizedBox(width: 4),
+                  FilledButton.icon(
+                    onPressed: _uploadingWhatsappQr
+                        ? null
+                        : () => _pickAndUploadToCloudinary(
+                              targetField: 'whatsappQrUrl',
+                              controller: _whatsappQrCtrl,
+                              isPaymentQr: false,
+                            ),
+                    icon: _uploadingWhatsappQr
+                        ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          )
+                        : const Icon(Icons.cloud_upload_rounded, size: 15, color: Colors.white),
+                    label: Text(
+                      _uploadingWhatsappQr ? 'Uploading...' : 'Upload to Cloudinary',
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                    ),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppTheme.iconRed,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const Divider(height: 20, color: AppTheme.divider),
+          Row(
+            children: [
+              Container(
+                width: isMobile ? 96 : 120,
+                height: isMobile ? 96 : 120,
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppTheme.divider),
+                ),
+                child: Image.network(
+                  _whatsappQrCtrl.text,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) => const Icon(Icons.qr_code_rounded, size: 54, color: AppTheme.iconRed),
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  children: [
+                    TextField(
+                      controller: _whatsappNumCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Official WhatsApp Number',
+                        prefixIcon: Icon(Icons.phone_outlined, size: 18, color: AppTheme.iconRed),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: _whatsappQrCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'WhatsApp QR Image URL',
+                      ),
+                      onChanged: (_) => setState(() {}),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(width: 16),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final screenW = MediaQuery.of(context).size.width;
+    final isMobile = screenW < 780;
+
+    return SingleChildScrollView(
+      padding: EdgeInsets.all(isMobile ? 14 : 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 16,
+            runSpacing: 12,
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Payment QR, WhatsApp Verification QR & Contact Settings',
+                    style: TextStyle(fontSize: isMobile ? 18 : 21, fontWeight: FontWeight.w800, color: AppTheme.textPrimary),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Upload QR images directly to Cloudinary (cloud: rajeevyadav) or configure Wallets, Bank Account & WhatsApp Contacts.',
+                    style: TextStyle(color: AppTheme.textMuted, fontSize: 13),
+                  ),
+                ],
+              ),
               FilledButton.icon(
                 onPressed: _saving ? null : _saveSettings,
                 icon: _saving
@@ -1953,204 +2339,24 @@ class _PaymentQrSettingsPanelState extends State<_PaymentQrSettingsPanel> {
             ],
           ),
           const SizedBox(height: 24),
-          // Live QR Previews Row
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppTheme.divider),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          const Icon(Icons.qr_code_2_rounded, color: AppTheme.primaryColor, size: 20),
-                          const SizedBox(width: 8),
-                          const Expanded(
-                            child: Text(
-                              '1. Payment QR Code (eSewa / Khalti / FonePay / Bank)',
-                              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14.5),
-                            ),
-                          ),
-                          FilledButton.icon(
-                            onPressed: _uploadingPaymentQr
-                                ? null
-                                : () => _pickAndUploadToCloudinary(
-                                      targetField: 'paymentQrUrl',
-                                      controller: _paymentQrCtrl,
-                                      isPaymentQr: true,
-                                    ),
-                            icon: _uploadingPaymentQr
-                                ? const SizedBox(
-                                    width: 14,
-                                    height: 14,
-                                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                                  )
-                                : const Icon(Icons.cloud_upload_rounded, size: 15, color: Colors.white),
-                            label: Text(
-                              _uploadingPaymentQr ? 'Uploading...' : 'Upload to Cloudinary',
-                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
-                            ),
-                            style: FilledButton.styleFrom(
-                              backgroundColor: AppTheme.primaryColor,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const Divider(height: 20, color: AppTheme.divider),
-                      Row(
-                        children: [
-                          Container(
-                            width: 120,
-                            height: 120,
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: AppTheme.divider),
-                            ),
-                            child: Image.network(
-                              _paymentQrCtrl.text,
-                              fit: BoxFit.contain,
-                              errorBuilder: (_, __, ___) => const Icon(Icons.qr_code_2_rounded, size: 64),
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              children: [
-                                TextField(
-                                  controller: _paymentQrCtrl,
-                                  decoration: const InputDecoration(
-                                    labelText: 'Payment QR Image URL (Cloudinary / Direct URL)',
-                                    helperText: 'Click "Upload to Cloudinary" above or paste an image URL',
-                                  ),
-                                  onChanged: (_) => setState(() {}),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppTheme.iconRed.withOpacity(0.45)),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          const Icon(Icons.chat_bubble_outline_rounded, color: AppTheme.iconRed, size: 19),
-                          const SizedBox(width: 8),
-                          const Expanded(
-                            child: Text(
-                              '2. WhatsApp Verification QR & Number',
-                              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14.5, color: AppTheme.textPrimary),
-                            ),
-                          ),
-                          TextButton.icon(
-                            onPressed: _autoGenerateWhatsappQr,
-                            icon: const Icon(Icons.auto_fix_high_rounded, size: 15, color: AppTheme.iconRed),
-                            label: const Text('Auto-QR', style: TextStyle(fontSize: 11.5, color: AppTheme.iconRed, fontWeight: FontWeight.w700)),
-                          ),
-                          const SizedBox(width: 6),
-                          FilledButton.icon(
-                            onPressed: _uploadingWhatsappQr
-                                ? null
-                                : () => _pickAndUploadToCloudinary(
-                                      targetField: 'whatsappQrUrl',
-                                      controller: _whatsappQrCtrl,
-                                      isPaymentQr: false,
-                                    ),
-                            icon: _uploadingWhatsappQr
-                                ? const SizedBox(
-                                    width: 14,
-                                    height: 14,
-                                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                                  )
-                                : const Icon(Icons.cloud_upload_rounded, size: 15, color: Colors.white),
-                            label: Text(
-                              _uploadingWhatsappQr ? 'Uploading...' : 'Upload to Cloudinary',
-                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
-                            ),
-                            style: FilledButton.styleFrom(
-                              backgroundColor: AppTheme.iconRed,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const Divider(height: 20, color: AppTheme.divider),
-                      Row(
-                        children: [
-                          Container(
-                            width: 120,
-                            height: 120,
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: AppTheme.divider),
-                            ),
-                            child: Image.network(
-                              _whatsappQrCtrl.text,
-                              fit: BoxFit.contain,
-                              errorBuilder: (_, __, ___) => const Icon(Icons.qr_code_rounded, size: 64, color: AppTheme.iconRed),
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              children: [
-                                TextField(
-                                  controller: _whatsappNumCtrl,
-                                  decoration: const InputDecoration(
-                                    labelText: 'Official WhatsApp Number (for Screenshot)',
-                                    prefixIcon: Icon(Icons.phone_outlined, size: 18, color: AppTheme.iconRed),
-                                  ),
-                                ),
-                                const SizedBox(height: 10),
-                                TextField(
-                                  controller: _whatsappQrCtrl,
-                                  decoration: const InputDecoration(
-                                    labelText: 'WhatsApp QR Image URL (Cloudinary / Auto-QR)',
-                                  ),
-                                  onChanged: (_) => setState(() {}),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
+          // Live QR Previews
+          if (isMobile) ...[
+            _buildPaymentQrCard(true),
+            const SizedBox(height: 16),
+            _buildWhatsappQrCard(true),
+          ] else
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(child: _buildPaymentQrCard(false)),
+                const SizedBox(width: 16),
+                Expanded(child: _buildWhatsappQrCard(false)),
+              ],
+            ),
           const SizedBox(height: 20),
           // Wallet, Bank & Contact Fields
           Container(
-            padding: const EdgeInsets.all(22),
+            padding: EdgeInsets.all(isMobile ? 16 : 22),
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(12),
@@ -2163,98 +2369,160 @@ class _PaymentQrSettingsPanelState extends State<_PaymentQrSettingsPanel> {
                   children: [
                     Icon(Icons.account_balance_wallet_outlined, color: AppTheme.iconRed, size: 20),
                     SizedBox(width: 8),
-                    Text('Digital Wallets, Bank Account & Support Contacts', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+                    Expanded(
+                      child: Text(
+                        'Digital Wallets, Bank Account & Support Contacts',
+                        style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
+                      ),
+                    ),
                   ],
                 ),
                 const Divider(height: 22, color: AppTheme.divider),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _esewaCtrl,
-                        decoration: const InputDecoration(labelText: 'eSewa Wallet ID / Number'),
+                if (isMobile) ...[
+                  TextField(
+                    controller: _esewaCtrl,
+                    decoration: const InputDecoration(labelText: 'eSewa Wallet ID / Number'),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _khaltiCtrl,
+                    decoration: const InputDecoration(labelText: 'Khalti Wallet ID / Number'),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _fonepayCtrl,
+                    decoration: const InputDecoration(labelText: 'FonePay Merchant Name'),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _bankNameCtrl,
+                    decoration: const InputDecoration(labelText: 'Bank Name'),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _bankAccNameCtrl,
+                    decoration: const InputDecoration(labelText: 'Bank Account Holder Name'),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _bankAccNumCtrl,
+                    decoration: const InputDecoration(labelText: 'Bank Account Number'),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _bankBranchCtrl,
+                    decoration: const InputDecoration(labelText: 'Bank Branch'),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _whatsappLinkCtrl,
+                    decoration: const InputDecoration(labelText: 'WhatsApp Direct Chat Link (wa.me/...)'),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _emailCtrl,
+                    decoration: const InputDecoration(labelText: 'Support Email Address'),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _phoneCtrl,
+                    decoration: const InputDecoration(labelText: 'Support Phone / Helpline'),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _addressCtrl,
+                    decoration: const InputDecoration(labelText: 'Office Location / Address'),
+                  ),
+                ] else ...[
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _esewaCtrl,
+                          decoration: const InputDecoration(labelText: 'eSewa Wallet ID / Number'),
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: TextField(
-                        controller: _khaltiCtrl,
-                        decoration: const InputDecoration(labelText: 'Khalti Wallet ID / Number'),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: TextField(
+                          controller: _khaltiCtrl,
+                          decoration: const InputDecoration(labelText: 'Khalti Wallet ID / Number'),
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: TextField(
-                        controller: _fonepayCtrl,
-                        decoration: const InputDecoration(labelText: 'FonePay Merchant Name'),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: TextField(
+                          controller: _fonepayCtrl,
+                          decoration: const InputDecoration(labelText: 'FonePay Merchant Name'),
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _bankNameCtrl,
-                        decoration: const InputDecoration(labelText: 'Bank Name'),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _bankNameCtrl,
+                          decoration: const InputDecoration(labelText: 'Bank Name'),
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: TextField(
-                        controller: _bankAccNameCtrl,
-                        decoration: const InputDecoration(labelText: 'Bank Account Holder Name'),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: TextField(
+                          controller: _bankAccNameCtrl,
+                          decoration: const InputDecoration(labelText: 'Bank Account Holder Name'),
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: TextField(
-                        controller: _bankAccNumCtrl,
-                        decoration: const InputDecoration(labelText: 'Bank Account Number'),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: TextField(
+                          controller: _bankAccNumCtrl,
+                          decoration: const InputDecoration(labelText: 'Bank Account Number'),
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: TextField(
-                        controller: _bankBranchCtrl,
-                        decoration: const InputDecoration(labelText: 'Bank Branch'),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: TextField(
+                          controller: _bankBranchCtrl,
+                          decoration: const InputDecoration(labelText: 'Bank Branch'),
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _whatsappLinkCtrl,
-                        decoration: const InputDecoration(labelText: 'WhatsApp Direct Chat Link (wa.me/...)'),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _whatsappLinkCtrl,
+                          decoration: const InputDecoration(labelText: 'WhatsApp Direct Chat Link (wa.me/...)'),
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: TextField(
-                        controller: _emailCtrl,
-                        decoration: const InputDecoration(labelText: 'Support Email Address'),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: TextField(
+                          controller: _emailCtrl,
+                          decoration: const InputDecoration(labelText: 'Support Email Address'),
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: TextField(
-                        controller: _phoneCtrl,
-                        decoration: const InputDecoration(labelText: 'Support Phone / Helpline'),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: TextField(
+                          controller: _phoneCtrl,
+                          decoration: const InputDecoration(labelText: 'Support Phone / Helpline'),
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: TextField(
-                        controller: _addressCtrl,
-                        decoration: const InputDecoration(labelText: 'Office Location / Address'),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: TextField(
+                          controller: _addressCtrl,
+                          decoration: const InputDecoration(labelText: 'Office Location / Address'),
+                        ),
                       ),
-                    ),
-                  ],
-                ),
+                    ],
+                  ),
+                ],
                 const SizedBox(height: 14),
                 TextField(
                   controller: _noteCtrl,

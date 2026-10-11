@@ -66,52 +66,75 @@ class _NavBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
+    final w = MediaQuery.of(context).size.width;
+    final isMobile = w < 600;
     return Container(
       decoration: const BoxDecoration(
         color: Colors.white,
         border: Border(bottom: BorderSide(color: AppTheme.divider, width: 1)),
       ),
       padding: EdgeInsets.symmetric(
-        horizontal: isNarrow ? 20 : 64,
-        vertical: 14,
+        horizontal: isMobile ? 14 : (isNarrow ? 24 : 64),
+        vertical: isMobile ? 10 : 14,
       ),
       child: Row(
         children: [
-          _Logo(),
-          const Spacer(),
+          Expanded(child: _Logo(compact: isMobile)),
+          const SizedBox(width: 8),
           if (auth.isLoggedIn) ...[
             FilledButton.icon(
               onPressed: () => context.go(AppConstants.routeDashboard),
-              icon: const Icon(Icons.dashboard_outlined, size: 17, color: Colors.white),
-              label: const Text('Dashboard'),
+              icon: const Icon(Icons.dashboard_outlined, size: 16, color: Colors.white),
+              label: Text(isMobile ? 'App' : 'Dashboard'),
               style: FilledButton.styleFrom(
                 backgroundColor: AppTheme.primaryColor,
                 foregroundColor: Colors.white,
+                padding: EdgeInsets.symmetric(horizontal: isMobile ? 12 : 18, vertical: isMobile ? 10 : 12),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               ),
             ),
           ] else ...[
-            OutlinedButton.icon(
+            OutlinedButton(
               onPressed: () => context.go(AppConstants.routeLogin),
-              icon: const Icon(Icons.login_rounded, size: 16, color: AppTheme.primaryColor),
-              label: const Text('Sign In'),
               style: OutlinedButton.styleFrom(
                 foregroundColor: AppTheme.primaryColor,
                 side: const BorderSide(color: AppTheme.divider, width: 1.2),
-                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                padding: EdgeInsets.symmetric(horizontal: isMobile ? 12 : 18, vertical: isMobile ? 10 : 12),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (!isMobile) ...[
+                    const Icon(Icons.login_rounded, size: 16, color: AppTheme.primaryColor),
+                    const SizedBox(width: 6),
+                  ],
+                  Text('Sign In', style: TextStyle(fontSize: isMobile ? 12.5 : 13.5, fontWeight: FontWeight.w700)),
+                ],
+              ),
             ),
-            const SizedBox(width: 10),
-            FilledButton.icon(
+            SizedBox(width: isMobile ? 8 : 10),
+            FilledButton(
               onPressed: () => context.go(AppConstants.routeRegister),
-              icon: const Icon(Icons.arrow_forward_rounded, size: 16, color: Colors.white),
-              label: const Text('Start Free'),
               style: FilledButton.styleFrom(
                 backgroundColor: AppTheme.iconRed,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                padding: EdgeInsets.symmetric(horizontal: isMobile ? 12 : 20, vertical: isMobile ? 10 : 12),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('Start Free', style: TextStyle(fontSize: isMobile ? 12.5 : 13.5, fontWeight: FontWeight.w700)),
+                  if (!isMobile) ...[
+                    const SizedBox(width: 6),
+                    const Icon(Icons.arrow_forward_rounded, size: 16, color: Colors.white),
+                  ],
+                ],
               ),
             ),
           ],
@@ -122,37 +145,48 @@ class _NavBar extends StatelessWidget {
 }
 
 class _Logo extends StatelessWidget {
+  final bool compact;
+  const _Logo({this.compact = false});
+
   @override
   Widget build(BuildContext context) {
     return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          padding: const EdgeInsets.all(8),
+          padding: EdgeInsets.all(compact ? 7 : 8),
           decoration: BoxDecoration(
             color: AppTheme.iconRedLight,
             borderRadius: BorderRadius.circular(8),
             border: Border.all(color: AppTheme.iconRed.withOpacity(0.25)),
           ),
-          child: const Icon(Icons.menu_book_rounded, color: AppTheme.iconRed, size: 20),
+          child: Icon(Icons.menu_book_rounded, color: AppTheme.iconRed, size: compact ? 18 : 20),
         ),
-        const SizedBox(width: 12),
-        const Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'LoksewaHero',
-              style: TextStyle(
-                color: AppTheme.textPrimary,
-                fontWeight: FontWeight.w800,
-                fontSize: 16.5,
-                letterSpacing: -0.4,
+        SizedBox(width: compact ? 8 : 12),
+        Flexible(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'LoksewaHero',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: AppTheme.textPrimary,
+                  fontWeight: FontWeight.w800,
+                  fontSize: compact ? 15.5 : 16.5,
+                  letterSpacing: -0.4,
+                ),
               ),
-            ),
-            Text(
-              'Civil Service • Banking • IT • Sansthan',
-              style: TextStyle(color: AppTheme.textMuted, fontSize: 11, fontWeight: FontWeight.w500),
-            ),
-          ],
+              if (!compact)
+                const Text(
+                  'Civil Service • Banking • IT • Sansthan',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: AppTheme.textMuted, fontSize: 11, fontWeight: FontWeight.w500),
+                ),
+            ],
+          ),
         ),
       ],
     );
@@ -166,6 +200,7 @@ class _HeroSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 600;
     return Container(
       width: double.infinity,
       decoration: const BoxDecoration(
@@ -173,11 +208,11 @@ class _HeroSection extends StatelessWidget {
         border: Border(bottom: BorderSide(color: AppTheme.divider, width: 1)),
       ),
       padding: EdgeInsets.symmetric(
-        horizontal: isNarrow ? 24 : 80,
-        vertical: isNarrow ? 48 : 72,
+        horizontal: isMobile ? 16 : (isNarrow ? 24 : 80),
+        vertical: isMobile ? 32 : (isNarrow ? 48 : 72),
       ),
       child: isNarrow
-          ? Column(children: [_HeroText(), const SizedBox(height: 36), _HeroCategoryShowcase()])
+          ? Column(children: [_HeroText(), const SizedBox(height: 28), _HeroCategoryShowcase()])
           : Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
@@ -193,6 +228,7 @@ class _HeroSection extends StatelessWidget {
 class _HeroText extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 600;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -208,31 +244,34 @@ class _HeroText extends StatelessWidget {
             children: [
               Icon(Icons.verified_rounded, color: AppTheme.iconRed, size: 15),
               SizedBox(width: 6),
-              Text(
-                'All-in-One Lok Sewa Aayog & Public Enterprise Platform',
-                style: TextStyle(color: AppTheme.iconRedDark, fontSize: 12, fontWeight: FontWeight.w700),
+              Flexible(
+                child: Text(
+                  'All-in-One Lok Sewa Aayog & Public Enterprise Platform',
+                  style: TextStyle(color: AppTheme.iconRedDark, fontSize: 11.5, fontWeight: FontWeight.w700),
+                ),
               ),
             ],
           ),
         ),
-        const SizedBox(height: 22),
+        SizedBox(height: isMobile ? 16 : 22),
         Text(
           'Master Any Lok Sewa\nExam in Nepal',
           style: Theme.of(context).textTheme.displayMedium?.copyWith(
             color: AppTheme.textPrimary,
+            fontSize: isMobile ? 30 : null,
             height: 1.15,
             fontWeight: FontWeight.w800,
             letterSpacing: -1.0,
           ),
         ),
-        const SizedBox(height: 18),
-        const Text(
+        SizedBox(height: isMobile ? 12 : 18),
+        Text(
           'Section Officer (शाखा अधिकृत) • Nayab Subba (नायब सुब्बा) • Kharidar (खरिदार)\n'
           'RBB / NRB / ADBL Banking • Computer Operator & IT Officer • NEA / NTC / EPF Sansthan\n'
           '20-Year Past Questions • Bilingual Model Answers (नेपाली / English) • Timed OMR Mock Tests',
-          style: TextStyle(color: AppTheme.textMuted, fontSize: 15, height: 1.7),
+          style: TextStyle(color: AppTheme.textMuted, fontSize: isMobile ? 13.5 : 15, height: 1.65),
         ),
-        const SizedBox(height: 32),
+        SizedBox(height: isMobile ? 22 : 32),
         Wrap(
           spacing: 12,
           runSpacing: 12,
@@ -244,8 +283,8 @@ class _HeroText extends StatelessWidget {
               style: FilledButton.styleFrom(
                 backgroundColor: AppTheme.iconRed,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 16),
-                textStyle: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700),
+                padding: EdgeInsets.symmetric(horizontal: isMobile ? 20 : 26, vertical: isMobile ? 14 : 16),
+                textStyle: TextStyle(fontSize: isMobile ? 13.5 : 14.5, fontWeight: FontWeight.w700),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               ),
             ),
@@ -256,15 +295,15 @@ class _HeroText extends StatelessWidget {
               style: OutlinedButton.styleFrom(
                 foregroundColor: AppTheme.primaryColor,
                 side: const BorderSide(color: AppTheme.primaryColor, width: 1.2),
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                padding: EdgeInsets.symmetric(horizontal: isMobile ? 18 : 24, vertical: isMobile ? 14 : 16),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               ),
             ),
           ],
         ),
-        const SizedBox(height: 26),
+        const SizedBox(height: 22),
         Wrap(
-          spacing: 22,
+          spacing: 18,
           runSpacing: 8,
           children: [
             _checkBadge('8+ Official Exam Streams', isRed: true),
@@ -285,7 +324,7 @@ class _HeroText extends StatelessWidget {
         size: 16,
       ),
       const SizedBox(width: 6),
-      Text(text, style: const TextStyle(color: AppTheme.textBody, fontSize: 13, fontWeight: FontWeight.w500)),
+      Text(text, style: const TextStyle(color: AppTheme.textBody, fontSize: 12.5, fontWeight: FontWeight.w500)),
     ],
   );
 }
@@ -447,7 +486,7 @@ class _ExamCatalogSection extends StatelessWidget {
         : allExams.where((e) => e.category == selectedCategory).toList();
 
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: isNarrow ? 20 : 80, vertical: 64),
+      padding: EdgeInsets.symmetric(horizontal: isNarrow ? 16 : 80, vertical: isNarrow ? 40 : 64),
       decoration: const BoxDecoration(
         color: Colors.white,
         border: Border(bottom: BorderSide(color: AppTheme.divider, width: 1)),
@@ -460,8 +499,8 @@ class _ExamCatalogSection extends StatelessWidget {
           ),
           const SizedBox(height: 24),
           Wrap(
-            spacing: 10,
-            runSpacing: 10,
+            spacing: 8,
+            runSpacing: 8,
             alignment: WrapAlignment.center,
             children: categories.map((cat) {
               final selected = selectedCategory == cat;
@@ -471,6 +510,7 @@ class _ExamCatalogSection extends StatelessWidget {
                   cat,
                   style: TextStyle(
                     fontWeight: FontWeight.w600,
+                    fontSize: isNarrow ? 12.5 : 13.5,
                     color: selected ? Colors.white : AppTheme.textPrimary,
                   ),
                 ),
@@ -483,19 +523,42 @@ class _ExamCatalogSection extends StatelessWidget {
               );
             }).toList(),
           ),
-          const SizedBox(height: 32),
+          const SizedBox(height: 28),
           if (qp.loading)
             const Padding(
               padding: EdgeInsets.all(32),
               child: CircularProgressIndicator(color: AppTheme.iconRed),
+            )
+          else if (isNarrow)
+            Column(
+              children: List.generate(filteredExams.length, (i) {
+                final exam = filteredExams[i];
+                final qCount = qp.countForExam(exam.id);
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 14),
+                  child: _ExamCourseCard(
+                    exam: exam,
+                    index: i,
+                    questionCount: qCount > 0 ? qCount : exam.questionCount,
+                    isFlexibleHeight: true,
+                    onTap: exam.isComingSoon
+                        ? null
+                        : () {
+                            qp.selectExam(exam.id);
+                            final isLogged = context.read<AuthProvider>().isLoggedIn;
+                            context.go(isLogged ? AppConstants.routeDashboard : AppConstants.routeLogin);
+                          },
+                  ),
+                );
+              }),
             )
           else
             GridView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: isNarrow ? 1 : (MediaQuery.of(context).size.width > 1250 ? 3 : 2),
-                childAspectRatio: isNarrow ? 1.55 : 1.38,
+                crossAxisCount: MediaQuery.of(context).size.width > 1250 ? 3 : 2,
+                childAspectRatio: 1.38,
                 crossAxisSpacing: 20,
                 mainAxisSpacing: 20,
               ),
@@ -528,12 +591,14 @@ class _ExamCourseCard extends StatelessWidget {
   final int index;
   final int questionCount;
   final VoidCallback? onTap;
+  final bool isFlexibleHeight;
 
   const _ExamCourseCard({
     required this.exam,
     required this.index,
     required this.questionCount,
     required this.onTap,
+    this.isFlexibleHeight = false,
   });
 
   IconData _catIcon(String cat) {
@@ -557,6 +622,13 @@ class _ExamCourseCard extends StatelessWidget {
         ? const Color(0xFFF4F4F5)
         : (isRed ? AppTheme.iconRedLight : const Color(0xFFF4F4F5));
 
+    final descWidget = Text(
+      exam.description,
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
+      style: const TextStyle(fontSize: 12, color: AppTheme.textMuted, height: 1.45),
+    );
+
     return Opacity(
       opacity: isComingSoon ? 0.68 : 1.0,
       child: Container(
@@ -572,7 +644,7 @@ class _ExamCourseCard extends StatelessWidget {
           onTap: isComingSoon ? null : onTap,
           borderRadius: BorderRadius.circular(12),
           child: Padding(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(18),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -632,7 +704,7 @@ class _ExamCourseCard extends StatelessWidget {
                       ),
                   ],
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 12),
                 Text(
                   exam.title,
                   maxLines: 1,
@@ -662,14 +734,10 @@ class _ExamCourseCard extends StatelessWidget {
                   style: const TextStyle(fontSize: 11.5, color: AppTheme.textMuted),
                 ),
                 const SizedBox(height: 8),
-                Expanded(
-                  child: Text(
-                    exam.description,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 12, color: AppTheme.textMuted, height: 1.45),
-                  ),
-                ),
+                if (isFlexibleHeight)
+                  descWidget
+                else
+                  Expanded(child: descWidget),
                 const Divider(height: 16, color: AppTheme.divider),
                 Row(
                   children: [
@@ -721,7 +789,7 @@ class _FeaturesSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: isNarrow ? 24 : 80, vertical: 64),
+      padding: EdgeInsets.symmetric(horizontal: isNarrow ? 16 : 80, vertical: isNarrow ? 40 : 64),
       decoration: const BoxDecoration(
         color: Colors.white,
         border: Border(bottom: BorderSide(color: AppTheme.divider, width: 1)),
@@ -729,49 +797,90 @@ class _FeaturesSection extends StatelessWidget {
       child: Column(
         children: [
           _sectionTitle('Built for Every Lok Sewa Aspirant', 'Clean, distraction-free study interface with verified past questions'),
-          const SizedBox(height: 44),
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: isNarrow ? 1 : 3,
-              childAspectRatio: isNarrow ? 2.6 : 1.45,
-              crossAxisSpacing: 20,
-              mainAxisSpacing: 20,
-            ),
-            itemCount: features.length,
-            itemBuilder: (ctx, i) {
-              final f = features[i];
-              final isRed = f.$4;
-              return Container(
-                padding: const EdgeInsets.all(22),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppTheme.divider),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: isRed ? AppTheme.iconRedLight : const Color(0xFFF4F4F5),
-                        borderRadius: BorderRadius.circular(8),
+          SizedBox(height: isNarrow ? 28 : 44),
+          if (isNarrow)
+            Column(
+              children: features.map((f) {
+                final isRed = f.$4;
+                return Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(bottom: 14),
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppTheme.divider),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: isRed ? AppTheme.iconRedLight : const Color(0xFFF4F4F5),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(f.$1, color: isRed ? AppTheme.iconRed : AppTheme.primaryColor, size: 20),
                       ),
-                      child: Icon(f.$1, color: isRed ? AppTheme.iconRed : AppTheme.primaryColor, size: 20),
-                    ),
-                    const SizedBox(height: 14),
-                    Text(f.$2, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: AppTheme.textPrimary)),
-                    const SizedBox(height: 6),
-                    Expanded(
-                      child: Text(f.$3, style: const TextStyle(color: AppTheme.textMuted, fontSize: 12.5, height: 1.5)),
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(f.$2, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5, color: AppTheme.textPrimary)),
+                            const SizedBox(height: 4),
+                            Text(f.$3, style: const TextStyle(color: AppTheme.textMuted, fontSize: 12.5, height: 1.45)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            )
+          else
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 3,
+                childAspectRatio: 1.45,
+                crossAxisSpacing: 20,
+                mainAxisSpacing: 20,
+              ),
+              itemCount: features.length,
+              itemBuilder: (ctx, i) {
+                final f = features[i];
+                final isRed = f.$4;
+                return Container(
+                  padding: const EdgeInsets.all(22),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppTheme.divider),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: isRed ? AppTheme.iconRedLight : const Color(0xFFF4F4F5),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(f.$1, color: isRed ? AppTheme.iconRed : AppTheme.primaryColor, size: 20),
+                      ),
+                      const SizedBox(height: 14),
+                      Text(f.$2, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: AppTheme.textPrimary)),
+                      const SizedBox(height: 6),
+                      Expanded(
+                        child: Text(f.$3, style: const TextStyle(color: AppTheme.textMuted, fontSize: 12.5, height: 1.5)),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
         ],
       ),
     );
@@ -786,7 +895,7 @@ class _PricingSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: isNarrow ? 24 : 80, vertical: 64),
+      padding: EdgeInsets.symmetric(horizontal: isNarrow ? 16 : 80, vertical: isNarrow ? 40 : 64),
       decoration: const BoxDecoration(
         color: Colors.white,
         border: Border(bottom: BorderSide(color: AppTheme.divider, width: 1)),
@@ -794,7 +903,7 @@ class _PricingSection extends StatelessWidget {
       child: Column(
         children: [
           _sectionTitle('One Subscription, All Lok Sewa Exams', 'Start free and upgrade via eSewa, Khalti, or FonePay when ready'),
-          const SizedBox(height: 44),
+          SizedBox(height: isNarrow ? 28 : 44),
           isNarrow
               ? Column(children: _planCards(context))
               : ConstrainedBox(
@@ -860,7 +969,7 @@ class _PlanCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(28),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -965,7 +1074,7 @@ class _TestimonialsSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: isNarrow ? 24 : 80, vertical: 64),
+      padding: EdgeInsets.symmetric(horizontal: isNarrow ? 16 : 80, vertical: isNarrow ? 40 : 64),
       decoration: const BoxDecoration(
         color: Colors.white,
         border: Border(bottom: BorderSide(color: AppTheme.divider, width: 1)),
@@ -973,7 +1082,7 @@ class _TestimonialsSection extends StatelessWidget {
       child: Column(
         children: [
           _sectionTitle('Trusted by Lok Sewa Aspirants Across Nepal', 'Preparing for Civil Service, Banking, Technical & Sansthan exams'),
-          const SizedBox(height: 40),
+          SizedBox(height: isNarrow ? 28 : 40),
           isNarrow
               ? Column(
                   children: testimonials.map((t) => Padding(
@@ -1002,7 +1111,7 @@ class _TestimonialCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -1027,9 +1136,10 @@ class _TestimonialCard extends StatelessWidget {
 class _CTASection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 600;
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 40, vertical: 40),
-      padding: const EdgeInsets.all(44),
+      margin: EdgeInsets.symmetric(horizontal: isMobile ? 16 : 40, vertical: isMobile ? 24 : 40),
+      padding: EdgeInsets.all(isMobile ? 24 : 44),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -1046,18 +1156,18 @@ class _CTASection extends StatelessWidget {
             child: const Icon(Icons.flag_outlined, color: AppTheme.iconRed, size: 24),
           ),
           const SizedBox(height: 16),
-          const Text(
+          Text(
             'Start Your Lok Sewa Journey Today',
-            style: TextStyle(color: AppTheme.textPrimary, fontSize: 26, fontWeight: FontWeight.w800, letterSpacing: -0.5),
+            style: TextStyle(color: AppTheme.textPrimary, fontSize: isMobile ? 21 : 26, fontWeight: FontWeight.w800, letterSpacing: -0.5),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 10),
-          const Text(
+          Text(
             'Choose your target exam — Civil Service, Banking, IT, or Sansthan — and practice with real past questions.',
-            style: TextStyle(color: AppTheme.textMuted, fontSize: 15),
+            style: TextStyle(color: AppTheme.textMuted, fontSize: isMobile ? 13.5 : 15),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 26),
+          const SizedBox(height: 22),
           FilledButton.icon(
             onPressed: () => GoRouter.of(context).go(AppConstants.routeRegister),
             icon: const Icon(Icons.arrow_forward_rounded, size: 18, color: Colors.white),
@@ -1065,7 +1175,7 @@ class _CTASection extends StatelessWidget {
             style: FilledButton.styleFrom(
               backgroundColor: AppTheme.primaryColor,
               foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+              padding: EdgeInsets.symmetric(horizontal: isMobile ? 24 : 32, vertical: isMobile ? 14 : 16),
               textStyle: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
@@ -1080,45 +1190,65 @@ class _CTASection extends StatelessWidget {
 class _Footer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 650;
     return Container(
+      width: double.infinity,
       decoration: const BoxDecoration(
         color: Colors.white,
         border: Border(top: BorderSide(color: AppTheme.divider, width: 1)),
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 28),
-      child: Row(
-        children: [
-          _Logo(),
-          const Spacer(),
-          const Text(
-            '© 2082 BS LoksewaHero • Pure Minimalist UI & MongoDB Atlas Cloud',
-            style: TextStyle(color: AppTheme.textMuted, fontSize: 12),
-          ),
-        ],
-      ),
+      padding: EdgeInsets.symmetric(horizontal: isMobile ? 20 : 48, vertical: isMobile ? 22 : 28),
+      child: isMobile
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                const _Logo(),
+                const SizedBox(height: 12),
+                const Text(
+                  '© 2082 BS LoksewaHero • Pure Minimalist UI & MongoDB Atlas Cloud',
+                  style: TextStyle(color: AppTheme.textMuted, fontSize: 11.5),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            )
+          : Row(
+              children: [
+                const _Logo(),
+                const Spacer(),
+                const Text(
+                  '© 2082 BS LoksewaHero • Pure Minimalist UI & MongoDB Atlas Cloud',
+                  style: TextStyle(color: AppTheme.textMuted, fontSize: 12),
+                ),
+              ],
+            ),
     );
   }
 }
 
 Widget _sectionTitle(String title, String subtitle) {
-  return Column(
-    children: [
-      Text(
-        title,
-        style: const TextStyle(
-          fontSize: 26,
-          fontWeight: FontWeight.w800,
-          color: AppTheme.textPrimary,
-          letterSpacing: -0.5,
-        ),
-        textAlign: TextAlign.center,
-      ),
-      const SizedBox(height: 8),
-      Text(
-        subtitle,
-        style: const TextStyle(color: AppTheme.textMuted, fontSize: 14.5),
-        textAlign: TextAlign.center,
-      ),
-    ],
+  return Builder(
+    builder: (context) {
+      final isMobile = MediaQuery.of(context).size.width < 600;
+      return Column(
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: isMobile ? 21 : 26,
+              fontWeight: FontWeight.w800,
+              color: AppTheme.textPrimary,
+              letterSpacing: -0.5,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            subtitle,
+            style: TextStyle(color: AppTheme.textMuted, fontSize: isMobile ? 13 : 14.5),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      );
+    },
   );
 }

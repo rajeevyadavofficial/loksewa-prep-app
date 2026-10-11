@@ -473,6 +473,7 @@ class _TopBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final qp = context.watch<QuestionProvider>();
+    final auth = context.read<AuthProvider>();
     final exams = qp.exams;
     final enrolledExams = user.isAdmin
         ? exams.where((e) => !e.isComingSoon).toList()
@@ -487,16 +488,18 @@ class _TopBar extends StatelessWidget {
 
     final currentExamId = qp.selectedExamId;
     final activeEnrolledExam = enrolledExams.where((e) => e.id == currentExamId).firstOrNull ?? enrolledExams.firstOrNull;
+    final isMobile = MediaQuery.of(context).size.width < 650;
 
     return Container(
+      width: double.infinity,
       decoration: const BoxDecoration(
         color: Colors.white,
         border: Border(bottom: BorderSide(color: AppTheme.divider, width: 1)),
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      padding: EdgeInsets.symmetric(horizontal: isMobile ? 12 : 20, vertical: isMobile ? 8 : 10),
       child: Wrap(
-        spacing: 16,
-        runSpacing: 10,
+        spacing: 10,
+        runSpacing: 8,
         alignment: WrapAlignment.spaceBetween,
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [
@@ -526,76 +529,98 @@ class _TopBar extends StatelessWidget {
                 ),
                 const SizedBox(width: 10),
               ],
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppTheme.divider),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.menu_book_rounded, size: 17, color: AppTheme.iconRed),
-                    const SizedBox(width: 8),
-                    const Text(
-                      'Enrolled Exam:',
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.textMuted),
-                    ),
-                    const SizedBox(width: 8),
-                    if (enrolledExams.isEmpty)
-                      const Text(
-                        'Not Enrolled Yet (Select an exam below)',
-                        style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: AppTheme.iconRed),
-                      )
-                    else if (enrolledExams.length == 1)
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            '${activeEnrolledExam!.title} (${activeEnrolledExam.category})',
-                            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: AppTheme.textPrimary),
+              Flexible(
+                child: Container(
+                  constraints: BoxConstraints(maxWidth: isMobile ? MediaQuery.of(context).size.width - 24 : 520),
+                  padding: EdgeInsets.symmetric(horizontal: isMobile ? 10 : 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppTheme.divider),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.menu_book_rounded, size: 16, color: AppTheme.iconRed),
+                      const SizedBox(width: 6),
+                      if (!isMobile) ...[
+                        const Text(
+                          'Enrolled Exam:',
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.textMuted),
+                        ),
+                        const SizedBox(width: 8),
+                      ],
+                      if (enrolledExams.isEmpty)
+                        Flexible(
+                          child: Text(
+                            isMobile ? 'Select an Exam Below' : 'Not Enrolled Yet (Select an exam below)',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppTheme.iconRed),
                           ),
-                          const SizedBox(width: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: AppTheme.iconRedLight,
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: const Text(
-                              'ENROLLED',
-                              style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w800, color: AppTheme.iconRedDark),
-                            ),
-                          ),
-                        ],
-                      )
-                    else
-                      DropdownButton<String>(
-                        value: activeEnrolledExam?.id ?? enrolledExams.first.id,
-                        underline: const SizedBox.shrink(),
-                        isDense: true,
-                        dropdownColor: Colors.white,
-                        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5, color: AppTheme.textPrimary),
-                        items: enrolledExams.map((e) {
-                          return DropdownMenuItem<String>(
-                            value: e.id,
-                            child: Text(
-                              '${e.title} (${e.category})',
-                              style: const TextStyle(
-                                color: AppTheme.textPrimary,
-                                fontWeight: FontWeight.w700,
+                        )
+                      else if (enrolledExams.length == 1)
+                        Flexible(
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  isMobile
+                                      ? activeEnrolledExam!.title
+                                      : '${activeEnrolledExam!.title} (${activeEnrolledExam.category})',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12.5, color: AppTheme.textPrimary),
+                                ),
                               ),
-                            ),
-                          );
-                        }).toList(),
-                        onChanged: (val) {
-                          if (val != null) {
-                            qp.selectExam(val);
-                          }
-                        },
-                      ),
-                  ],
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.iconRedLight,
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: const Text(
+                                  'ACTIVE',
+                                  style: TextStyle(fontSize: 9, fontWeight: FontWeight.w800, color: AppTheme.iconRedDark),
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      else
+                        Flexible(
+                          child: DropdownButton<String>(
+                            value: activeEnrolledExam?.id ?? enrolledExams.first.id,
+                            underline: const SizedBox.shrink(),
+                            isDense: true,
+                            isExpanded: isMobile,
+                            dropdownColor: Colors.white,
+                            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: AppTheme.textPrimary),
+                            items: enrolledExams.map((e) {
+                              return DropdownMenuItem<String>(
+                                value: e.id,
+                                child: Text(
+                                  isMobile ? e.title : '${e.title} (${e.category})',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    color: AppTheme.textPrimary,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                            onChanged: (val) {
+                              if (val != null) {
+                                qp.selectExam(val);
+                              }
+                            },
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
               ),
             ],
@@ -605,28 +630,47 @@ class _TopBar extends StatelessWidget {
             children: [
               if (user.isAdmin)
                 Padding(
-                  padding: const EdgeInsets.only(right: 10),
+                  padding: const EdgeInsets.only(right: 8),
                   child: OutlinedButton.icon(
-                    icon: const Icon(Icons.admin_panel_settings_outlined, size: 17, color: AppTheme.iconRed),
-                    label: const Text('Admin CMS'),
+                    icon: const Icon(Icons.admin_panel_settings_outlined, size: 16, color: AppTheme.iconRed),
+                    label: Text(isMobile ? 'Admin' : 'Admin CMS', style: const TextStyle(fontSize: 12.5)),
                     onPressed: () => GoRouter.of(context).go(AppConstants.routeAdmin),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppTheme.textPrimary,
                       side: const BorderSide(color: AppTheme.divider),
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      padding: EdgeInsets.symmetric(horizontal: isMobile ? 10 : 14, vertical: 8),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
                   ),
                 ),
               OutlinedButton.icon(
                 onPressed: () => GoRouter.of(context).go(AppConstants.routeSubscription),
-                icon: const Icon(Icons.workspace_premium_outlined, size: 16, color: AppTheme.iconRed),
-                label: Text(user.planDisplayName.toUpperCase()),
+                icon: const Icon(Icons.workspace_premium_outlined, size: 15, color: AppTheme.iconRed),
+                label: Text(
+                  user.plan == SubscriptionPlan.free ? 'UPGRADE' : 'PRO PLAN',
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+                ),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: AppTheme.textPrimary,
                   side: const BorderSide(color: AppTheme.divider),
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  padding: EdgeInsets.symmetric(horizontal: isMobile ? 10 : 14, vertical: 8),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
               ),
+              if (!showSidebarToggle) ...[
+                const SizedBox(width: 6),
+                IconButton(
+                  icon: const Icon(Icons.logout_rounded, color: AppTheme.iconRed, size: 19),
+                  tooltip: 'Logout',
+                  visualDensity: VisualDensity.compact,
+                  onPressed: () async {
+                    await auth.logout();
+                    if (context.mounted) context.go(AppConstants.routeHome);
+                  },
+                ),
+              ],
             ],
           ),
         ],
@@ -663,9 +707,228 @@ class _HomeTabState extends State<_HomeTab> {
     final enrolledQuestionsCount = hasEnrollment && enrolledExam != null
         ? qp.countForExam(enrolledExam.id)
         : 0;
+    final w = MediaQuery.of(context).size.width;
+    final isMobile = w < 650;
+
+    Widget buildExamCard(ExamCourse exam, {required bool flexibleHeight}) {
+      final isComingSoon = exam.isComingSoon;
+      final isEnrolled = !isComingSoon && (user.isAdmin || user.isEnrolledIn(exam.id));
+      final isActive = isEnrolled && qp.selectedExamId == exam.id;
+      final qCount = qp.countForExam(exam.id);
+
+      return Opacity(
+        opacity: isComingSoon ? 0.65 : 1.0,
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isEnrolled ? AppTheme.iconRed : AppTheme.divider,
+              width: isEnrolled ? 1.8 : 1,
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: isComingSoon
+                            ? const Color(0xFFF4F4F5)
+                            : (isEnrolled ? AppTheme.iconRedLight : const Color(0xFFF4F4F5)),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        exam.category,
+                        style: TextStyle(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w700,
+                          color: isComingSoon
+                              ? AppTheme.textMuted
+                              : (isEnrolled ? AppTheme.iconRedDark : AppTheme.textPrimary),
+                        ),
+                      ),
+                    ),
+                    const Spacer(),
+                    if (isComingSoon)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF4F4F5),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: AppTheme.divider),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.lock_clock_outlined, size: 11, color: AppTheme.textMuted),
+                            SizedBox(width: 4),
+                            Text(
+                              'COMING SOON',
+                              style: TextStyle(color: AppTheme.textMuted, fontSize: 10, fontWeight: FontWeight.w800),
+                            ),
+                          ],
+                        ),
+                      )
+                    else if (isEnrolled)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: AppTheme.iconRedLight,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          isActive ? '✓ Enrolled & Active' : '✓ Enrolled',
+                          style: const TextStyle(color: AppTheme.iconRed, fontSize: 11, fontWeight: FontWeight.w800),
+                        ),
+                      )
+                    else
+                      Text(
+                        '$qCount Q&As',
+                        style: const TextStyle(fontSize: 11, color: AppTheme.textMuted, fontWeight: FontWeight.w600),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  exam.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 14.5,
+                    color: isComingSoon ? AppTheme.textMuted : AppTheme.textPrimary,
+                  ),
+                ),
+                Text(
+                  exam.titleNepali,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: isComingSoon ? AppTheme.textMuted : AppTheme.textBody,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${exam.organization} • ${exam.level}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 11, color: AppTheme.textMuted),
+                ),
+                if (flexibleHeight) const SizedBox(height: 12) else const Spacer(),
+                const Divider(height: 14, color: AppTheme.divider),
+                if (isComingSoon)
+                  const Row(
+                    children: [
+                      Icon(Icons.schedule_rounded, size: 14, color: AppTheme.textMuted),
+                      SizedBox(width: 5),
+                      Text(
+                        'Launching Soon',
+                        style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: AppTheme.textMuted),
+                      ),
+                      Spacer(),
+                      Icon(Icons.lock_outline_rounded, size: 14, color: AppTheme.textMuted),
+                    ],
+                  )
+                else if (isEnrolled)
+                  Row(
+                    children: [
+                      FilledButton.icon(
+                        onPressed: () {
+                          qp.selectExam(exam.id);
+                          widget.onGoToTab(1);
+                        },
+                        icon: const Icon(Icons.menu_book_outlined, size: 14, color: Colors.white),
+                        label: const Text('Study Q&As', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700)),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: AppTheme.iconRed,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      OutlinedButton(
+                        onPressed: () {
+                          qp.selectExam(exam.id);
+                          widget.onGoToTab(3);
+                        },
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppTheme.textPrimary,
+                          side: const BorderSide(color: AppTheme.divider),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        child: const Text('Syllabus', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600)),
+                      ),
+                      const Spacer(),
+                      if (!user.isAdmin)
+                        Tooltip(
+                          message: 'Unenroll from this exam',
+                          child: InkWell(
+                            onTap: () async {
+                              await auth.enrollInExam(exam.id, action: 'unenroll');
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Unenrolled from ${exam.title}'),
+                                    duration: const Duration(seconds: 2),
+                                  ),
+                                );
+                              }
+                            },
+                            child: const Padding(
+                              padding: EdgeInsets.all(4),
+                              child: Icon(Icons.close_rounded, size: 16, color: AppTheme.textMuted),
+                            ),
+                          ),
+                        ),
+                    ],
+                  )
+                else
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: () async {
+                        await auth.enrollInExam(exam.id, action: 'set_single');
+                        qp.selectExam(exam.id);
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Enrolled in ${exam.title}! Showing only its study materials.'),
+                              backgroundColor: AppTheme.primaryColor,
+                              duration: const Duration(seconds: 2),
+                            ),
+                          );
+                        }
+                      },
+                      icon: const Icon(Icons.how_to_reg_rounded, size: 15, color: Colors.white),
+                      label: const Text('Enroll in Exam', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppTheme.primaryColor,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 9),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(isMobile ? 14 : 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -674,7 +937,7 @@ class _HomeTabState extends State<_HomeTab> {
           // ── Enrolled Exam Active Card OR Prompt to Enroll ──
           if (hasEnrollment && enrolledExam != null)
             Container(
-              padding: const EdgeInsets.all(24),
+              padding: EdgeInsets.all(isMobile ? 16 : 24),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(12),
@@ -683,7 +946,11 @@ class _HomeTabState extends State<_HomeTab> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    alignment: WrapAlignment.spaceBetween,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -703,36 +970,35 @@ class _HomeTabState extends State<_HomeTab> {
                           ],
                         ),
                       ),
-                      const Spacer(),
                       Text(
                         enrolledExam.organization,
-                        style: const TextStyle(color: AppTheme.textMuted, fontSize: 12, fontWeight: FontWeight.w500),
+                        style: const TextStyle(color: AppTheme.textMuted, fontSize: 11.5, fontWeight: FontWeight.w500),
                       ),
                     ],
                   ),
                   const SizedBox(height: 12),
                   Text(
                     enrolledExam.title,
-                    style: const TextStyle(color: AppTheme.textPrimary, fontSize: 21, fontWeight: FontWeight.w800, letterSpacing: -0.4),
+                    style: TextStyle(color: AppTheme.textPrimary, fontSize: isMobile ? 18 : 21, fontWeight: FontWeight.w800, letterSpacing: -0.4),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     enrolledExam.titleNepali,
-                    style: const TextStyle(color: AppTheme.textBody, fontSize: 14, fontWeight: FontWeight.w600),
+                    style: const TextStyle(color: AppTheme.textBody, fontSize: 13.5, fontWeight: FontWeight.w600),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     enrolledExam.description,
-                    style: const TextStyle(color: AppTheme.textMuted, fontSize: 13, height: 1.5),
+                    style: const TextStyle(color: AppTheme.textMuted, fontSize: 12.5, height: 1.5),
                   ),
-                  const SizedBox(height: 18),
+                  const SizedBox(height: 16),
                   Wrap(
-                    spacing: 12,
+                    spacing: 10,
                     runSpacing: 10,
                     children: [
                       FilledButton.icon(
                         onPressed: () => widget.onGoToTab(1),
-                        icon: const Icon(Icons.menu_book_rounded, size: 17, color: Colors.white),
+                        icon: const Icon(Icons.menu_book_rounded, size: 16, color: Colors.white),
                         label: Text('Study Q&A Bank ($enrolledQuestionsCount)'),
                         style: FilledButton.styleFrom(
                           backgroundColor: AppTheme.iconRed,
@@ -742,7 +1008,7 @@ class _HomeTabState extends State<_HomeTab> {
                       ),
                       OutlinedButton.icon(
                         onPressed: () => widget.onGoToTab(2),
-                        icon: const Icon(Icons.timer_outlined, size: 17, color: AppTheme.primaryColor),
+                        icon: const Icon(Icons.timer_outlined, size: 16, color: AppTheme.primaryColor),
                         label: const Text('Start Mock Test'),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: AppTheme.primaryColor,
@@ -752,7 +1018,7 @@ class _HomeTabState extends State<_HomeTab> {
                       ),
                       OutlinedButton.icon(
                         onPressed: () => widget.onGoToTab(3),
-                        icon: const Icon(Icons.description_outlined, size: 17, color: AppTheme.primaryColor),
+                        icon: const Icon(Icons.description_outlined, size: 16, color: AppTheme.primaryColor),
                         label: const Text('View Official Syllabus'),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: AppTheme.primaryColor,
@@ -768,35 +1034,36 @@ class _HomeTabState extends State<_HomeTab> {
           else
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(24),
+              padding: EdgeInsets.all(isMobile ? 16 : 24),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: AppTheme.iconRed.withOpacity(0.45), width: 1.4),
               ),
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(14),
+                    padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       color: AppTheme.iconRedLight,
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Icon(Icons.school_outlined, color: AppTheme.iconRed, size: 28),
+                    child: const Icon(Icons.school_outlined, color: AppTheme.iconRed, size: 24),
                   ),
-                  const SizedBox(width: 16),
+                  const SizedBox(width: 14),
                   const Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           'Select & Enroll in Your Target Exam Below',
-                          style: TextStyle(fontSize: 16.5, fontWeight: FontWeight.w800, color: AppTheme.textPrimary),
+                          style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.w800, color: AppTheme.textPrimary),
                         ),
                         SizedBox(height: 4),
                         Text(
                           'Enroll in an exam course below to unlock its dedicated Question Bank, Mock Tests, and Official Syllabus. Other exam materials are hidden so your study stays 100% focused.',
-                          style: TextStyle(fontSize: 13, color: AppTheme.textMuted, height: 1.45),
+                          style: TextStyle(fontSize: 12.5, color: AppTheme.textMuted, height: 1.45),
                         ),
                       ],
                     ),
@@ -805,21 +1072,24 @@ class _HomeTabState extends State<_HomeTab> {
               ),
             ),
 
-          const SizedBox(height: 20),
+          const SizedBox(height: 18),
           _StatsGrid(user: user),
-          const SizedBox(height: 28),
-          Row(
+          const SizedBox(height: 24),
+          Wrap(
+            spacing: 12,
+            runSpacing: 8,
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               const Text(
                 'Enroll in a Lok Sewa Exam Course',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppTheme.textPrimary),
+                style: TextStyle(fontSize: 17.5, fontWeight: FontWeight.w800, color: AppTheme.textPrimary),
               ),
-              const Spacer(),
               if (user.isAdmin)
                 TextButton.icon(
                   onPressed: () => GoRouter.of(context).go(AppConstants.routeAdmin),
                   icon: const Icon(Icons.add_circle_outline_rounded, size: 16, color: AppTheme.iconRed),
-                  label: const Text('Add Exam in Admin CMS', style: TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.w600)),
+                  label: const Text('Add Exam in Admin CMS', style: TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.w600, fontSize: 12.5)),
                 ),
             ],
           ),
@@ -846,237 +1116,28 @@ class _HomeTabState extends State<_HomeTab> {
             }).toList(),
           ),
           const SizedBox(height: 16),
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: MediaQuery.of(context).size.width > 1100
-                  ? 3
-                  : (MediaQuery.of(context).size.width > 700 ? 2 : 1),
-              childAspectRatio: 1.42,
-              crossAxisSpacing: 16,
-              mainAxisSpacing: 16,
+          if (w <= 700)
+            Column(
+              children: filteredExams
+                  .map((exam) => Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: buildExamCard(exam, flexibleHeight: true),
+                      ))
+                  .toList(),
+            )
+          else
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: w > 1100 ? 3 : 2,
+                childAspectRatio: 1.42,
+                crossAxisSpacing: 16,
+                mainAxisSpacing: 16,
+              ),
+              itemCount: filteredExams.length,
+              itemBuilder: (ctx, i) => buildExamCard(filteredExams[i], flexibleHeight: false),
             ),
-            itemCount: filteredExams.length,
-            itemBuilder: (ctx, i) {
-              final exam = filteredExams[i];
-              final isComingSoon = exam.isComingSoon;
-              final isEnrolled = !isComingSoon && (user.isAdmin || user.isEnrolledIn(exam.id));
-              final isActive = isEnrolled && qp.selectedExamId == exam.id;
-              final qCount = qp.countForExam(exam.id);
-
-              return Opacity(
-                opacity: isComingSoon ? 0.65 : 1.0,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: isEnrolled ? AppTheme.iconRed : AppTheme.divider,
-                      width: isEnrolled ? 1.8 : 1,
-                    ),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: isComingSoon
-                                    ? const Color(0xFFF4F4F5)
-                                    : (isEnrolled ? AppTheme.iconRedLight : const Color(0xFFF4F4F5)),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(
-                                exam.category,
-                                style: TextStyle(
-                                  fontSize: 10.5,
-                                  fontWeight: FontWeight.w700,
-                                  color: isComingSoon
-                                      ? AppTheme.textMuted
-                                      : (isEnrolled ? AppTheme.iconRedDark : AppTheme.textPrimary),
-                                ),
-                              ),
-                            ),
-                            const Spacer(),
-                            if (isComingSoon)
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFF4F4F5),
-                                  borderRadius: BorderRadius.circular(6),
-                                  border: Border.all(color: AppTheme.divider),
-                                ),
-                                child: const Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(Icons.lock_clock_outlined, size: 11, color: AppTheme.textMuted),
-                                    SizedBox(width: 4),
-                                    Text(
-                                      'COMING SOON',
-                                      style: TextStyle(color: AppTheme.textMuted, fontSize: 10, fontWeight: FontWeight.w800),
-                                    ),
-                                  ],
-                                ),
-                              )
-                            else if (isEnrolled)
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                decoration: BoxDecoration(
-                                  color: AppTheme.iconRedLight,
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Text(
-                                  isActive ? '✓ Enrolled & Active' : '✓ Enrolled',
-                                  style: const TextStyle(color: AppTheme.iconRed, fontSize: 11, fontWeight: FontWeight.w800),
-                                ),
-                              )
-                            else
-                              Text(
-                                '$qCount Q&As',
-                                style: const TextStyle(fontSize: 11, color: AppTheme.textMuted, fontWeight: FontWeight.w600),
-                              ),
-                          ],
-                        ),
-                        const SizedBox(height: 10),
-                        Text(
-                          exam.title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontWeight: FontWeight.w800,
-                            fontSize: 14.5,
-                            color: isComingSoon ? AppTheme.textMuted : AppTheme.textPrimary,
-                          ),
-                        ),
-                        Text(
-                          exam.titleNepali,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: isComingSoon ? AppTheme.textMuted : AppTheme.textBody,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '${exam.organization} • ${exam.level}',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontSize: 11, color: AppTheme.textMuted),
-                        ),
-                        const Spacer(),
-                        const Divider(height: 14, color: AppTheme.divider),
-                        if (isComingSoon)
-                          const Row(
-                            children: [
-                              Icon(Icons.schedule_rounded, size: 14, color: AppTheme.textMuted),
-                              SizedBox(width: 5),
-                              Text(
-                                'Launching Soon',
-                                style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: AppTheme.textMuted),
-                              ),
-                              Spacer(),
-                              Icon(Icons.lock_outline_rounded, size: 14, color: AppTheme.textMuted),
-                            ],
-                          )
-                        else if (isEnrolled)
-                          Row(
-                            children: [
-                              FilledButton.icon(
-                                onPressed: () {
-                                  qp.selectExam(exam.id);
-                                  widget.onGoToTab(1);
-                                },
-                                icon: const Icon(Icons.menu_book_outlined, size: 14, color: Colors.white),
-                                label: const Text('Study Q&As', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700)),
-                                style: FilledButton.styleFrom(
-                                  backgroundColor: AppTheme.iconRed,
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                  minimumSize: Size.zero,
-                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              OutlinedButton(
-                                onPressed: () {
-                                  qp.selectExam(exam.id);
-                                  widget.onGoToTab(3);
-                                },
-                                style: OutlinedButton.styleFrom(
-                                  foregroundColor: AppTheme.textPrimary,
-                                  side: const BorderSide(color: AppTheme.divider),
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                                  minimumSize: Size.zero,
-                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                ),
-                                child: const Text('Syllabus', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600)),
-                              ),
-                              const Spacer(),
-                              if (!user.isAdmin)
-                                Tooltip(
-                                  message: 'Unenroll from this exam',
-                                  child: InkWell(
-                                    onTap: () async {
-                                      await auth.enrollInExam(exam.id, action: 'unenroll');
-                                      if (context.mounted) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          SnackBar(
-                                            content: Text('Unenrolled from ${exam.title}'),
-                                            duration: const Duration(seconds: 2),
-                                          ),
-                                        );
-                                      }
-                                    },
-                                    child: const Padding(
-                                      padding: EdgeInsets.all(4),
-                                      child: Icon(Icons.close_rounded, size: 16, color: AppTheme.textMuted),
-                                    ),
-                                  ),
-                                ),
-                            ],
-                          )
-                        else
-                          SizedBox(
-                            width: double.infinity,
-                            child: FilledButton.icon(
-                              onPressed: () async {
-                                // Set this exam as the user's enrolled exam so only its materials are shown
-                                await auth.enrollInExam(exam.id, action: 'set_single');
-                                qp.selectExam(exam.id);
-                                if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text('Enrolled in ${exam.title}! Showing only its study materials.'),
-                                      backgroundColor: AppTheme.primaryColor,
-                                      duration: const Duration(seconds: 2),
-                                    ),
-                                  );
-                                }
-                              },
-                              icon: const Icon(Icons.how_to_reg_rounded, size: 15, color: Colors.white),
-                              label: const Text('Enroll in Exam', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
-                              style: FilledButton.styleFrom(
-                                backgroundColor: AppTheme.primaryColor,
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(vertical: 9),
-                                minimumSize: Size.zero,
-                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
         ],
       ),
     );
@@ -1086,52 +1147,102 @@ class _HomeTabState extends State<_HomeTab> {
 class _UpgradeBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 560;
     return Container(
-      margin: const EdgeInsets.only(bottom: 20),
-      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(bottom: 18),
+      padding: EdgeInsets.all(isMobile ? 14 : 16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppTheme.iconRed.withOpacity(0.4), width: 1.2),
       ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: AppTheme.iconRedLight,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Icon(Icons.lock_open_rounded, color: AppTheme.iconRed, size: 22),
-          ),
-          const SizedBox(width: 14),
-          const Expanded(
-            child: Column(
+      child: isMobile
+          ? Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Unlock All Lok Sewa Model Answers with Pro',
-                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14.5, color: AppTheme.textPrimary),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: AppTheme.iconRedLight,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(Icons.lock_open_rounded, color: AppTheme.iconRed, size: 20),
+                    ),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Unlock All Lok Sewa Model Answers with Pro',
+                            style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5, color: AppTheme.textPrimary),
+                          ),
+                          SizedBox(height: 2),
+                          Text(
+                            'Full access to Paper I, Paper II & Paper III — रू 199',
+                            style: TextStyle(color: AppTheme.textMuted, fontSize: 11.5),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-                SizedBox(height: 2),
-                Text(
-                  'Get full access to Paper I, Paper II & Paper III model answers — रू 199',
-                  style: TextStyle(color: AppTheme.textMuted, fontSize: 12),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: () => GoRouter.of(context).go(AppConstants.routeSubscription),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppTheme.iconRed,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    child: const Text('Upgrade Now (रू 199)', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                  ),
+                ),
+              ],
+            )
+          : Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppTheme.iconRedLight,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.lock_open_rounded, color: AppTheme.iconRed, size: 22),
+                ),
+                const SizedBox(width: 14),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Unlock All Lok Sewa Model Answers with Pro',
+                        style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14.5, color: AppTheme.textPrimary),
+                      ),
+                      SizedBox(height: 2),
+                      Text(
+                        'Get full access to Paper I, Paper II & Paper III model answers — रू 199',
+                        style: TextStyle(color: AppTheme.textMuted, fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ),
+                FilledButton(
+                  onPressed: () => GoRouter.of(context).go(AppConstants.routeSubscription),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppTheme.iconRed,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  child: const Text('Upgrade Now'),
                 ),
               ],
             ),
-          ),
-          FilledButton(
-            onPressed: () => GoRouter.of(context).go(AppConstants.routeSubscription),
-            style: FilledButton.styleFrom(
-              backgroundColor: AppTheme.iconRed,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            ),
-            child: const Text('Upgrade Now'),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -1149,13 +1260,15 @@ class _StatsGrid extends StatelessWidget {
       enrolledExams: user.enrolledExams,
       isAdmin: user.isAdmin,
     );
+    final w = MediaQuery.of(context).size.width;
+    final isSmallMobile = w < 480;
     return GridView.count(
-      crossAxisCount: MediaQuery.of(context).size.width > 700 ? 4 : 2,
+      crossAxisCount: w > 700 ? 4 : 2,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      crossAxisSpacing: 16,
-      mainAxisSpacing: 16,
-      childAspectRatio: 1.75,
+      crossAxisSpacing: isSmallMobile ? 10 : 16,
+      mainAxisSpacing: isSmallMobile ? 10 : 16,
+      childAspectRatio: isSmallMobile ? 1.45 : 1.75,
       children: [
         _StatCard('Enrolled Exams', user.isAdmin ? '${qp.exams.length}' : '${user.enrolledExams.length}', Icons.how_to_reg_outlined, true),
         _StatCard('Enrolled Q&A Bank', hasEnrollment ? '${enrolledQuestions.length}' : '0', Icons.menu_book_outlined, false),
@@ -1174,8 +1287,9 @@ class _StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isSmallMobile = MediaQuery.of(context).size.width < 480;
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(isSmallMobile ? 12 : 16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -1185,13 +1299,20 @@ class _StatCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, color: isRed ? AppTheme.iconRed : AppTheme.primaryColor, size: 22),
-          const SizedBox(height: 8),
+          Icon(icon, color: isRed ? AppTheme.iconRed : AppTheme.primaryColor, size: isSmallMobile ? 19 : 22),
+          SizedBox(height: isSmallMobile ? 6 : 8),
           Text(
             value,
-            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppTheme.textPrimary),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(fontSize: isSmallMobile ? 17 : 20, fontWeight: FontWeight.w800, color: AppTheme.textPrimary),
           ),
-          Text(label, style: const TextStyle(color: AppTheme.textMuted, fontSize: 11.5)),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(color: AppTheme.textMuted, fontSize: isSmallMobile ? 11 : 11.5),
+          ),
         ],
       ),
     );
@@ -1422,6 +1543,8 @@ class _QBankToolbar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final screenW = MediaQuery.of(context).size.width;
+    final isMobile = screenW < 600;
     return Container(
       decoration: const BoxDecoration(
         color: Colors.white,
@@ -1454,7 +1577,7 @@ class _QBankToolbar extends StatelessWidget {
                     ],
                     // Search field
                     SizedBox(
-                      width: 230,
+                      width: isMobile ? (screenW - 28).clamp(180.0, 500.0) : 230,
                       height: 34,
                       child: TextField(
                         controller: searchCtrl,
@@ -1489,8 +1612,10 @@ class _QBankToolbar extends StatelessWidget {
                     ),
                   ],
                 ),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     // Lang toggle
                     _SegToggle(
@@ -1499,14 +1624,12 @@ class _QBankToolbar extends StatelessWidget {
                       selected: lang,
                       onChanged: onLangChanged,
                     ),
-                    const SizedBox(width: 10),
                     // Font size
                     _FontControl(
                       size: fontSize,
                       onDec: onFontDec,
                       onInc: onFontInc,
                     ),
-                    const SizedBox(width: 10),
                     // Progress pill
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
@@ -1524,8 +1647,7 @@ class _QBankToolbar extends StatelessWidget {
                         ),
                       ),
                     ),
-                    if (isWide && currentIdx >= 0) ...[
-                      const SizedBox(width: 10),
+                    if (currentIdx >= 0)
                       // Prev / Next
                       _NavControl(
                         currentIdx: currentIdx,
@@ -1533,7 +1655,6 @@ class _QBankToolbar extends StatelessWidget {
                         onPrev: onPrev,
                         onNext: onNext,
                       ),
-                    ],
                   ],
                 ),
               ],
@@ -2039,6 +2160,7 @@ class _StudyReaderState extends State<_StudyReader> {
     final auth = context.watch<AuthProvider>();
     final plan = auth.user?.plan ?? SubscriptionPlan.free;
     final locked = plan == SubscriptionPlan.free && widget.question.isPremium;
+    final isMobile = MediaQuery.of(context).size.width < 600;
 
     final questionText = widget.lang == 'english'
         ? widget.question.questionEnglish
@@ -2048,7 +2170,10 @@ class _StudyReaderState extends State<_StudyReader> {
       color: Colors.white,
       child: SingleChildScrollView(
         controller: _scroll,
-        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 28),
+        padding: EdgeInsets.symmetric(
+          horizontal: isMobile ? 16 : 32,
+          vertical: isMobile ? 18 : 28,
+        ),
         child: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 820),
@@ -2057,39 +2182,61 @@ class _StudyReaderState extends State<_StudyReader> {
               children: [
                 // ── Back button (mobile) ──
                 if (widget.onBack != null) ...[
-                  GestureDetector(
+                  InkWell(
                     onTap: widget.onBack,
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.arrow_back_rounded, size: 15, color: AppTheme.textMuted),
-                        SizedBox(width: 4),
-                        Text('Back', style: TextStyle(fontSize: 13, color: AppTheme.textMuted)),
-                      ],
+                    borderRadius: BorderRadius.circular(6),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: AppTheme.bgSurface,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: AppTheme.divider),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.arrow_back_rounded, size: 15, color: AppTheme.textPrimary),
+                          SizedBox(width: 6),
+                          Text(
+                            'Back to Question List',
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w700,
+                              color: AppTheme.textPrimary,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 16),
                 ],
 
                 // ── Meta row ──
-                Row(
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 8,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  alignment: WrapAlignment.spaceBetween,
                   children: [
-                    _MetaBadge(
-                      widget.question.paper == PaperType.paper1 ? 'Paper I' : 'Paper II',
-                      red: true,
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        _MetaBadge(
+                          widget.question.paper == PaperType.paper1 ? 'Paper I' : 'Paper II',
+                          red: true,
+                        ),
+                        _MetaBadge('Unit ${widget.question.unitNumber}'),
+                        if (widget.question.type == QuestionType.mcq)
+                          const _MetaBadge('MCQ')
+                        else
+                          _MetaBadge('${widget.question.marks} Marks', red: true),
+                        if (widget.question.yearsAsked.isNotEmpty)
+                          _MetaBadge(widget.question.yearsAsked.join(' · ')),
+                      ],
                     ),
-                    const SizedBox(width: 6),
-                    _MetaBadge('Unit ${widget.question.unitNumber}'),
-                    const SizedBox(width: 6),
-                    if (widget.question.type == QuestionType.mcq)
-                      const _MetaBadge('MCQ')
-                    else
-                      _MetaBadge('${widget.question.marks} Marks', red: true),
-                    if (widget.question.yearsAsked.isNotEmpty) ...[
-                      const SizedBox(width: 6),
-                      _MetaBadge(widget.question.yearsAsked.join(' · ')),
-                    ],
-                    const Spacer(),
                     // Studied toggle
                     GestureDetector(
                       onTap: widget.onToggleStudied,
@@ -2695,49 +2842,56 @@ class _TestStartScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final qp = context.watch<QuestionProvider>();
     final examTitle = qp.selectedExam?.title ?? 'Lok Sewa Objective Exam';
+    final isMobile = MediaQuery.of(context).size.width < 600;
     return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 500),
-        child: Container(
-          margin: const EdgeInsets.all(24),
-          padding: const EdgeInsets.all(32),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: AppTheme.divider),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(color: AppTheme.iconRedLight, borderRadius: BorderRadius.circular(12)),
-                child: const Icon(Icons.timer_outlined, size: 42, color: AppTheme.iconRed),
-              ),
-              const SizedBox(height: 20),
-              const Text('Timed MCQ Mock Test', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: AppTheme.textPrimary)),
-              const SizedBox(height: 6),
-              Text(examTitle, style: const TextStyle(color: AppTheme.textMuted, fontSize: 13), textAlign: TextAlign.center),
-              const SizedBox(height: 24),
-              _rule(Icons.timer_outlined, '45 Minutes Time Limit', true),
-              _rule(Icons.quiz_outlined, 'Multiple Choice Questions (MCQs)', false),
-              _rule(Icons.check_circle_outline_rounded, '1 or 2 Marks per Correct Answer', true),
-              _rule(Icons.analytics_outlined, 'Instant Score & Detailed Explanation', false),
-              const SizedBox(height: 28),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton.icon(
-                  onPressed: onStart,
-                  icon: const Icon(Icons.play_arrow_rounded, color: Colors.white),
-                  label: const Text('Start Mock Test', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: AppTheme.iconRed,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
+      child: SingleChildScrollView(
+        padding: EdgeInsets.all(isMobile ? 14 : 24),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 500),
+          child: Container(
+            padding: EdgeInsets.all(isMobile ? 22 : 32),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: AppTheme.divider),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(color: AppTheme.iconRedLight, borderRadius: BorderRadius.circular(12)),
+                  child: const Icon(Icons.timer_outlined, size: 42, color: AppTheme.iconRed),
+                ),
+                const SizedBox(height: 20),
+                const Text(
+                  'Timed MCQ Mock Test',
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: AppTheme.textPrimary),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 6),
+                Text(examTitle, style: const TextStyle(color: AppTheme.textMuted, fontSize: 13), textAlign: TextAlign.center),
+                const SizedBox(height: 24),
+                _rule(Icons.timer_outlined, '45 Minutes Time Limit', true),
+                _rule(Icons.quiz_outlined, 'Multiple Choice Questions (MCQs)', false),
+                _rule(Icons.check_circle_outline_rounded, '1 or 2 Marks per Correct Answer', true),
+                _rule(Icons.analytics_outlined, 'Instant Score & Detailed Explanation', false),
+                const SizedBox(height: 28),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: onStart,
+                    icon: const Icon(Icons.play_arrow_rounded, color: Colors.white),
+                    label: const Text('Start Mock Test', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppTheme.iconRed,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -2750,7 +2904,7 @@ class _TestStartScreen extends StatelessWidget {
       children: [
         Icon(icon, size: 18, color: isRed ? AppTheme.iconRed : AppTheme.primaryColor),
         const SizedBox(width: 10),
-        Text(text, style: const TextStyle(fontSize: 13.5, color: AppTheme.textBody)),
+        Expanded(child: Text(text, style: const TextStyle(fontSize: 13.5, color: AppTheme.textBody))),
       ],
     ),
   );
@@ -2788,6 +2942,7 @@ class _ActiveTestViewState extends State<_ActiveTestView> {
     final q = mt.currentQuestion;
     if (q == null) return const SizedBox.shrink();
     final remaining = mt.remaining;
+    final isMobile = MediaQuery.of(context).size.width < 600;
 
     return Column(
       children: [
@@ -2796,21 +2951,27 @@ class _ActiveTestViewState extends State<_ActiveTestView> {
             color: Colors.white,
             border: Border(bottom: BorderSide(color: AppTheme.divider, width: 1)),
           ),
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          padding: EdgeInsets.symmetric(horizontal: isMobile ? 14 : 20, vertical: 10),
           child: Row(
             children: [
-              const Icon(Icons.timer_outlined, color: AppTheme.iconRed, size: 20),
-              const SizedBox(width: 8),
+              const Icon(Icons.timer_outlined, color: AppTheme.iconRed, size: 19),
+              const SizedBox(width: 6),
               Text(
                 '${remaining.inMinutes.toString().padLeft(2, '0')}:${(remaining.inSeconds % 60).toString().padLeft(2, '0')}',
-                style: const TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.w800, fontSize: 18),
+                style: TextStyle(
+                  color: AppTheme.textPrimary,
+                  fontWeight: FontWeight.w800,
+                  fontSize: isMobile ? 16 : 18,
+                ),
               ),
               const Spacer(),
               Text(
-                'Question ${mt.currentIndex + 1} of ${mt.questions.length}',
-                style: const TextStyle(color: AppTheme.textMuted, fontSize: 13, fontWeight: FontWeight.w600),
+                isMobile
+                    ? 'Q ${mt.currentIndex + 1} / ${mt.questions.length}'
+                    : 'Question ${mt.currentIndex + 1} of ${mt.questions.length}',
+                style: const TextStyle(color: AppTheme.textMuted, fontSize: 12.5, fontWeight: FontWeight.w600),
               ),
-              const SizedBox(width: 16),
+              SizedBox(width: isMobile ? 10 : 16),
               FilledButton(
                 onPressed: () {
                   _timer?.cancel();
@@ -2819,8 +2980,12 @@ class _ActiveTestViewState extends State<_ActiveTestView> {
                 style: FilledButton.styleFrom(
                   backgroundColor: AppTheme.iconRed,
                   foregroundColor: Colors.white,
+                  padding: EdgeInsets.symmetric(horizontal: isMobile ? 12 : 16, vertical: 10),
                 ),
-                child: const Text('Submit Test', style: TextStyle(fontWeight: FontWeight.w700)),
+                child: Text(
+                  isMobile ? 'Submit' : 'Submit Test',
+                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                ),
               ),
             ],
           ),
@@ -2832,7 +2997,7 @@ class _ActiveTestViewState extends State<_ActiveTestView> {
         ),
         Expanded(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
+            padding: EdgeInsets.all(isMobile ? 14 : 24),
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 700),
               child: Column(
@@ -2923,8 +3088,9 @@ class _TestResultView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 600;
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(isMobile ? 14 : 24),
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 680),
@@ -2932,7 +3098,7 @@ class _TestResultView extends StatelessWidget {
             children: [
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.all(28),
+                padding: EdgeInsets.all(isMobile ? 20 : 28),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(14),
@@ -3002,14 +3168,16 @@ class SyllabusTab extends StatelessWidget {
       return const Center(child: CircularProgressIndicator(color: AppTheme.iconRed));
     }
 
+    final isMobile = MediaQuery.of(context).size.width < 600;
+
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(isMobile ? 14 : 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(22),
+            padding: EdgeInsets.all(isMobile ? 16 : 22),
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(12),
@@ -3022,16 +3190,18 @@ class SyllabusTab extends StatelessWidget {
                   children: [
                     const Icon(Icons.account_balance_outlined, size: 16, color: AppTheme.iconRed),
                     const SizedBox(width: 6),
-                    Text(
-                      '${exam.organization} • ${exam.level}',
-                      style: const TextStyle(color: AppTheme.iconRedDark, fontSize: 12, fontWeight: FontWeight.w700),
+                    Expanded(
+                      child: Text(
+                        '${exam.organization} • ${exam.level}',
+                        style: const TextStyle(color: AppTheme.iconRedDark, fontSize: 12, fontWeight: FontWeight.w700),
+                      ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 8),
                 Text(
                   exam.title,
-                  style: const TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.w800, fontSize: 20),
+                  style: TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.w800, fontSize: isMobile ? 18 : 20),
                 ),
                 const SizedBox(height: 4),
                 Text(
@@ -3044,7 +3214,7 @@ class SyllabusTab extends StatelessWidget {
           const SizedBox(height: 20),
           if (exam.examScheme.isNotEmpty) ...[
             Container(
-              padding: const EdgeInsets.all(20),
+              padding: EdgeInsets.all(isMobile ? 16 : 20),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(12),
@@ -3057,9 +3227,11 @@ class SyllabusTab extends StatelessWidget {
                     children: [
                       Icon(Icons.assignment_turned_in_outlined, color: AppTheme.iconRed, size: 20),
                       SizedBox(width: 8),
-                      Text(
-                        'Examination Scheme (परीक्षा योजना)',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppTheme.textPrimary),
+                      Expanded(
+                        child: Text(
+                          'Examination Scheme (परीक्षा योजना)',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppTheme.textPrimary),
+                        ),
                       ),
                     ],
                   ),

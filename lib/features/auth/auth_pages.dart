@@ -101,8 +101,9 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                         ),
                         const SizedBox(height: 18),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
+                        Wrap(
+                          alignment: WrapAlignment.center,
+                          crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
                             const Text('Don\'t have an account? ', style: TextStyle(color: AppTheme.textMuted)),
                             TextButton(
@@ -176,12 +177,13 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isSmall = MediaQuery.of(context).size.width < 480;
     return Scaffold(
       backgroundColor: Colors.white,
       body: Center(
         child: SingleChildScrollView(
           child: Padding(
-            padding: const EdgeInsets.all(24),
+            padding: EdgeInsets.all(isSmall ? 14 : 24),
             child: _AuthCard(
               child: Form(
                 key: _formKey,
@@ -315,12 +317,13 @@ class _RegisterPageState extends State<RegisterPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isSmall = MediaQuery.of(context).size.width < 480;
     return Scaffold(
       backgroundColor: Colors.white,
       body: Center(
         child: SingleChildScrollView(
           child: Padding(
-            padding: const EdgeInsets.all(24),
+            padding: EdgeInsets.all(isSmall ? 14 : 24),
             child: _AuthCard(
               child: Form(
                 key: _formKey,
@@ -397,8 +400,9 @@ class _RegisterPageState extends State<RegisterPage> {
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 16),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                    Wrap(
+                      alignment: WrapAlignment.center,
+                      crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         const Text('Already have an account? ', style: TextStyle(color: AppTheme.textMuted)),
                         TextButton(
@@ -429,6 +433,7 @@ class _AuthCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isSmall = MediaQuery.of(context).size.width < 480;
     return ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: 440),
       child: Container(
@@ -437,7 +442,7 @@ class _AuthCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(14),
           border: Border.all(color: AppTheme.divider, width: 1.2),
         ),
-        padding: const EdgeInsets.all(34),
+        padding: EdgeInsets.all(isSmall ? 20 : 34),
         child: child,
       ),
     );
@@ -451,6 +456,7 @@ class _AuthHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isSmall = MediaQuery.of(context).size.width < 480;
     return Column(
       children: [
         Container(
@@ -463,9 +469,13 @@ class _AuthHeader extends StatelessWidget {
           child: Icon(icon, color: AppTheme.iconRed, size: 28),
         ),
         const SizedBox(height: 14),
-        const Text('LokSewa Prep Nepal', style: TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.w800, fontSize: 16)),
+        const Text('LoksewaHero', style: TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.w800, fontSize: 16)),
         const SizedBox(height: 6),
-        Text(title, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: AppTheme.textPrimary, letterSpacing: -0.4)),
+        Text(
+          title,
+          style: TextStyle(fontSize: isSmall ? 19 : 22, fontWeight: FontWeight.w800, color: AppTheme.textPrimary, letterSpacing: -0.4),
+          textAlign: TextAlign.center,
+        ),
         const SizedBox(height: 4),
         Text(subtitle, style: const TextStyle(color: AppTheme.textMuted, fontSize: 13), textAlign: TextAlign.center),
       ],
