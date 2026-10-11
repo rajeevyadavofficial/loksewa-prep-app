@@ -5,7 +5,7 @@ class AppConstants {
   static const String appVersion = '1.0.0';
 
   // Node.js + MongoDB Backend API URL
-  static const String apiBaseUrl = 'http://localhost:5000/api';
+  static const String apiBaseUrl = 'https://loksewa-prep-app.onrender.com/api';
 
   // Exam Info
   static const String examName = 'Rastriya Banijya Bank (RBB)';

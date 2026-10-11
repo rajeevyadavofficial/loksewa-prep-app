@@ -40,6 +40,18 @@ app.use('/api/questions', questionRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/settings', settingsRoutes);
 
+// Serve Flutter Web static build (if present in backend/public)
+const path = require('path');
+const fs = require('fs');
+const publicDir = path.join(__dirname, 'public');
+if (fs.existsSync(publicDir)) {
+  app.use(express.static(publicDir));
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api')) return next();
+    res.sendFile(path.join(publicDir, 'index.html'));
+  });
+}
+
 async function startServer() {
   await connectDB();
   app.listen(PORT, () => {
