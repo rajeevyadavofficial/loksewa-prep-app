@@ -353,11 +353,6 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
                         );
                       },
                     ),
-                    const SizedBox(height: 16),
-                    TextButton(
-                      onPressed: _isSubmitting ? null : () => context.go(AppConstants.routeLogin),
-                      child: const Text('← Go to Candidate Login', style: TextStyle(color: AppTheme.textMuted)),
-                    ),
                   ],
                 ),
               ),

@@ -29,18 +29,17 @@ class AuthProvider extends ChangeNotifier {
   bool _loading = false;
   String? _error;
 
-  /// Active user for Candidate screens (/dashboard, /subscription).
-  /// Falls back to _adminUser if Admin is previewing Candidate View without a separate candidate login.
-  AppUser? get user => _user ?? _adminUser;
+  /// Active user for Candidate screens (/dashboard, /subscription) — strictly Candidate session only.
+  AppUser? get user => _user;
   AppUser? get candidateUser => _user;
-  AppUser? get adminUser => _adminUser ?? (_user?.isAdmin == true ? _user : null);
+  AppUser? get adminUser => _adminUser;
 
-  String? get token => _token ?? _adminToken;
-  String? get adminToken => _adminToken ?? (_user?.isAdmin == true ? _token : null);
+  String? get token => _token;
+  String? get adminToken => _adminToken;
 
-  bool get isLoggedIn => user != null;
+  bool get isLoggedIn => _user != null;
   bool get isCandidateLoggedIn => _user != null;
-  bool get isAdminLoggedIn => adminUser?.isAdmin == true && (adminToken?.isNotEmpty ?? false);
+  bool get isAdminLoggedIn => _adminUser?.isAdmin == true && (_adminToken?.isNotEmpty ?? false);
   bool get initializing => _initializing;
   bool get loading => _loading;
   String? get error => _error;
@@ -255,6 +254,12 @@ class AuthProvider extends ChangeNotifier {
         if (forAdminPortal && !isUserAdmin) {
           _loading = false;
           _error = 'Access Denied: This portal is restricted to Administrators only.';
+          notifyListeners();
+          return _error;
+        }
+        if (!forAdminPortal && isUserAdmin) {
+          _loading = false;
+          _error = 'Admin accounts cannot sign in to Candidate View. Please use /admin/adminlogin.';
           notifyListeners();
           return _error;
         }

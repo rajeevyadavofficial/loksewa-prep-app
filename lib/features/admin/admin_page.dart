@@ -960,21 +960,6 @@ class _AdminPageState extends State<AdminPage> {
               _fetchAdminStats();
             },
           ),
-          Padding(
-            padding: const EdgeInsets.only(right: 6),
-            child: OutlinedButton.icon(
-              icon: const Icon(Icons.arrow_back_rounded, color: AppTheme.primaryColor, size: 16),
-              label: Text(
-                isMobile ? 'App' : 'Candidate View',
-                style: const TextStyle(color: AppTheme.textPrimary, fontSize: 12.5, fontWeight: FontWeight.w700),
-              ),
-              onPressed: () => GoRouter.of(context).go(AppConstants.routeDashboard),
-              style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: AppTheme.divider),
-                padding: EdgeInsets.symmetric(horizontal: isMobile ? 10 : 14, vertical: 8),
-              ),
-            ),
-          ),
           IconButton(
             icon: const Icon(Icons.logout_rounded, color: AppTheme.iconRed, size: 20),
             tooltip: 'Logout Admin Session',
