@@ -1328,6 +1328,7 @@ class _QuestionsTabState extends State<QuestionsTab> {
   final Set<String> _studiedIds = {};
   final TextEditingController _searchCtrl = TextEditingController();
   bool _listCollapsed = false;
+  bool _liningCopyMode = true;
 
   @override
   void dispose() {
@@ -1389,6 +1390,7 @@ class _QuestionsTabState extends State<QuestionsTab> {
           currentIdx: currentIdx,
           isWide: isWide,
           isListCollapsed: _listCollapsed,
+          isLiningCopyMode: _liningCopyMode,
           onLangChanged: (l) => setState(() => _lang = l),
           onFontDec: () => setState(() => _fontSize = (_fontSize - 1).clamp(13, 22)),
           onFontInc: () => setState(() => _fontSize = (_fontSize + 1).clamp(13, 22)),
@@ -1397,6 +1399,12 @@ class _QuestionsTabState extends State<QuestionsTab> {
           onPrev: currentIdx > 0 ? () => _go(accessible, -1) : null,
           onNext: currentIdx >= 0 && currentIdx < accessible.length - 1 ? () => _go(accessible, 1) : null,
           onToggleList: () => setState(() => _listCollapsed = !_listCollapsed),
+          onToggleLiningCopy: () => setState(() {
+            _liningCopyMode = !_liningCopyMode;
+            if (_liningCopyMode && isWide) {
+              _listCollapsed = true;
+            }
+          }),
           paperFilter: qp.paperFilter,
           typeFilter: qp.typeFilter,
           onFilterChanged: (paper, type) {
@@ -1449,13 +1457,18 @@ class _QuestionsTabState extends State<QuestionsTab> {
                                   : _StudyReader(
                                       key: ValueKey(_selected!.id),
                                       question: _selected!,
+                                      questionNumber: currentIdx >= 0 ? currentIdx + 1 : 1,
+                                      totalQuestions: accessible.length,
                                       lang: _lang,
                                       fontSize: _fontSize,
+                                      liningCopyMode: _liningCopyMode,
                                       isStudied: _studiedIds.contains(_selected!.id),
                                       onToggleStudied: () => setState(() {
                                         final id = _selected!.id;
                                         _studiedIds.contains(id) ? _studiedIds.remove(id) : _studiedIds.add(id);
                                       }),
+                                      onPrev: currentIdx > 0 ? () => _go(accessible, -1) : null,
+                                      onNext: currentIdx >= 0 && currentIdx < accessible.length - 1 ? () => _go(accessible, 1) : null,
                                     ),
                             ),
                           ],
@@ -1476,14 +1489,19 @@ class _QuestionsTabState extends State<QuestionsTab> {
                           : _StudyReader(
                               key: ValueKey(_selected!.id),
                               question: _selected!,
+                              questionNumber: currentIdx >= 0 ? currentIdx + 1 : 1,
+                              totalQuestions: accessible.length,
                               lang: _lang,
                               fontSize: _fontSize,
+                              liningCopyMode: _liningCopyMode,
                               isStudied: _studiedIds.contains(_selected!.id),
                               onToggleStudied: () => setState(() {
                                 final id = _selected!.id;
                                 _studiedIds.contains(id) ? _studiedIds.remove(id) : _studiedIds.add(id);
                               }),
                               onBack: () => setState(() => _selected = null),
+                              onPrev: currentIdx > 0 ? () => _go(accessible, -1) : null,
+                              onNext: currentIdx >= 0 && currentIdx < accessible.length - 1 ? () => _go(accessible, 1) : null,
                             ),
         ),
       ],
@@ -1501,6 +1519,7 @@ class _QBankToolbar extends StatelessWidget {
   final int currentIdx;
   final bool isWide;
   final bool isListCollapsed;
+  final bool isLiningCopyMode;
   final ValueChanged<String> onLangChanged;
   final VoidCallback onFontDec;
   final VoidCallback onFontInc;
@@ -1509,6 +1528,7 @@ class _QBankToolbar extends StatelessWidget {
   final VoidCallback? onPrev;
   final VoidCallback? onNext;
   final VoidCallback onToggleList;
+  final VoidCallback onToggleLiningCopy;
   final PaperType? paperFilter;
   final QuestionType? typeFilter;
   final void Function(PaperType? paper, QuestionType? type) onFilterChanged;
@@ -1522,6 +1542,7 @@ class _QBankToolbar extends StatelessWidget {
     required this.currentIdx,
     required this.isWide,
     required this.isListCollapsed,
+    required this.isLiningCopyMode,
     required this.onLangChanged,
     required this.onFontDec,
     required this.onFontInc,
@@ -1530,6 +1551,7 @@ class _QBankToolbar extends StatelessWidget {
     required this.onPrev,
     required this.onNext,
     required this.onToggleList,
+    required this.onToggleLiningCopy,
     required this.paperFilter,
     required this.typeFilter,
     required this.onFilterChanged,
@@ -1556,22 +1578,57 @@ class _QBankToolbar extends StatelessWidget {
               crossAxisAlignment: WrapCrossAlignment.center,
               alignment: WrapAlignment.spaceBetween,
               children: [
-                Row(
-                  mainAxisSize: MainAxisSize.min,
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
-                    if (isWide) ...[
-                      // Toggle list button
+                    if (isWide)
                       _ToolBtn(
-                        tooltip: isListCollapsed ? 'Show Question List' : 'Focus Mode',
-                        icon: isListCollapsed ? Icons.view_list_rounded : Icons.chrome_reader_mode_outlined,
+                        tooltip: isListCollapsed ? 'Show Question List' : 'Hide Question List',
+                        icon: isListCollapsed ? Icons.view_list_rounded : Icons.view_sidebar_outlined,
                         active: isListCollapsed,
                         onTap: onToggleList,
                       ),
-                      const SizedBox(width: 8),
-                    ],
+                    // Lining Copy Focus Mode Toggle Pill
+                    InkWell(
+                      onTap: onToggleLiningCopy,
+                      borderRadius: BorderRadius.circular(7),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 160),
+                        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: isLiningCopyMode ? AppTheme.iconRed : Colors.white,
+                          borderRadius: BorderRadius.circular(7),
+                          border: Border.all(
+                            color: isLiningCopyMode ? AppTheme.iconRed : AppTheme.divider,
+                            width: 1.2,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.menu_book_rounded,
+                              size: 15,
+                              color: isLiningCopyMode ? Colors.white : AppTheme.iconRed,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              isLiningCopyMode ? 'Lining Copy Focus ✓' : 'Lining Copy Mode',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w800,
+                                color: isLiningCopyMode ? Colors.white : AppTheme.textPrimary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                     // Search field
                     SizedBox(
-                      width: isMobile ? (screenW - 28).clamp(180.0, 500.0) : 230,
+                      width: isMobile ? (screenW - 28).clamp(180.0, 500.0) : 210,
                       height: 34,
                       child: TextField(
                         controller: searchCtrl,
@@ -2120,20 +2177,30 @@ class _EmptyState extends StatelessWidget {
 // ── The Study Reader (Right Pane) ───────────────────────────────
 class _StudyReader extends StatefulWidget {
   final Question question;
+  final int questionNumber;
+  final int totalQuestions;
   final String lang;
   final double fontSize;
+  final bool liningCopyMode;
   final bool isStudied;
   final VoidCallback onToggleStudied;
   final VoidCallback? onBack;
+  final VoidCallback? onPrev;
+  final VoidCallback? onNext;
 
   const _StudyReader({
     super.key,
     required this.question,
+    required this.questionNumber,
+    required this.totalQuestions,
     required this.lang,
     required this.fontSize,
+    required this.liningCopyMode,
     required this.isStudied,
     required this.onToggleStudied,
     this.onBack,
+    this.onPrev,
+    this.onNext,
   });
 
   @override
@@ -2142,6 +2209,14 @@ class _StudyReader extends StatefulWidget {
 
 class _StudyReaderState extends State<_StudyReader> {
   final _scroll = ScrollController();
+
+  @override
+  void didUpdateWidget(covariant _StudyReader oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.question.id != widget.question.id && _scroll.hasClients) {
+      _scroll.jumpTo(0);
+    }
+  }
 
   @override
   void dispose() {
@@ -2155,6 +2230,24 @@ class _StudyReaderState extends State<_StudyReader> {
     final plan = auth.user?.plan ?? SubscriptionPlan.free;
     final locked = plan == SubscriptionPlan.free && widget.question.isPremium;
     final isMobile = MediaQuery.of(context).size.width < 600;
+
+    if (widget.liningCopyMode) {
+      return _LinedCopySheet(
+        scrollController: _scroll,
+        question: widget.question,
+        questionNumber: widget.questionNumber,
+        totalQuestions: widget.totalQuestions,
+        lang: widget.lang,
+        fontSize: widget.fontSize,
+        isStudied: widget.isStudied,
+        locked: locked,
+        isMobile: isMobile,
+        onToggleStudied: widget.onToggleStudied,
+        onBack: widget.onBack,
+        onPrev: widget.onPrev,
+        onNext: widget.onNext,
+      );
+    }
 
     final questionText = widget.lang == 'english'
         ? widget.question.questionEnglish
@@ -2305,6 +2398,818 @@ class _StudyReaderState extends State<_StudyReader> {
           ),
         ),
       ),
+    );
+  }
+}
+
+// ── Physical Lining Copy ("लाइनिङ कपी") Focus View ────────────────
+class _LinedCopySheet extends StatelessWidget {
+  final ScrollController scrollController;
+  final Question question;
+  final int questionNumber;
+  final int totalQuestions;
+  final String lang;
+  final double fontSize;
+  final bool isStudied;
+  final bool locked;
+  final bool isMobile;
+  final VoidCallback onToggleStudied;
+  final VoidCallback? onBack;
+  final VoidCallback? onPrev;
+  final VoidCallback? onNext;
+
+  const _LinedCopySheet({
+    required this.scrollController,
+    required this.question,
+    required this.questionNumber,
+    required this.totalQuestions,
+    required this.lang,
+    required this.fontSize,
+    required this.isStudied,
+    required this.locked,
+    required this.isMobile,
+    required this.onToggleStudied,
+    this.onBack,
+    this.onPrev,
+    this.onNext,
+  });
+
+  String _toNepaliDigits(int number) {
+    const map = ['०', '१', '२', '३', '४', '५', '६', '७', '८', '९'];
+    return number
+        .toString()
+        .split('')
+        .map((c) => int.tryParse(c) != null ? map[int.parse(c)] : c)
+        .join();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final questionText = lang == 'english'
+        ? question.questionEnglish
+        : question.questionNepali;
+    final nepaliAnswer = question.answerNepali ?? 'उत्तर उपलब्ध छैन।';
+    final englishAnswer = question.answerEnglish ?? 'Answer not available.';
+    final activeAnswer = lang == 'english' ? englishAnswer : nepaliAnswer;
+
+    // Exact line-height locking so every text baseline rests on a physical ruled line
+    final double lineHeight = (fontSize * 2.15).roundToDouble();
+    final double textHeightRatio = lineHeight / fontSize;
+    final double leftMarginWidth = isMobile ? 54.0 : 80.0;
+    final double rightPad = isMobile ? 14.0 : 28.0;
+
+    final baseQuestionStyle = TextStyle(
+      fontSize: fontSize + 0.5,
+      fontWeight: FontWeight.w800,
+      height: lineHeight / (fontSize + 0.5),
+      color: AppTheme.textPrimary,
+      letterSpacing: -0.1,
+    );
+    final questionStrut = StrutStyle(
+      fontSize: fontSize + 0.5,
+      height: lineHeight / (fontSize + 0.5),
+      forceStrutHeight: true,
+      leading: 0,
+    );
+
+    final marginLabelStyle = TextStyle(
+      fontSize: isMobile ? 12.0 : 13.0,
+      fontWeight: FontWeight.w800,
+      height: lineHeight / (isMobile ? 12.0 : 13.0),
+      color: AppTheme.iconRed,
+    );
+    final marginLabelStrut = StrutStyle(
+      fontSize: isMobile ? 12.0 : 13.0,
+      height: lineHeight / (isMobile ? 12.0 : 13.0),
+      forceStrutHeight: true,
+      leading: 0,
+    );
+
+    final qLabel = lang == 'nepali'
+        ? 'प्र. ${_toNepaliDigits(questionNumber)}.'
+        : 'Q.$questionNumber';
+    final ansLabel = lang == 'nepali' ? 'उत्तर:' : 'Ans:';
+
+    return Container(
+      color: const Color(0xFFEDEDED),
+      child: SingleChildScrollView(
+        controller: scrollController,
+        padding: EdgeInsets.symmetric(
+          horizontal: isMobile ? 6 : 24,
+          vertical: isMobile ? 10 : 22,
+        ),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 850),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (onBack != null) ...[
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: InkWell(
+                      onTap: onBack,
+                      borderRadius: BorderRadius.circular(6),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: AppTheme.divider),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.arrow_back_rounded, size: 15, color: AppTheme.textPrimary),
+                            SizedBox(width: 6),
+                            Text(
+                              'Back to Question List',
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w700,
+                                color: AppTheme.textPrimary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                ],
+
+                // ── THE PHYSICAL LINING COPY PAGE ──
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(3),
+                    border: Border.all(color: const Color(0xFFD4D4D8), width: 1),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x18000000),
+                        blurRadius: 16,
+                        offset: Offset(0, 6),
+                      ),
+                      BoxShadow(
+                        color: Color(0x0A000000),
+                        blurRadius: 3,
+                        offset: Offset(2, 2),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // ── 1. TOP UNRULED NOTEBOOK HEADER AREA ──
+                      IntrinsicHeight(
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            // Left margin column in header
+                            Container(
+                              width: leftMarginWidth,
+                              decoration: const BoxDecoration(
+                                border: Border(
+                                  right: BorderSide(color: AppTheme.iconRed, width: 1.2),
+                                ),
+                              ),
+                              child: Container(
+                                margin: const EdgeInsets.only(right: 3.0),
+                                decoration: const BoxDecoration(
+                                  border: Border(
+                                    right: BorderSide(color: AppTheme.iconRed, width: 1.0),
+                                  ),
+                                ),
+                                child: Center(
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      const Icon(
+                                        Icons.menu_book_rounded,
+                                        size: 16,
+                                        color: AppTheme.iconRed,
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        lang == 'nepali' ? 'लोकसेवा' : 'PSC',
+                                        style: const TextStyle(
+                                          fontSize: 9.5,
+                                          fontWeight: FontWeight.w800,
+                                          color: AppTheme.iconRed,
+                                          letterSpacing: 0.3,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+
+                            // Main header content + Right Date/Page stamp box
+                            Expanded(
+                              child: Padding(
+                                padding: EdgeInsets.fromLTRB(
+                                  isMobile ? 10 : 18,
+                                  isMobile ? 10 : 14,
+                                  rightPad,
+                                  isMobile ? 10 : 12,
+                                ),
+                                child: Wrap(
+                                  alignment: WrapAlignment.spaceBetween,
+                                  crossAxisAlignment: WrapCrossAlignment.center,
+                                  runSpacing: 10,
+                                  spacing: 12,
+                                  children: [
+                                    // Paper & Unit title + Action pills
+                                    Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                              decoration: BoxDecoration(
+                                                color: AppTheme.iconRedLight,
+                                                borderRadius: BorderRadius.circular(3),
+                                                border: Border.all(color: AppTheme.iconRed.withOpacity(0.35)),
+                                              ),
+                                              child: Text(
+                                                question.paper == PaperType.paper1 ? 'PAPER I' : 'PAPER II',
+                                                style: const TextStyle(
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.w800,
+                                                  color: AppTheme.iconRedDark,
+                                                  letterSpacing: 0.5,
+                                                ),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 6),
+                                            Text(
+                                              'Unit ${question.unitNumber} · ${question.type == QuestionType.mcq ? "MCQ" : "${question.marks} Marks"}',
+                                              style: const TextStyle(
+                                                fontSize: 11.5,
+                                                fontWeight: FontWeight.w700,
+                                                color: AppTheme.textPrimary,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 6),
+                                        Wrap(
+                                          spacing: 8,
+                                          runSpacing: 6,
+                                          crossAxisAlignment: WrapCrossAlignment.center,
+                                          children: [
+                                            // Mark Revised button
+                                            InkWell(
+                                              onTap: onToggleStudied,
+                                              borderRadius: BorderRadius.circular(4),
+                                              child: Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
+                                                decoration: BoxDecoration(
+                                                  color: isStudied ? AppTheme.iconRedLight : Colors.white,
+                                                  borderRadius: BorderRadius.circular(4),
+                                                  border: Border.all(
+                                                    color: isStudied ? AppTheme.iconRed : AppTheme.divider,
+                                                  ),
+                                                ),
+                                                child: Row(
+                                                  mainAxisSize: MainAxisSize.min,
+                                                  children: [
+                                                    Icon(
+                                                      isStudied
+                                                          ? Icons.check_circle_rounded
+                                                          : Icons.check_circle_outline_rounded,
+                                                      size: 13,
+                                                      color: isStudied ? AppTheme.iconRed : AppTheme.textMuted,
+                                                    ),
+                                                    const SizedBox(width: 4),
+                                                    Text(
+                                                      isStudied ? 'Revised ✓' : 'Mark Revised',
+                                                      style: TextStyle(
+                                                        fontSize: 11,
+                                                        fontWeight: FontWeight.w700,
+                                                        color: isStudied ? AppTheme.iconRedDark : AppTheme.textPrimary,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+
+                                            // Copy Answer button
+                                            if (!locked && question.type != QuestionType.mcq)
+                                              InkWell(
+                                                onTap: () {
+                                                  final cleanCopy = activeAnswer.replaceAll('**', '');
+                                                  Clipboard.setData(
+                                                    ClipboardData(text: '$questionText\n\n$cleanCopy'),
+                                                  );
+                                                  ScaffoldMessenger.of(context).showSnackBar(
+                                                    const SnackBar(
+                                                      content: Text('Copied Q&A from copy page'),
+                                                      duration: Duration(seconds: 2),
+                                                    ),
+                                                  );
+                                                },
+                                                borderRadius: BorderRadius.circular(4),
+                                                child: Container(
+                                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.white,
+                                                    borderRadius: BorderRadius.circular(4),
+                                                    border: Border.all(color: AppTheme.divider),
+                                                  ),
+                                                  child: const Row(
+                                                    mainAxisSize: MainAxisSize.min,
+                                                    children: [
+                                                      Icon(Icons.copy_outlined, size: 12, color: AppTheme.textMuted),
+                                                      SizedBox(width: 4),
+                                                      Text(
+                                                        'Copy',
+                                                        style: TextStyle(
+                                                          fontSize: 11,
+                                                          fontWeight: FontWeight.w600,
+                                                          color: AppTheme.textMuted,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+
+                                    // Physical Copy Top-Right Corner Box (Page No. / Marks / Year)
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                      decoration: BoxDecoration(
+                                        border: Border.all(color: AppTheme.iconRed, width: 1.1),
+                                        borderRadius: BorderRadius.circular(3),
+                                      ),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            'Page No.: ${questionNumber.toString().padLeft(2, '0')} / $totalQuestions',
+                                            style: const TextStyle(
+                                              fontSize: 10.5,
+                                              fontWeight: FontWeight.w800,
+                                              color: AppTheme.iconRedDark,
+                                              height: 1.3,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            question.yearsAsked.isNotEmpty
+                                                ? 'Asked: ${question.yearsAsked.join(", ")}'
+                                                : 'Marks: ${question.marks} Full Marks',
+                                            style: const TextStyle(
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w600,
+                                              color: AppTheme.textMuted,
+                                              height: 1.3,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // ── 2. DOUBLE HORIZONTAL RED TOP MARGIN LINE ──
+                      Container(height: 1.5, color: AppTheme.iconRed),
+                      const SizedBox(height: 2.5),
+                      Container(height: 1.0, color: AppTheme.iconRed),
+
+                      // ── 3. RULED NOTEBOOK BODY (Every line sits on a horizontal line) ──
+                      CustomPaint(
+                        painter: _LinedNotebookPainter(
+                          lineHeight: lineHeight,
+                          leftMargin: leftMarginWidth,
+                          showBinderHoles: !isMobile,
+                        ),
+                        child: Padding(
+                          // Leave 1 empty ruled line at top and 2 empty ruled lines at bottom
+                          padding: EdgeInsets.only(
+                            top: lineHeight,
+                            bottom: lineHeight * 2,
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              // ── QUESTION ROW ON RULED LINES ──
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  SizedBox(
+                                    width: leftMarginWidth,
+                                    child: Padding(
+                                      padding: EdgeInsets.only(
+                                        left: isMobile ? 6 : 24,
+                                        right: 6,
+                                      ),
+                                      child: Text(
+                                        qLabel,
+                                        textAlign: TextAlign.right,
+                                        style: marginLabelStyle,
+                                        strutStyle: marginLabelStrut,
+                                      ),
+                                    ),
+                                  ),
+                                  Expanded(
+                                    child: Padding(
+                                      padding: EdgeInsets.only(
+                                        left: isMobile ? 10 : 16,
+                                        right: rightPad,
+                                      ),
+                                      child: SelectableText(
+                                        '$questionText [${question.marks}]',
+                                        style: baseQuestionStyle,
+                                        strutStyle: questionStrut,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+
+                              // 1 empty ruled line between Question and Answer
+                              SizedBox(height: lineHeight),
+
+                              // ── ANSWER ROW ON RULED LINES ──
+                              if (question.type == QuestionType.mcq)
+                                Padding(
+                                  padding: EdgeInsets.only(
+                                    left: leftMarginWidth + (isMobile ? 10 : 16),
+                                    right: rightPad,
+                                  ),
+                                  child: _MCQView(question: question, fontSize: fontSize),
+                                )
+                              else if (locked)
+                                Padding(
+                                  padding: EdgeInsets.only(
+                                    left: leftMarginWidth + (isMobile ? 10 : 16),
+                                    right: rightPad,
+                                  ),
+                                  child: _PaywallCard(),
+                                )
+                              else
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    SizedBox(
+                                      width: leftMarginWidth,
+                                      child: Padding(
+                                        padding: EdgeInsets.only(
+                                          left: isMobile ? 6 : 24,
+                                          right: 6,
+                                        ),
+                                        child: Text(
+                                          ansLabel,
+                                          textAlign: TextAlign.right,
+                                          style: marginLabelStyle,
+                                          strutStyle: marginLabelStrut,
+                                        ),
+                                      ),
+                                    ),
+                                    Expanded(
+                                      child: Padding(
+                                        padding: EdgeInsets.only(
+                                          left: isMobile ? 10 : 16,
+                                          right: rightPad,
+                                        ),
+                                        child: _LinedAnswerBody(
+                                          content: activeAnswer,
+                                          fontSize: fontSize,
+                                          lineHeight: lineHeight,
+                                          textHeightRatio: textHeightRatio,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+
+                      // ── 4. BOTTOM NOTEBOOK PAGE TURN FOOTER ──
+                      Container(height: 1.0, color: AppTheme.iconRed.withOpacity(0.5)),
+                      Container(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: isMobile ? 12 : 24,
+                          vertical: 10,
+                        ),
+                        color: const Color(0xFFFAFAFA),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            InkWell(
+                              onTap: onPrev,
+                              borderRadius: BorderRadius.circular(5),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.arrow_back_ios_new_rounded,
+                                      size: 12,
+                                      color: onPrev != null ? AppTheme.textPrimary : AppTheme.divider,
+                                    ),
+                                    const SizedBox(width: 5),
+                                    Text(
+                                      'Prev Page',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700,
+                                        color: onPrev != null ? AppTheme.textPrimary : AppTheme.divider,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            Text(
+                              'Copy Page $questionNumber of $totalQuestions',
+                              style: const TextStyle(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w700,
+                                color: AppTheme.textMuted,
+                              ),
+                            ),
+                            InkWell(
+                              onTap: onNext,
+                              borderRadius: BorderRadius.circular(5),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      'Next Page',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700,
+                                        color: onNext != null ? AppTheme.iconRed : AppTheme.divider,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 5),
+                                    Icon(
+                                      Icons.arrow_forward_ios_rounded,
+                                      size: 12,
+                                      color: onNext != null ? AppTheme.iconRed : AppTheme.divider,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 28),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _LinedNotebookPainter extends CustomPainter {
+  final double lineHeight;
+  final double leftMargin;
+  final bool showBinderHoles;
+
+  const _LinedNotebookPainter({
+    required this.lineHeight,
+    required this.leftMargin,
+    required this.showBinderHoles,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    // 1. Horizontal ruled lines across the entire page width
+    final rulePaint = Paint()
+      ..color = const Color(0xFFD4D4D8)
+      ..strokeWidth = 1.0;
+
+    // Draw horizontal lines at every lineHeight interval so text baselines rest right above the line
+    for (double y = lineHeight - 5.0; y < size.height; y += lineHeight) {
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), rulePaint);
+    }
+
+    // 2. Vertical Double Red Margin Lines on the left
+    final redMarginPaint1 = Paint()
+      ..color = AppTheme.iconRed
+      ..strokeWidth = 1.2;
+    final redMarginPaint2 = Paint()
+      ..color = AppTheme.iconRed
+      ..strokeWidth = 1.0;
+
+    canvas.drawLine(
+      Offset(leftMargin, 0),
+      Offset(leftMargin, size.height),
+      redMarginPaint1,
+    );
+    canvas.drawLine(
+      Offset(leftMargin - 3.5, 0),
+      Offset(leftMargin - 3.5, size.height),
+      redMarginPaint2,
+    );
+
+    // 3. Physical Notebook Binder Punch Holes in the left margin
+    if (showBinderHoles) {
+      final holeFill = Paint()
+        ..color = const Color(0xFFEDEDED)
+        ..style = PaintingStyle.fill;
+      final holeBorder = Paint()
+        ..color = const Color(0xFFD4D4D8)
+        ..strokeWidth = 1.0
+        ..style = PaintingStyle.stroke;
+
+      final holePositions = <double>[
+        lineHeight * 3.5,
+        size.height / 2,
+        if (size.height > lineHeight * 10) size.height - lineHeight * 3.5,
+      ];
+      for (final hy in holePositions) {
+        if (hy > 20 && hy < size.height - 20) {
+          canvas.drawCircle(Offset(16, hy), 6.5, holeFill);
+          canvas.drawCircle(Offset(16, hy), 6.5, holeBorder);
+        }
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _LinedNotebookPainter oldDelegate) {
+    return oldDelegate.lineHeight != lineHeight ||
+        oldDelegate.leftMargin != leftMargin ||
+        oldDelegate.showBinderHoles != showBinderHoles;
+  }
+}
+
+// ── Line-Locked Answer Body for Physical Lining Copy ──────────────
+class _LinedAnswerBody extends StatelessWidget {
+  final String content;
+  final double fontSize;
+  final double lineHeight;
+  final double textHeightRatio;
+
+  const _LinedAnswerBody({
+    required this.content,
+    required this.fontSize,
+    required this.lineHeight,
+    required this.textHeightRatio,
+  });
+
+  Widget _linedRichText(
+    String raw, {
+    required TextStyle baseStyle,
+    required StrutStyle strutStyle,
+  }) {
+    final spans = <TextSpan>[];
+    final regex = RegExp(r'\*\*(.+?)\*\*');
+    int lastEnd = 0;
+    for (final match in regex.allMatches(raw)) {
+      if (match.start > lastEnd) {
+        spans.add(TextSpan(text: raw.substring(lastEnd, match.start)));
+      }
+      spans.add(
+        TextSpan(
+          text: match.group(1),
+          style: baseStyle.copyWith(
+            fontWeight: FontWeight.w800,
+            color: AppTheme.textPrimary,
+          ),
+        ),
+      );
+      lastEnd = match.end;
+    }
+    if (lastEnd < raw.length) {
+      spans.add(TextSpan(text: raw.substring(lastEnd).replaceAll('**', '')));
+    }
+    if (spans.isEmpty) {
+      return SelectableText(
+        raw.replaceAll('**', ''),
+        style: baseStyle,
+        strutStyle: strutStyle,
+      );
+    }
+    return SelectableText.rich(
+      TextSpan(style: baseStyle, children: spans),
+      strutStyle: strutStyle,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final baseStyle = TextStyle(
+      fontSize: fontSize,
+      height: textHeightRatio,
+      color: AppTheme.textPrimary,
+    );
+    final strut = StrutStyle(
+      fontSize: fontSize,
+      height: textHeightRatio,
+      forceStrutHeight: true,
+      leading: 0,
+    );
+
+    final blocks = content
+        .split('\n\n')
+        .where((b) => b.trim().isNotEmpty)
+        .toList();
+    if (blocks.isEmpty) {
+      return _linedRichText(content, baseStyle: baseStyle, strutStyle: strut);
+    }
+
+    final children = <Widget>[];
+    for (int bIdx = 0; bIdx < blocks.length; bIdx++) {
+      final lines = blocks[bIdx]
+          .split('\n')
+          .where((l) => l.trim().isNotEmpty)
+          .toList();
+
+      for (final line in lines) {
+        final t = line.trim();
+        final cleanForCheck = t.replaceAll('**', '').trim();
+        final isFullBoldLine = t.startsWith('**') &&
+            t.endsWith('**') &&
+            cleanForCheck.length < 90;
+        final isHeading = isFullBoldLine ||
+            (cleanForCheck.endsWith(':') &&
+                cleanForCheck.length < 80 &&
+                !t.startsWith('•') &&
+                !t.startsWith('-') &&
+                !t.startsWith('* ')) ||
+            RegExp(r'^[१२३४५६७८९1-9][.।]').hasMatch(cleanForCheck) ||
+            cleanForCheck.startsWith('Introduction') ||
+            cleanForCheck.startsWith('Conclusion') ||
+            cleanForCheck.startsWith('Way Forward') ||
+            cleanForCheck.startsWith('परिचय') ||
+            cleanForCheck.startsWith('निष्कर्ष');
+        final isBullet = t.startsWith('•') ||
+            t.startsWith('-') ||
+            (t.startsWith('*') && !t.startsWith('**'));
+
+        if (isHeading) {
+          children.add(
+            SelectableText(
+              cleanForCheck,
+              style: baseStyle.copyWith(
+                fontWeight: FontWeight.w800,
+                color: AppTheme.iconRedDark,
+                decoration: TextDecoration.underline,
+                decorationColor: AppTheme.iconRed.withOpacity(0.55),
+              ),
+              strutStyle: strut,
+            ),
+          );
+        } else if (isBullet) {
+          final bulletContent = t.replaceFirst(RegExp(r'^[•\-\*]\s*'), '');
+          children.add(
+            _linedRichText(
+              '•  $bulletContent',
+              baseStyle: baseStyle,
+              strutStyle: strut,
+            ),
+          );
+        } else {
+          children.add(
+            _linedRichText(
+              t,
+              baseStyle: baseStyle,
+              strutStyle: strut,
+            ),
+          );
+        }
+      }
+
+      // Leave 1 exact blank ruled line between answer sections
+      if (bIdx < blocks.length - 1) {
+        children.add(SizedBox(height: lineHeight));
+      }
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: children,
     );
   }
 }
