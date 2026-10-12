@@ -101,7 +101,7 @@ class AuthProvider extends ChangeNotifier {
         Uri.parse('${AppConstants.apiBaseUrl}/auth/login'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'email': email, 'password': password}),
-      ).timeout(const Duration(seconds: 8));
+      ).timeout(const Duration(seconds: 25));
 
       final data = jsonDecode(res.body);
       if (res.statusCode == 200) {
@@ -128,7 +128,7 @@ class AuthProvider extends ChangeNotifier {
       }
     } catch (_) {
       _loading = false;
-      _error = 'Unable to connect to server. Please check if the backend server is running.';
+      _error = 'Server is waking up or connection is slow. Please try again in a few seconds.';
       notifyListeners();
       return _error;
     }
@@ -144,7 +144,7 @@ class AuthProvider extends ChangeNotifier {
         Uri.parse('${AppConstants.apiBaseUrl}/auth/register'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'name': name, 'email': email, 'password': password}),
-      ).timeout(const Duration(seconds: 8));
+      ).timeout(const Duration(seconds: 25));
 
       final data = jsonDecode(res.body);
       if (res.statusCode == 201 || res.statusCode == 200) {
@@ -170,17 +170,10 @@ class AuthProvider extends ChangeNotifier {
         return _error;
       }
     } catch (_) {
-      if (password.length < 6) {
-        _loading = false;
-        _error = 'Password must be at least 6 characters.';
-        notifyListeners();
-        return _error;
-      }
-      _user = AppUser(uid: 'u-${email.hashCode}', name: name, email: email, plan: SubscriptionPlan.free);
-      await _saveSession();
       _loading = false;
+      _error = 'Server is waking up or connection is slow. Please try again in a few seconds.';
       notifyListeners();
-      return null;
+      return _error;
     }
   }
 
