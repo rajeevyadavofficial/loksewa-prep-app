@@ -4,8 +4,14 @@ class AppConstants {
   static const String appTagline = 'Nepal\'s #1 Loksewa Exam Preparation Platform';
   static const String appVersion = '1.0.0';
 
-  // Node.js + MongoDB Backend API URL
-  static const String apiBaseUrl = 'https://loksewa-prep-app.onrender.com/api';
+  // Node.js + MongoDB Backend API URL (Automatically adapts if Render service is renamed to loksewahero)
+  static String get apiBaseUrl {
+    final origin = Uri.base.origin;
+    if (origin.contains('onrender.com')) {
+      return '$origin/api';
+    }
+    return 'https://loksewa-prep-app.onrender.com/api';
+  }
 
   // Exam Info
   static const String examName = 'Rastriya Banijya Bank (RBB)';
