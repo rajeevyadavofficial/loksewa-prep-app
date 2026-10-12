@@ -635,22 +635,6 @@ class _TopBar extends StatelessWidget {
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (user.isAdmin || auth.isAdminLoggedIn)
-                Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: OutlinedButton.icon(
-                    icon: const Icon(Icons.admin_panel_settings_outlined, size: 16, color: AppTheme.iconRed),
-                    label: Text(isMobile ? 'Admin' : 'Admin CMS', style: const TextStyle(fontSize: 12.5)),
-                    onPressed: () => GoRouter.of(context).go(AppConstants.routeAdmin),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppTheme.textPrimary,
-                      side: const BorderSide(color: AppTheme.divider),
-                      padding: EdgeInsets.symmetric(horizontal: isMobile ? 10 : 14, vertical: 8),
-                      minimumSize: Size.zero,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                  ),
-                ),
               OutlinedButton.icon(
                 onPressed: () => GoRouter.of(context).go(AppConstants.routeSubscription),
                 icon: const Icon(Icons.workspace_premium_outlined, size: 15, color: AppTheme.iconRed),
