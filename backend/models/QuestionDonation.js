@@ -101,6 +101,14 @@ const QuestionDonationSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    question_photo_url: {
+      type: String,
+      default: null,
+    },
+    answer_photo_url: {
+      type: String,
+      default: null,
+    },
     status: {
       type: String,
       enum: ['pending', 'approved', 'rejected'],

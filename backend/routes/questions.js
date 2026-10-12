@@ -127,6 +127,8 @@ router.post('/donations', requireAuth, async (req, res) => {
       options,
       correct_option_index,
       explanation,
+      question_photo_url,
+      answer_photo_url,
     } = req.body || {};
 
     const targetExam = (exam_id || '').trim();
@@ -148,26 +150,39 @@ router.post('/donations', requireAuth, async (req, res) => {
 
     const qNp = (question_nepali || '').trim();
     const qEn = (question_english || '').trim();
-    if (!qNp && !qEn) {
-      return res.status(400).json({ error: 'Please enter the question text.' });
+    const qPhoto = (question_photo_url || '').trim();
+    const aPhoto = (answer_photo_url || '').trim();
+
+    if (!qNp && !qEn && !qPhoto) {
+      return res.status(400).json({
+        error: 'Please enter the question text or upload a clear photo of the question.',
+      });
     }
 
     const cleanType = type === 'mcq' ? 'mcq' : 'subjective';
+    const aNp = (answer_nepali || '').trim();
+    const aEn = (answer_english || '').trim();
+
     if (cleanType === 'subjective') {
-      const aNp = (answer_nepali || '').trim();
-      const aEn = (answer_english || '').trim();
-      if (!aNp && !aEn) {
+      if (!aNp && !aEn && !aPhoto && !qPhoto) {
         return res.status(400).json({
-          error: 'Please provide the model answer (in Nepali or English) for a valid question donation.',
+          error: 'Please provide a well-written model answer (typed or clear handwritten/printed answer photo) for verification.',
         });
       }
     } else {
-      if (!Array.isArray(options) || options.filter((o) => String(o).trim().length > 0).length < 4) {
+      const hasValidOptions =
+        Array.isArray(options) && options.filter((o) => String(o).trim().length > 0).length >= 4;
+      if (!hasValidOptions && !qPhoto && !aPhoto) {
         return res.status(400).json({
-          error: 'Please provide all 4 MCQ options (A, B, C, and D).',
+          error: 'Please provide all 4 MCQ options (A, B, C, and D) or upload a clear photo of the MCQ and answer.',
         });
       }
     }
+
+    const fallbackQuestionLabel = `[Photo Submitted] ${(unit_title || `Unit ${unit_number || 1}`).trim()}`;
+    const finalQNp = qNp || qEn || fallbackQuestionLabel;
+    const finalQEn = qEn || qNp || fallbackQuestionLabel;
+    const fallbackAnsLabel = aPhoto || qPhoto ? '[See attached well-written answer photo for verification]' : '';
 
     const created = await DB.createQuestionDonation({
       userId: String(req.user._id),
@@ -186,18 +201,20 @@ router.post('/donations', requireAuth, async (req, res) => {
       years_asked: Array.isArray(years_asked) && years_asked.length > 0
         ? years_asked
         : ['Candidate Contributed'],
-      question_nepali: qNp || qEn,
-      question_english: qEn || qNp,
-      answer_nepali: cleanType === 'subjective' ? ((answer_nepali || answer_english || '').trim()) : null,
-      answer_english: cleanType === 'subjective' ? ((answer_english || answer_nepali || '').trim()) : null,
-      options: cleanType === 'mcq' ? options.map((o) => String(o).trim()) : null,
+      question_nepali: finalQNp,
+      question_english: finalQEn,
+      answer_nepali: cleanType === 'subjective' ? (aNp || aEn || fallbackAnsLabel) : null,
+      answer_english: cleanType === 'subjective' ? (aEn || aNp || fallbackAnsLabel) : null,
+      options: cleanType === 'mcq' && Array.isArray(options) ? options.map((o) => String(o).trim()) : null,
       correct_option_index: cleanType === 'mcq' ? (Number(correct_option_index) || 0) : null,
       explanation: cleanType === 'mcq' ? ((explanation || '').trim() || null) : null,
+      question_photo_url: qPhoto || null,
+      answer_photo_url: aPhoto || null,
       status: 'pending',
     });
 
     return res.status(201).json({
-      message: 'Question submitted for Admin verification! Reach 200 verified questions to claim your reward.',
+      message: 'Question & answer submitted for Admin verification! Reach 200 verified questions to claim your reward.',
       donation: created,
     });
   } catch (err) {

@@ -1317,6 +1317,69 @@ class _AdminOverview extends StatelessWidget {
                     final ansPreview = d['type'] == 'mcq'
                         ? 'Options: ${(d['options'] as List<dynamic>? ?? []).join(" | ")}'
                         : (d['answer_nepali']?.toString() ?? d['answer_english']?.toString() ?? '');
+                    final qPhotoUrl = (d['question_photo_url'] ?? '').toString();
+                    final aPhotoUrl = (d['answer_photo_url'] ?? '').toString();
+
+                    void openAdminPhotoPreview(String title, String src) {
+                      Widget imgWidget;
+                      if (src.startsWith('data:image/') && src.contains(',')) {
+                        try {
+                          final bytes = base64Decode(src.substring(src.indexOf(',') + 1));
+                          imgWidget = Image.memory(bytes, fit: BoxFit.contain);
+                        } catch (_) {
+                          imgWidget = const Icon(Icons.broken_image_outlined, size: 48, color: AppTheme.iconRed);
+                        }
+                      } else {
+                        imgWidget = Image.network(src, fit: BoxFit.contain);
+                      }
+                      showDialog<void>(
+                        context: context,
+                        builder: (ctx) => Dialog(
+                          backgroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 760, maxHeight: 700),
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          title,
+                                          style: const TextStyle(
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.w800,
+                                            color: AppTheme.textPrimary,
+                                          ),
+                                        ),
+                                      ),
+                                      IconButton(
+                                        onPressed: () => Navigator.of(ctx).pop(),
+                                        icon: const Icon(Icons.close_rounded),
+                                      ),
+                                    ],
+                                  ),
+                                  const Divider(height: 16),
+                                  Flexible(
+                                    child: InteractiveViewer(
+                                      minScale: 0.8,
+                                      maxScale: 4.0,
+                                      child: imgWidget,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    }
+
                     return Container(
                       margin: const EdgeInsets.only(bottom: 10),
                       padding: const EdgeInsets.all(14),
@@ -1338,16 +1401,34 @@ class _AdminOverview extends StatelessWidget {
                                 '${d['userName']} (${d['userEmail']})${d['walletId'] != null && d['walletId'].toString().isNotEmpty ? " • Wallet: ${d['walletId']}" : ""}',
                                 style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5, color: AppTheme.textPrimary),
                               ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: AppTheme.iconRedLight,
-                                  borderRadius: BorderRadius.circular(5),
-                                ),
-                                child: Text(
-                                  '$examId • $qType • ${d['marks'] ?? 5}M',
-                                  style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: AppTheme.iconRedDark),
-                                ),
+                              Wrap(
+                                spacing: 6,
+                                children: [
+                                  if (qPhotoUrl.isNotEmpty || aPhotoUrl.isNotEmpty)
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: AppTheme.iconRedLight,
+                                        borderRadius: BorderRadius.circular(5),
+                                        border: Border.all(color: AppTheme.iconRed.withOpacity(0.4)),
+                                      ),
+                                      child: const Text(
+                                        '📷 PHOTO UPLOADED',
+                                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: AppTheme.iconRedDark),
+                                      ),
+                                    ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: AppTheme.iconRedLight,
+                                      borderRadius: BorderRadius.circular(5),
+                                    ),
+                                    child: Text(
+                                      '$examId • $qType • ${d['marks'] ?? 5}M',
+                                      style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: AppTheme.iconRedDark),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
                           ),
@@ -1363,6 +1444,39 @@ class _AdminOverview extends StatelessWidget {
                               maxLines: 3,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(fontSize: 12, color: AppTheme.textBody),
+                            ),
+                          ],
+                          if (qPhotoUrl.isNotEmpty || aPhotoUrl.isNotEmpty) ...[
+                            const SizedBox(height: 8),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 6,
+                              children: [
+                                if (qPhotoUrl.isNotEmpty)
+                                  OutlinedButton.icon(
+                                    onPressed: () => openAdminPhotoPreview(
+                                      'Question Photo — ${d['userName']}',
+                                      qPhotoUrl,
+                                    ),
+                                    icon: const Icon(Icons.image_outlined, size: 15, color: AppTheme.iconRed),
+                                    label: const Text(
+                                      'Inspect Question Photo',
+                                      style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: AppTheme.iconRed),
+                                    ),
+                                  ),
+                                if (aPhotoUrl.isNotEmpty)
+                                  OutlinedButton.icon(
+                                    onPressed: () => openAdminPhotoPreview(
+                                      'Well-Written Answer Photo — ${d['userName']}',
+                                      aPhotoUrl,
+                                    ),
+                                    icon: const Icon(Icons.fact_check_outlined, size: 15, color: AppTheme.textPrimary),
+                                    label: const Text(
+                                      'Inspect Answer Photo',
+                                      style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: AppTheme.textPrimary),
+                                    ),
+                                  ),
+                              ],
                             ),
                           ],
                           const SizedBox(height: 10),

@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
+// ignore: avoid_web_libraries_in_flutter
+import 'dart:html' as html;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -3833,6 +3835,10 @@ class _DonateQuestionsTabState extends State<DonateQuestionsTab> {
   double _earnedRupees = 0.0;
   double _claimableRupees = 0.0;
   String _paymentMethod = 'eSewa';
+  String? _questionPhotoDataUrl;
+  String? _questionPhotoName;
+  String? _answerPhotoDataUrl;
+  String? _answerPhotoName;
   List<Map<String, dynamic>> _myDonations = [];
 
   @override
@@ -3858,6 +3864,241 @@ class _DonateQuestionsTabState extends State<DonateQuestionsTab> {
     _expCtrl.dispose();
     _walletCtrl.dispose();
     super.dispose();
+  }
+
+  void _pickDonationPhoto({required bool isQuestionPhoto}) {
+    final input = html.FileUploadInputElement()..accept = 'image/*';
+    input.click();
+    input.onChange.listen((_) {
+      final files = input.files;
+      if (files == null || files.isEmpty) return;
+      final file = files.first;
+      if (file.size > 4 * 1024 * 1024) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Photo size exceeds 4 MB. Please select a clear photo under 4 MB.'),
+            backgroundColor: AppTheme.iconRed,
+          ),
+        );
+        return;
+      }
+      final reader = html.FileReader();
+      reader.readAsDataUrl(file);
+      reader.onLoadEnd.listen((_) {
+        final dataUrl = reader.result as String?;
+        if (dataUrl == null || !mounted) return;
+        setState(() {
+          if (isQuestionPhoto) {
+            _questionPhotoDataUrl = dataUrl;
+            _questionPhotoName = file.name;
+          } else {
+            _answerPhotoDataUrl = dataUrl;
+            _answerPhotoName = file.name;
+          }
+        });
+      });
+    });
+  }
+
+  Widget _buildPhotoImageWidget(String photoSource, {double? height, BoxFit fit = BoxFit.cover}) {
+    if (photoSource.startsWith('data:image/')) {
+      final commaIdx = photoSource.indexOf(',');
+      if (commaIdx != -1) {
+        try {
+          final bytes = base64Decode(photoSource.substring(commaIdx + 1));
+          return Image.memory(
+            bytes,
+            height: height,
+            width: double.infinity,
+            fit: fit,
+            errorBuilder: (_, __, ___) => const Center(
+              child: Icon(Icons.broken_image_outlined, color: AppTheme.iconRed),
+            ),
+          );
+        } catch (_) {}
+      }
+    }
+    return Image.network(
+      photoSource,
+      height: height,
+      width: double.infinity,
+      fit: fit,
+      errorBuilder: (_, __, ___) => const Center(
+        child: Icon(Icons.broken_image_outlined, color: AppTheme.iconRed),
+      ),
+    );
+  }
+
+  void _showPhotoPreviewDialog(String title, String photoSource) {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 720, maxHeight: 680),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        title,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                          color: AppTheme.textPrimary,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.of(ctx).pop(),
+                      icon: const Icon(Icons.close_rounded, color: AppTheme.textPrimary),
+                    ),
+                  ],
+                ),
+                const Divider(height: 16),
+                Flexible(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: InteractiveViewer(
+                      minScale: 0.8,
+                      maxScale: 4.0,
+                      child: _buildPhotoImageWidget(photoSource, fit: BoxFit.contain),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPhotoUploadCard({
+    required String title,
+    required String subtitle,
+    required String? photoDataUrl,
+    required String? photoName,
+    required VoidCallback onPick,
+    required VoidCallback onClear,
+  }) {
+    final hasPhoto = photoDataUrl != null && photoDataUrl.isNotEmpty;
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: hasPhoto ? AppTheme.iconRedLight.withOpacity(0.55) : const Color(0xFFFAFAFA),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: hasPhoto ? AppTheme.iconRed : AppTheme.divider,
+          width: hasPhoto ? 1.5 : 1.0,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                hasPhoto ? Icons.check_circle_rounded : Icons.add_a_photo_outlined,
+                size: 18,
+                color: AppTheme.iconRed,
+              ),
+              const SizedBox(width: 7),
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    color: AppTheme.textPrimary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            subtitle,
+            style: const TextStyle(fontSize: 11.5, color: AppTheme.textMuted, height: 1.35),
+          ),
+          const SizedBox(height: 10),
+          if (hasPhoto) ...[
+            GestureDetector(
+              onTap: () => _showPhotoPreviewDialog(title, photoDataUrl),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Container(
+                  height: 120,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    border: Border.all(color: AppTheme.divider),
+                  ),
+                  child: _buildPhotoImageWidget(photoDataUrl, height: 120, fit: BoxFit.cover),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    photoName ?? 'Uploaded Photo',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: AppTheme.textPrimary,
+                    ),
+                  ),
+                ),
+                TextButton.icon(
+                  onPressed: onPick,
+                  icon: const Icon(Icons.sync_rounded, size: 14, color: AppTheme.textPrimary),
+                  label: const Text(
+                    'Change',
+                    style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: AppTheme.textPrimary),
+                  ),
+                ),
+                TextButton.icon(
+                  onPressed: onClear,
+                  icon: const Icon(Icons.delete_outline_rounded, size: 14, color: AppTheme.iconRed),
+                  label: const Text(
+                    'Remove',
+                    style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: AppTheme.iconRed),
+                  ),
+                ),
+              ],
+            ),
+          ] else
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: onPick,
+                icon: const Icon(Icons.camera_alt_outlined, size: 16, color: AppTheme.iconRed),
+                label: const Text(
+                  'Upload Clear Photo',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: AppTheme.iconRed),
+                ),
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: AppTheme.iconRed),
+                  padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(7)),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
   }
 
   Future<void> _loadMyDonations() async {
@@ -3975,10 +4216,13 @@ class _DonateQuestionsTabState extends State<DonateQuestionsTab> {
   Future<void> _submitDonation(String examId) async {
     final qNp = _qNpCtrl.text.trim();
     final qEn = _qEnCtrl.text.trim();
-    if (qNp.isEmpty && qEn.isEmpty) {
+    final hasQuestionPhoto = _questionPhotoDataUrl != null && _questionPhotoDataUrl!.isNotEmpty;
+    final hasAnswerPhoto = _answerPhotoDataUrl != null && _answerPhotoDataUrl!.isNotEmpty;
+
+    if (qNp.isEmpty && qEn.isEmpty && !hasQuestionPhoto) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please enter the question text (in Nepali or English).'),
+          content: Text('Please enter the question text OR upload a clear photo of the question.'),
           backgroundColor: AppTheme.iconRed,
         ),
       );
@@ -3986,23 +4230,29 @@ class _DonateQuestionsTabState extends State<DonateQuestionsTab> {
     }
 
     if (_qType == 'subjective') {
-      if (_ansNpCtrl.text.trim().isEmpty && _ansEnCtrl.text.trim().isEmpty) {
+      if (_ansNpCtrl.text.trim().isEmpty &&
+          _ansEnCtrl.text.trim().isEmpty &&
+          !hasAnswerPhoto &&
+          !hasQuestionPhoto) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Please provide the model answer so the question can be verified.'),
+            content: Text(
+              'Please type the model answer OR upload a clear photo of your well-written answer for verification.',
+            ),
             backgroundColor: AppTheme.iconRed,
           ),
         );
         return;
       }
     } else {
-      if (_optACtrl.text.trim().isEmpty ||
-          _optBCtrl.text.trim().isEmpty ||
-          _optCCtrl.text.trim().isEmpty ||
-          _optDCtrl.text.trim().isEmpty) {
+      final hasAllOptions = _optACtrl.text.trim().isNotEmpty &&
+          _optBCtrl.text.trim().isNotEmpty &&
+          _optCCtrl.text.trim().isNotEmpty &&
+          _optDCtrl.text.trim().isNotEmpty;
+      if (!hasAllOptions && !hasQuestionPhoto && !hasAnswerPhoto) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Please enter all 4 MCQ options (Option A, B, C, and D).'),
+            content: Text('Please enter all 4 MCQ options OR upload a clear photo of the MCQ & answer.'),
             backgroundColor: AppTheme.iconRed,
           ),
         );
@@ -4015,30 +4265,34 @@ class _DonateQuestionsTabState extends State<DonateQuestionsTab> {
 
     setState(() => _submitting = true);
     try {
+      final cleanUnitTitle = _unitTitleCtrl.text.trim().isEmpty
+          ? 'Unit $_unitNum'
+          : _unitTitleCtrl.text.trim();
+      final fallbackQText = '[Photo Question] $cleanUnitTitle';
+
       final payload = <String, dynamic>{
         'exam_id': examId,
         'paper': _paper,
         'section': _section,
         'unit_number': _unitNum,
-        'unit_title': _unitTitleCtrl.text.trim().isEmpty
-            ? 'Unit $_unitNum'
-            : _unitTitleCtrl.text.trim(),
+        'unit_title': cleanUnitTitle,
         'marks': _marks,
         'type': _qType,
         'years_asked': [
           _yearCtrl.text.trim().isEmpty ? 'Candidate Contributed' : _yearCtrl.text.trim()
         ],
-        'question_nepali': qNp.isEmpty ? qEn : qNp,
-        'question_english': qEn.isEmpty ? qNp : qEn,
+        'question_nepali': qNp.isNotEmpty ? qNp : (qEn.isNotEmpty ? qEn : fallbackQText),
+        'question_english': qEn.isNotEmpty ? qEn : (qNp.isNotEmpty ? qNp : fallbackQText),
+        'question_photo_url': _questionPhotoDataUrl,
+        'answer_photo_url': _answerPhotoDataUrl,
       };
 
       if (_qType == 'subjective') {
-        payload['answer_nepali'] = _ansNpCtrl.text.trim().isEmpty
-            ? _ansEnCtrl.text.trim()
-            : _ansNpCtrl.text.trim();
-        payload['answer_english'] = _ansEnCtrl.text.trim().isEmpty
-            ? _ansNpCtrl.text.trim()
-            : _ansEnCtrl.text.trim();
+        final aNp = _ansNpCtrl.text.trim();
+        final aEn = _ansEnCtrl.text.trim();
+        const fallbackAns = '[See attached well-written answer photo for verification]';
+        payload['answer_nepali'] = aNp.isNotEmpty ? aNp : (aEn.isNotEmpty ? aEn : fallbackAns);
+        payload['answer_english'] = aEn.isNotEmpty ? aEn : (aNp.isNotEmpty ? aNp : fallbackAns);
       } else {
         payload['options'] = [
           _optACtrl.text.trim(),
@@ -4057,7 +4311,7 @@ class _DonateQuestionsTabState extends State<DonateQuestionsTab> {
           'Authorization': 'Bearer $token',
         },
         body: jsonEncode(payload),
-      ).timeout(const Duration(seconds: 15));
+      ).timeout(const Duration(seconds: 20));
 
       if (!mounted) return;
       final data = jsonDecode(res.body) as Map<String, dynamic>;
@@ -4072,11 +4326,17 @@ class _DonateQuestionsTabState extends State<DonateQuestionsTab> {
         _optCCtrl.clear();
         _optDCtrl.clear();
         _expCtrl.clear();
+        setState(() {
+          _questionPhotoDataUrl = null;
+          _questionPhotoName = null;
+          _answerPhotoDataUrl = null;
+          _answerPhotoName = null;
+        });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
               data['message']?.toString() ??
-                  'Question donated successfully! Sent for Admin verification.',
+                  'Question & answer donated successfully! Sent for Admin verification.',
             ),
             backgroundColor: AppTheme.primaryColor,
           ),
@@ -4218,7 +4478,7 @@ class _DonateQuestionsTabState extends State<DonateQuestionsTab> {
                     ),
                     const SizedBox(height: 6),
                     const Text(
-                      'Contribute authentic Lok Sewa subjective Q&As or objective MCQs for your enrolled exam course. Every valid question approved by our Admin team earns रू 0.05 (100 Verified Questions = रू 5.00). Once you reach 200 Admin-Verified Questions (रू 10.00), you unlock the Claim button to provide your Payment ID!',
+                      'Contribute authentic Lok Sewa subjective Q&As or objective MCQs for your enrolled exam course — either by typing or by uploading a clear photo of the question and a well-written answer! Every valid question approved by our Admin team earns रू 0.05 (100 Verified Questions = रू 5.00). Reach 200 Admin-Verified Questions (रू 10.00) to unlock your Payment ID claim!',
                       style: TextStyle(fontSize: 13, color: AppTheme.textBody, height: 1.5),
                     ),
                     const SizedBox(height: 18),
@@ -4702,13 +4962,150 @@ class _DonateQuestionsTabState extends State<DonateQuestionsTab> {
                       ),
                     ),
 
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 18),
+
+                    // ── PHOTO UPLOAD OPTION FOR QUESTION & WELL-WRITTEN ANSWER ──
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFAFAFA),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: AppTheme.iconRed.withOpacity(0.45)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Row(
+                            children: [
+                              Icon(Icons.camera_enhance_rounded, color: AppTheme.iconRed, size: 19),
+                              SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Option A: Upload Clear Photo of Question & Well-Written Answer',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w800,
+                                    color: AppTheme.textPrimary,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: AppTheme.iconRedLight,
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: AppTheme.iconRed.withOpacity(0.3)),
+                            ),
+                            child: const Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Icon(Icons.verified_outlined, size: 16, color: AppTheme.iconRed),
+                                SizedBox(width: 7),
+                                Expanded(
+                                  child: Text(
+                                    'Photo Verification Requirement: Uploaded photos must be clear, sharp, and legible, and the answer must be well-written & structured in proper Lok Sewa format to be approved by Admin.',
+                                    style: TextStyle(
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppTheme.iconRedDark,
+                                      height: 1.4,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          if (isMobile) ...[
+                            _buildPhotoUploadCard(
+                              title: '1. Question Photo (Clear & Legible)',
+                              subtitle: 'Upload a sharp photo of the printed or handwritten question.',
+                              photoDataUrl: _questionPhotoDataUrl,
+                              photoName: _questionPhotoName,
+                              onPick: () => _pickDonationPhoto(isQuestionPhoto: true),
+                              onClear: () => setState(() {
+                                _questionPhotoDataUrl = null;
+                                _questionPhotoName = null;
+                              }),
+                            ),
+                            const SizedBox(height: 10),
+                            _buildPhotoUploadCard(
+                              title: '2. Well-Written Answer Photo',
+                              subtitle: 'Upload a clear photo of your well-written, structured answer sheet.',
+                              photoDataUrl: _answerPhotoDataUrl,
+                              photoName: _answerPhotoName,
+                              onPick: () => _pickDonationPhoto(isQuestionPhoto: false),
+                              onClear: () => setState(() {
+                                _answerPhotoDataUrl = null;
+                                _answerPhotoName = null;
+                              }),
+                            ),
+                          ] else
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(
+                                  child: _buildPhotoUploadCard(
+                                    title: '1. Question Photo (Clear & Legible)',
+                                    subtitle: 'Upload a sharp photo of the printed or handwritten question.',
+                                    photoDataUrl: _questionPhotoDataUrl,
+                                    photoName: _questionPhotoName,
+                                    onPick: () => _pickDonationPhoto(isQuestionPhoto: true),
+                                    onClear: () => setState(() {
+                                      _questionPhotoDataUrl = null;
+                                      _questionPhotoName = null;
+                                    }),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: _buildPhotoUploadCard(
+                                    title: '2. Well-Written Answer Photo',
+                                    subtitle: 'Upload a clear photo of your well-written, structured answer sheet.',
+                                    photoDataUrl: _answerPhotoDataUrl,
+                                    photoName: _answerPhotoName,
+                                    onPick: () => _pickDonationPhoto(isQuestionPhoto: false),
+                                    onClear: () => setState(() {
+                                      _answerPhotoDataUrl = null;
+                                      _answerPhotoName = null;
+                                    }),
+                                  ),
+                                ),
+                              ],
+                            ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 16),
+                    const Row(
+                      children: [
+                        Icon(Icons.keyboard_alt_outlined, size: 18, color: AppTheme.textPrimary),
+                        SizedBox(width: 7),
+                        Expanded(
+                          child: Text(
+                            'Option B: Type Question & Model Answer (Optional if Clear Photos Uploaded Above)',
+                            style: TextStyle(
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w800,
+                              color: AppTheme.textPrimary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 12),
                     TextField(
                       controller: _qNpCtrl,
                       maxLines: 2,
                       decoration: const InputDecoration(
-                        labelText: 'Question in Nepali (नेपालीमा प्रश्न) *',
-                        hintText: 'यहाँ नेपालीमा प्रश्न लेख्नुहोस्...',
+                        labelText: 'Question in Nepali (नेपालीमा प्रश्न)',
+                        hintText: 'यहाँ नेपालीमा प्रश्न लेख्नुहोस् (वा माथि स्पष्ट फोटो अपलोड गर्नुहोस्)...',
                       ),
                     ),
 
@@ -4717,8 +5114,8 @@ class _DonateQuestionsTabState extends State<DonateQuestionsTab> {
                       controller: _qEnCtrl,
                       maxLines: 2,
                       decoration: const InputDecoration(
-                        labelText: 'Question in English (अंग्रेजीमा प्रश्न) *',
-                        hintText: 'Write the question in English here...',
+                        labelText: 'Question in English (अंग्रेजीमा प्रश्न)',
+                        hintText: 'Write the question in English here (or upload clear photo above)...',
                       ),
                     ),
 
@@ -4728,8 +5125,8 @@ class _DonateQuestionsTabState extends State<DonateQuestionsTab> {
                         controller: _ansNpCtrl,
                         maxLines: 5,
                         decoration: const InputDecoration(
-                          labelText: 'Model Answer in Nepali (नेपालीमा नमुना उत्तर) *',
-                          hintText: 'लोकसेवा परीक्षाको ढाँचामा बुँदागत नमुना उत्तर लेख्नुहोस्...',
+                          labelText: 'Model Answer in Nepali (नेपालीमा नमुना उत्तर)',
+                          hintText: 'लोकसेवा परीक्षाको ढाँचामा बुँदागत नमुना उत्तर लेख्नुहोस् (वा माथि उत्तरको स्पष्ट फोटो अपलोड गर्नुहोस्)...',
                         ),
                       ),
                       const SizedBox(height: 14),
@@ -4737,8 +5134,8 @@ class _DonateQuestionsTabState extends State<DonateQuestionsTab> {
                         controller: _ansEnCtrl,
                         maxLines: 5,
                         decoration: const InputDecoration(
-                          labelText: 'Model Answer in English (Optional if Nepali provided)',
-                          hintText: 'Write structured model answer in English...',
+                          labelText: 'Model Answer in English (Optional)',
+                          hintText: 'Write structured model answer in English (or upload well-written answer photo above)...',
                         ),
                       ),
                     ] else ...[
@@ -4804,7 +5201,7 @@ class _DonateQuestionsTabState extends State<DonateQuestionsTab> {
                             : const Icon(Icons.cloud_upload_outlined, size: 18, color: Colors.white),
                         label: Text(
                           _submitting
-                              ? 'Submitting Question for Verification...'
+                              ? 'Submitting Question & Answer for Verification...'
                               : 'Submit Question Donation (+रू 0.05 on Verification)',
                           style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
                         ),
@@ -4852,7 +5249,7 @@ class _DonateQuestionsTabState extends State<DonateQuestionsTab> {
                       ),
                       SizedBox(height: 4),
                       Text(
-                        'Submit your first valid question above for your enrolled exam course to start earning!',
+                        'Submit your first valid question (typed or clear photo) above for your enrolled exam course to start earning!',
                         textAlign: TextAlign.center,
                         style: TextStyle(fontSize: 12.5, color: AppTheme.textMuted),
                       ),
@@ -4868,6 +5265,8 @@ class _DonateQuestionsTabState extends State<DonateQuestionsTab> {
                   final examId = (d['exam_id'] ?? 'rbb_it_5').toString();
                   final qType = (d['type'] ?? 'subjective').toString().toUpperCase();
                   final marks = d['marks'] ?? 5;
+                  final qPhotoUrl = (d['question_photo_url'] ?? '').toString();
+                  final aPhotoUrl = (d['answer_photo_url'] ?? '').toString();
 
                   return Container(
                     margin: const EdgeInsets.only(bottom: 10),
@@ -4907,6 +5306,29 @@ class _DonateQuestionsTabState extends State<DonateQuestionsTab> {
                                     ),
                                   ),
                                 ),
+                                if (qPhotoUrl.isNotEmpty || aPhotoUrl.isNotEmpty)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                                    decoration: BoxDecoration(
+                                      color: AppTheme.iconRedLight,
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: const Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.photo_camera_outlined, size: 11, color: AppTheme.iconRed),
+                                        SizedBox(width: 4),
+                                        Text(
+                                          'PHOTO ATTACHED',
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w800,
+                                            color: AppTheme.iconRedDark,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
                               ],
                             ),
                             Container(
@@ -4945,6 +5367,41 @@ class _DonateQuestionsTabState extends State<DonateQuestionsTab> {
                             height: 1.4,
                           ),
                         ),
+                        if (qPhotoUrl.isNotEmpty || aPhotoUrl.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 6,
+                            children: [
+                              if (qPhotoUrl.isNotEmpty)
+                                OutlinedButton.icon(
+                                  onPressed: () => _showPhotoPreviewDialog('Uploaded Question Photo', qPhotoUrl),
+                                  icon: const Icon(Icons.image_outlined, size: 14, color: AppTheme.iconRed),
+                                  label: const Text(
+                                    'View Question Photo',
+                                    style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: AppTheme.iconRed),
+                                  ),
+                                  style: OutlinedButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                    side: const BorderSide(color: AppTheme.iconRed),
+                                  ),
+                                ),
+                              if (aPhotoUrl.isNotEmpty)
+                                OutlinedButton.icon(
+                                  onPressed: () => _showPhotoPreviewDialog('Uploaded Well-Written Answer Photo', aPhotoUrl),
+                                  icon: const Icon(Icons.fact_check_outlined, size: 14, color: AppTheme.textPrimary),
+                                  label: const Text(
+                                    'View Answer Photo',
+                                    style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: AppTheme.textPrimary),
+                                  ),
+                                  style: OutlinedButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                    side: const BorderSide(color: AppTheme.divider),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ],
                       ],
                     ),
                   );
