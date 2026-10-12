@@ -655,6 +655,89 @@ const DB = {
 
     return { donation, publishedQuestion };
   },
+
+  async claimDonationReward(userId, { paymentMethod, walletId }) {
+    const cleanWallet = (walletId || '').trim();
+    const cleanMethod = (paymentMethod || 'eSewa').trim();
+    const nowIso = new Date().toISOString();
+
+    if (isMongoConnected) {
+      const unclaimed = await QuestionDonation.find({
+        userId: String(userId),
+        status: 'approved',
+        claimed: { $ne: true },
+      }).lean();
+
+      if (unclaimed.length < 200) {
+        return {
+          ok: false,
+          unclaimedCount: unclaimed.length,
+          error: `You currently have ${unclaimed.length} unclaimed verified questions. You need at least 200 verified questions to claim your reward.`,
+        };
+      }
+
+      const ids = unclaimed.map((d) => d._id);
+      await QuestionDonation.updateMany(
+        { _id: { $in: ids } },
+        {
+          $set: {
+            claimed: true,
+            claimStatus: 'claim_requested',
+            paymentMethod: cleanMethod,
+            walletId: cleanWallet,
+            claimedAt: nowIso,
+          },
+        }
+      );
+
+      localStore.donations = localStore.donations || [];
+      for (const item of localStore.donations) {
+        if (String(item.userId) === String(userId) && item.status === 'approved' && !item.claimed) {
+          item.claimed = true;
+          item.claimStatus = 'claim_requested';
+          item.paymentMethod = cleanMethod;
+          item.walletId = cleanWallet;
+          item.claimedAt = nowIso;
+        }
+      }
+      saveLocalStore();
+
+      return {
+        ok: true,
+        claimedQuestions: unclaimed.length,
+        claimedRupees: Number((unclaimed.length * 0.05).toFixed(2)),
+        paymentMethod: cleanMethod,
+        walletId: cleanWallet,
+      };
+    }
+
+    localStore.donations = localStore.donations || [];
+    const unclaimedLocal = localStore.donations.filter(
+      (d) => String(d.userId) === String(userId) && d.status === 'approved' && !d.claimed
+    );
+    if (unclaimedLocal.length < 200) {
+      return {
+        ok: false,
+        unclaimedCount: unclaimedLocal.length,
+        error: `You currently have ${unclaimedLocal.length} unclaimed verified questions. You need at least 200 verified questions to claim your reward.`,
+      };
+    }
+    for (const item of unclaimedLocal) {
+      item.claimed = true;
+      item.claimStatus = 'claim_requested';
+      item.paymentMethod = cleanMethod;
+      item.walletId = cleanWallet;
+      item.claimedAt = nowIso;
+    }
+    saveLocalStore();
+    return {
+      ok: true,
+      claimedQuestions: unclaimedLocal.length,
+      claimedRupees: Number((unclaimedLocal.length * 0.05).toFixed(2)),
+      paymentMethod: cleanMethod,
+      walletId: cleanWallet,
+    };
+  },
 };
 
 module.exports = { connectDB, DB };

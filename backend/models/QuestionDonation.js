@@ -19,6 +19,23 @@ const QuestionDonationSchema = new mongoose.Schema(
       type: String,
       default: '',
     },
+    paymentMethod: {
+      type: String,
+      default: 'eSewa',
+    },
+    claimed: {
+      type: Boolean,
+      default: false,
+    },
+    claimStatus: {
+      type: String,
+      enum: ['unclaimed', 'claim_requested', 'paid'],
+      default: 'unclaimed',
+    },
+    claimedAt: {
+      type: Date,
+      default: null,
+    },
     exam_id: {
       type: String,
       required: true,

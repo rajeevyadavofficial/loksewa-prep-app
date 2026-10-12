@@ -3823,11 +3823,16 @@ class _DonateQuestionsTabState extends State<DonateQuestionsTab> {
   String? _selectedExamId;
 
   bool _submitting = false;
+  bool _claiming = false;
   bool _loadingDonations = false;
   int _totalSubmitted = 0;
   int _verifiedCount = 0;
+  int _unclaimedVerifiedCount = 0;
+  int _claimedCount = 0;
   int _pendingCount = 0;
   double _earnedRupees = 0.0;
+  double _claimableRupees = 0.0;
+  String _paymentMethod = 'eSewa';
   List<Map<String, dynamic>> _myDonations = [];
 
   @override
@@ -3867,22 +3872,104 @@ class _DonateQuestionsTabState extends State<DonateQuestionsTab> {
       if (res.statusCode == 200 && mounted) {
         final data = jsonDecode(res.body) as Map<String, dynamic>;
         final rawList = (data['donations'] as List<dynamic>?) ?? [];
+        final parsedList = rawList.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+        final verifiedTotal = (data['verifiedCount'] as num?)?.toInt() ?? 0;
+        final unclaimedVerified = (data['unclaimedVerifiedCount'] as num?)?.toInt() ??
+            parsedList.where((d) => d['status'] == 'approved' && d['claimed'] != true).length;
+        final claimedTotal = (data['claimedCount'] as num?)?.toInt() ??
+            parsedList.where((d) => d['status'] == 'approved' && d['claimed'] == true).length;
+
         setState(() {
-          _totalSubmitted = (data['totalSubmitted'] as num?)?.toInt() ?? rawList.length;
-          _verifiedCount = (data['verifiedCount'] as num?)?.toInt() ?? 0;
+          _totalSubmitted = (data['totalSubmitted'] as num?)?.toInt() ?? parsedList.length;
+          _verifiedCount = verifiedTotal;
+          _unclaimedVerifiedCount = unclaimedVerified;
+          _claimedCount = claimedTotal;
           _pendingCount = (data['pendingCount'] as num?)?.toInt() ?? 0;
           _earnedRupees = (data['earnedRupees'] as num?)?.toDouble() ?? (_verifiedCount * 0.05);
-          _myDonations = rawList.map((e) => Map<String, dynamic>.from(e as Map)).toList();
-          if (_walletCtrl.text.isEmpty && _myDonations.isNotEmpty) {
-            final savedWallet = _myDonations.first['walletId']?.toString() ?? '';
-            if (savedWallet.isNotEmpty) _walletCtrl.text = savedWallet;
-          }
+          _claimableRupees = (data['claimableRupees'] as num?)?.toDouble() ?? (_unclaimedVerifiedCount * 0.05);
+          _myDonations = parsedList;
           _loadingDonations = false;
         });
         return;
       }
     } catch (_) {}
     if (mounted) setState(() => _loadingDonations = false);
+  }
+
+  Future<void> _claimReward() async {
+    if (_unclaimedVerifiedCount < 200) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'You need at least 200 verified questions to claim. Currently $_unclaimedVerifiedCount / 200 verified.',
+          ),
+          backgroundColor: AppTheme.iconRed,
+        ),
+      );
+      return;
+    }
+
+    final walletId = _walletCtrl.text.trim();
+    if (walletId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Please enter your $_paymentMethod ID / Mobile Number to claim your reward.'),
+          backgroundColor: AppTheme.iconRed,
+        ),
+      );
+      return;
+    }
+
+    final token = context.read<AuthProvider>().token;
+    if (token == null || token.isEmpty) return;
+
+    setState(() => _claiming = true);
+    try {
+      final res = await http.post(
+        Uri.parse('${AppConstants.apiBaseUrl}/questions/donations/claim'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'paymentMethod': _paymentMethod,
+          'walletId': walletId,
+        }),
+      ).timeout(const Duration(seconds: 15));
+
+      if (!mounted) return;
+      final data = jsonDecode(res.body) as Map<String, dynamic>;
+      if (res.statusCode == 200) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              data['message']?.toString() ??
+                  'Reward claim submitted! Payment will be sent to your $_paymentMethod ID ($walletId).',
+            ),
+            backgroundColor: AppTheme.primaryColor,
+          ),
+        );
+        await _loadMyDonations();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(data['error']?.toString() ?? 'Failed to submit reward claim.'),
+            backgroundColor: AppTheme.iconRed,
+          ),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Network error while claiming reward. Please try again.'),
+            backgroundColor: AppTheme.iconRed,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _claiming = false);
+    }
   }
 
   Future<void> _submitDonation(String examId) async {
@@ -3943,7 +4030,6 @@ class _DonateQuestionsTabState extends State<DonateQuestionsTab> {
         ],
         'question_nepali': qNp.isEmpty ? qEn : qNp,
         'question_english': qEn.isEmpty ? qNp : qEn,
-        'walletId': _walletCtrl.text.trim(),
       };
 
       if (_qType == 'subjective') {
@@ -4046,8 +4132,9 @@ class _DonateQuestionsTabState extends State<DonateQuestionsTab> {
 
     final screenW = MediaQuery.of(context).size.width;
     final isMobile = screenW < 680;
-    final progressInBatch = _verifiedCount % 100;
-    final progressRatio = (progressInBatch / 100.0).clamp(0.0, 1.0);
+    final eligibleToClaim = _unclaimedVerifiedCount >= 200;
+    final claimProgressRatio = (_unclaimedVerifiedCount / 200.0).clamp(0.0, 1.0);
+    final remainingToClaim = (200 - _unclaimedVerifiedCount).clamp(0, 200);
 
     return SingleChildScrollView(
       padding: EdgeInsets.all(isMobile ? 14 : 24),
@@ -4121,7 +4208,7 @@ class _DonateQuestionsTabState extends State<DonateQuestionsTab> {
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      'Donate Valid Questions & Earn Money (100 Verified Questions = रू 5.00)',
+                      'Donate Valid Questions & Earn Money (100 Verified = रू 5.00 • Claim at 200 Verified Qs)',
                       style: TextStyle(
                         fontSize: isMobile ? 17.5 : 20,
                         fontWeight: FontWeight.w800,
@@ -4131,7 +4218,7 @@ class _DonateQuestionsTabState extends State<DonateQuestionsTab> {
                     ),
                     const SizedBox(height: 6),
                     const Text(
-                      'Contribute authentic Lok Sewa subjective Q&As or objective MCQs for your enrolled exam course. Every valid question approved by our Admin team earns रू 0.05 (100 Verified Questions = रू 5.00) directly to your eSewa/Khalti wallet and gets published to help fellow aspirants!',
+                      'Contribute authentic Lok Sewa subjective Q&As or objective MCQs for your enrolled exam course. Every valid question approved by our Admin team earns रू 0.05 (100 Verified Questions = रू 5.00). Once you reach 200 Admin-Verified Questions (रू 10.00), you unlock the Claim button to provide your Payment ID!',
                       style: TextStyle(fontSize: 13, color: AppTheme.textBody, height: 1.5),
                     ),
                     const SizedBox(height: 18),
@@ -4142,17 +4229,19 @@ class _DonateQuestionsTabState extends State<DonateQuestionsTab> {
                       runSpacing: 12,
                       children: [
                         _DonationStatBox(
-                          label: 'Total Earned',
-                          value: 'रू ${_earnedRupees.toStringAsFixed(2)}',
-                          sub: 'रू 5 per 100 verified',
+                          label: 'Unclaimed Balance',
+                          value: 'रू ${_claimableRupees.toStringAsFixed(2)}',
+                          sub: 'Total earned: रू ${_earnedRupees.toStringAsFixed(2)}',
                           highlightRed: true,
                           width: isMobile ? (screenW - 76) / 2 : 195,
                         ),
                         _DonationStatBox(
-                          label: 'Verified & Valid',
-                          value: '$_verifiedCount Qs',
-                          sub: 'Approved by Admin',
-                          highlightRed: false,
+                          label: 'Verified (Unclaimed)',
+                          value: '$_unclaimedVerifiedCount / 200',
+                          sub: _claimedCount > 0
+                              ? '$_claimedCount Qs already claimed'
+                              : '200 Qs needed to claim',
+                          highlightRed: eligibleToClaim,
                           width: isMobile ? (screenW - 76) / 2 : 195,
                         ),
                         _DonationStatBox(
@@ -4173,13 +4262,16 @@ class _DonateQuestionsTabState extends State<DonateQuestionsTab> {
                     ),
 
                     const SizedBox(height: 16),
-                    // Milestone Progress Bar (0 -> 100 Verified Questions = Rs. 5)
+                    // Claim Eligibility Progress Bar (0 -> 200 Verified Questions = Rs. 10 Claim Unlock)
                     Container(
-                      padding: const EdgeInsets.all(12),
+                      padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFFAFAFA),
+                        color: eligibleToClaim ? AppTheme.iconRedLight : const Color(0xFFFAFAFA),
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: AppTheme.divider),
+                        border: Border.all(
+                          color: eligibleToClaim ? AppTheme.iconRed : AppTheme.divider,
+                          width: eligibleToClaim ? 1.5 : 1.0,
+                        ),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -4187,18 +4279,23 @@ class _DonateQuestionsTabState extends State<DonateQuestionsTab> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text(
-                                'Progress to Next रू 5.00 Milestone ($progressInBatch / 100 Verified Questions)',
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppTheme.textPrimary,
+                              Expanded(
+                                child: Text(
+                                  eligibleToClaim
+                                      ? '🎉 Eligible to Claim Reward! ($_unclaimedVerifiedCount Verified Questions = रू ${_claimableRupees.toStringAsFixed(2)})'
+                                      : 'Claim Eligibility Progress ($_unclaimedVerifiedCount / 200 Verified Questions Required)',
+                                  style: TextStyle(
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w800,
+                                    color: eligibleToClaim ? AppTheme.iconRedDark : AppTheme.textPrimary,
+                                  ),
                                 ),
                               ),
+                              const SizedBox(width: 8),
                               Text(
-                                '${(progressRatio * 100).toInt()}%',
+                                '${(claimProgressRatio * 100).toInt()}%',
                                 style: const TextStyle(
-                                  fontSize: 12,
+                                  fontSize: 12.5,
                                   fontWeight: FontWeight.w800,
                                   color: AppTheme.iconRed,
                                 ),
@@ -4209,12 +4306,157 @@ class _DonateQuestionsTabState extends State<DonateQuestionsTab> {
                           ClipRRect(
                             borderRadius: BorderRadius.circular(4),
                             child: LinearProgressIndicator(
-                              value: progressRatio,
+                              value: claimProgressRatio,
                               minHeight: 7,
                               backgroundColor: AppTheme.divider,
                               color: AppTheme.iconRed,
                             ),
                           ),
+                          const SizedBox(height: 10),
+                          if (!eligibleToClaim)
+                            Row(
+                              children: [
+                                const Icon(Icons.lock_clock_outlined, size: 16, color: AppTheme.textMuted),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: Text(
+                                    'Reach 200 Admin-Verified Questions (रू 10.00) to unlock reward withdrawal & enter your Payment ID ($remainingToClaim more verified questions needed).',
+                                    style: const TextStyle(
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppTheme.textMuted,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            )
+                          else ...[
+                            const Divider(height: 18),
+                            const Text(
+                              'Provide Your Payment ID to Claim Your Earned Reward:',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w800,
+                                color: AppTheme.textPrimary,
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            if (isMobile) ...[
+                              DropdownButtonFormField<String>(
+                                value: _paymentMethod,
+                                decoration: const InputDecoration(
+                                  labelText: 'Select Payment Method *',
+                                  filled: true,
+                                  fillColor: Colors.white,
+                                ),
+                                items: const [
+                                  DropdownMenuItem(value: 'eSewa', child: Text('eSewa Wallet')),
+                                  DropdownMenuItem(value: 'Khalti', child: Text('Khalti Wallet')),
+                                ],
+                                onChanged: (v) => setState(() => _paymentMethod = v ?? 'eSewa'),
+                              ),
+                              const SizedBox(height: 10),
+                              TextField(
+                                controller: _walletCtrl,
+                                decoration: InputDecoration(
+                                  labelText: 'Your $_paymentMethod ID / Mobile Number *',
+                                  hintText: 'e.g. 98XXXXXXXX',
+                                  filled: true,
+                                  fillColor: Colors.white,
+                                  prefixIcon: const Icon(
+                                    Icons.account_balance_wallet_outlined,
+                                    size: 18,
+                                    color: AppTheme.iconRed,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              SizedBox(
+                                width: double.infinity,
+                                child: FilledButton.icon(
+                                  onPressed: _claiming ? null : _claimReward,
+                                  icon: _claiming
+                                      ? const SizedBox(
+                                          width: 15,
+                                          height: 15,
+                                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                        )
+                                      : const Icon(Icons.payments_outlined, size: 17, color: Colors.white),
+                                  label: Text(
+                                    _claiming
+                                        ? 'Submitting Claim...'
+                                        : 'Claim Reward Now (रू ${_claimableRupees.toStringAsFixed(2)})',
+                                    style: const TextStyle(fontWeight: FontWeight.w800),
+                                  ),
+                                  style: FilledButton.styleFrom(
+                                    backgroundColor: AppTheme.iconRed,
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(vertical: 14),
+                                  ),
+                                ),
+                              ),
+                            ] else
+                              Row(
+                                children: [
+                                  Expanded(
+                                    flex: 2,
+                                    child: DropdownButtonFormField<String>(
+                                      value: _paymentMethod,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Payment Method *',
+                                        filled: true,
+                                        fillColor: Colors.white,
+                                      ),
+                                      items: const [
+                                        DropdownMenuItem(value: 'eSewa', child: Text('eSewa Wallet')),
+                                        DropdownMenuItem(value: 'Khalti', child: Text('Khalti Wallet')),
+                                      ],
+                                      onChanged: (v) => setState(() => _paymentMethod = v ?? 'eSewa'),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    flex: 3,
+                                    child: TextField(
+                                      controller: _walletCtrl,
+                                      decoration: InputDecoration(
+                                        labelText: 'Your $_paymentMethod ID / Mobile Number *',
+                                        hintText: 'e.g. 98XXXXXXXX',
+                                        filled: true,
+                                        fillColor: Colors.white,
+                                        prefixIcon: const Icon(
+                                          Icons.account_balance_wallet_outlined,
+                                          size: 18,
+                                          color: AppTheme.iconRed,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  FilledButton.icon(
+                                    onPressed: _claiming ? null : _claimReward,
+                                    icon: _claiming
+                                        ? const SizedBox(
+                                            width: 15,
+                                            height: 15,
+                                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                          )
+                                        : const Icon(Icons.payments_outlined, size: 17, color: Colors.white),
+                                    label: Text(
+                                      _claiming
+                                          ? 'Claiming...'
+                                          : 'Claim रू ${_claimableRupees.toStringAsFixed(2)}',
+                                      style: const TextStyle(fontWeight: FontWeight.w800),
+                                    ),
+                                    style: FilledButton.styleFrom(
+                                      backgroundColor: AppTheme.iconRed,
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 18),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                          ],
                         ],
                       ),
                     ),
@@ -4547,16 +4789,6 @@ class _DonateQuestionsTabState extends State<DonateQuestionsTab> {
                         ),
                       ),
                     ],
-
-                    const SizedBox(height: 14),
-                    TextField(
-                      controller: _walletCtrl,
-                      decoration: const InputDecoration(
-                        labelText: 'Your eSewa / Khalti ID (for रू 5 / 100 Verified Questions Payout)',
-                        hintText: 'e.g. 98XXXXXXXX (eSewa / Khalti)',
-                        prefixIcon: Icon(Icons.account_balance_wallet_outlined, size: 18, color: AppTheme.iconRed),
-                      ),
-                    ),
 
                     const SizedBox(height: 20),
                     SizedBox(

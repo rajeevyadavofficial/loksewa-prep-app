@@ -54,23 +54,57 @@ router.get('/', optionalAuth, async (req, res) => {
 router.get('/donations/my', requireAuth, async (req, res) => {
   try {
     const donations = await DB.getDonationsByUser(req.user._id);
-    const verifiedCount = donations.filter((d) => d.status === 'approved').length;
+    const verifiedList = donations.filter((d) => d.status === 'approved');
+    const verifiedCount = verifiedList.length;
+    const unclaimedVerifiedCount = verifiedList.filter((d) => !d.claimed).length;
+    const claimedCount = verifiedList.filter((d) => !!d.claimed).length;
     const pendingCount = donations.filter((d) => d.status === 'pending').length;
     const rejectedCount = donations.filter((d) => d.status === 'rejected').length;
     // 100 valid and verified questions generate Rs. 5 (Rs. 0.05 per verified question)
+    // Candidate becomes eligible to claim & provide payment ID once unclaimed verified questions reach 200 (Rs. 10.00)
     const earnedRupees = Number((verifiedCount * 0.05).toFixed(2));
+    const claimableRupees = Number((unclaimedVerifiedCount * 0.05).toFixed(2));
     return res.json({
       totalSubmitted: donations.length,
       verifiedCount,
+      unclaimedVerifiedCount,
+      claimedCount,
       pendingCount,
       rejectedCount,
       earnedRupees,
-      rateDescription: '100 Valid & Verified Questions = Rs. 5.00 (Rs. 0.05 / verified question)',
+      claimableRupees,
+      eligibleToClaim: unclaimedVerifiedCount >= 200,
+      minQuestionsToClaim: 200,
+      rateDescription: '100 Valid & Verified Questions = Rs. 5.00 (Reach 200 Verified Questions to Claim Payout)',
       donations,
     });
   } catch (err) {
     console.error('Error loading user donations:', err);
     return res.status(500).json({ error: 'Failed to load donated questions' });
+  }
+});
+
+// POST /api/questions/donations/claim (Eligible once candidate reaches 200 verified questions)
+router.post('/donations/claim', requireAuth, async (req, res) => {
+  try {
+    const { paymentMethod, walletId } = req.body || {};
+    if (!walletId || !String(walletId).trim()) {
+      return res.status(400).json({ error: 'Please enter your eSewa / Khalti Payment ID to claim your reward.' });
+    }
+    const result = await DB.claimDonationReward(req.user._id, {
+      paymentMethod: paymentMethod || 'eSewa',
+      walletId: String(walletId).trim(),
+    });
+    if (!result.ok) {
+      return res.status(400).json({ error: result.error });
+    }
+    return res.json({
+      message: `Reward claim of Rs. ${result.claimedRupees.toFixed(2)} (${result.claimedQuestions} verified questions) submitted for ${result.paymentMethod} ID: ${result.walletId}!`,
+      ...result,
+    });
+  } catch (err) {
+    console.error('Error claiming donation reward:', err);
+    return res.status(500).json({ error: 'Failed to submit reward claim' });
   }
 });
 
@@ -93,7 +127,6 @@ router.post('/donations', requireAuth, async (req, res) => {
       options,
       correct_option_index,
       explanation,
-      walletId,
     } = req.body || {};
 
     const targetExam = (exam_id || '').trim();
@@ -140,7 +173,9 @@ router.post('/donations', requireAuth, async (req, res) => {
       userId: String(req.user._id),
       userName: req.user.name,
       userEmail: req.user.email,
-      walletId: (walletId || '').trim(),
+      walletId: '',
+      claimed: false,
+      claimStatus: 'unclaimed',
       exam_id: targetExam || enrolledExams[0] || 'rbb_it_5',
       paper: paper === 'paper2' ? 'paper2' : 'paper1',
       section: section === 'sectionB' ? 'sectionB' : 'sectionA',
@@ -162,7 +197,7 @@ router.post('/donations', requireAuth, async (req, res) => {
     });
 
     return res.status(201).json({
-      message: 'Question submitted for Admin verification! Once verified, it adds toward your Rs. 5 / 100 questions reward.',
+      message: 'Question submitted for Admin verification! Reach 200 verified questions to claim your reward.',
       donation: created,
     });
   } catch (err) {
