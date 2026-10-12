@@ -1328,7 +1328,6 @@ class _QuestionsTabState extends State<QuestionsTab> {
   final Set<String> _studiedIds = {};
   final TextEditingController _searchCtrl = TextEditingController();
   bool _listCollapsed = false;
-  bool _liningCopyMode = true;
 
   @override
   void dispose() {
@@ -1390,7 +1389,6 @@ class _QuestionsTabState extends State<QuestionsTab> {
           currentIdx: currentIdx,
           isWide: isWide,
           isListCollapsed: _listCollapsed,
-          isLiningCopyMode: _liningCopyMode,
           onLangChanged: (l) => setState(() => _lang = l),
           onFontDec: () => setState(() => _fontSize = (_fontSize - 1).clamp(13, 22)),
           onFontInc: () => setState(() => _fontSize = (_fontSize + 1).clamp(13, 22)),
@@ -1399,12 +1397,6 @@ class _QuestionsTabState extends State<QuestionsTab> {
           onPrev: currentIdx > 0 ? () => _go(accessible, -1) : null,
           onNext: currentIdx >= 0 && currentIdx < accessible.length - 1 ? () => _go(accessible, 1) : null,
           onToggleList: () => setState(() => _listCollapsed = !_listCollapsed),
-          onToggleLiningCopy: () => setState(() {
-            _liningCopyMode = !_liningCopyMode;
-            if (_liningCopyMode && isWide) {
-              _listCollapsed = true;
-            }
-          }),
           paperFilter: qp.paperFilter,
           typeFilter: qp.typeFilter,
           onFilterChanged: (paper, type) {
@@ -1461,7 +1453,6 @@ class _QuestionsTabState extends State<QuestionsTab> {
                                       totalQuestions: accessible.length,
                                       lang: _lang,
                                       fontSize: _fontSize,
-                                      liningCopyMode: _liningCopyMode,
                                       isStudied: _studiedIds.contains(_selected!.id),
                                       onToggleStudied: () => setState(() {
                                         final id = _selected!.id;
@@ -1493,7 +1484,6 @@ class _QuestionsTabState extends State<QuestionsTab> {
                               totalQuestions: accessible.length,
                               lang: _lang,
                               fontSize: _fontSize,
-                              liningCopyMode: _liningCopyMode,
                               isStudied: _studiedIds.contains(_selected!.id),
                               onToggleStudied: () => setState(() {
                                 final id = _selected!.id;
@@ -1519,7 +1509,6 @@ class _QBankToolbar extends StatelessWidget {
   final int currentIdx;
   final bool isWide;
   final bool isListCollapsed;
-  final bool isLiningCopyMode;
   final ValueChanged<String> onLangChanged;
   final VoidCallback onFontDec;
   final VoidCallback onFontInc;
@@ -1528,7 +1517,6 @@ class _QBankToolbar extends StatelessWidget {
   final VoidCallback? onPrev;
   final VoidCallback? onNext;
   final VoidCallback onToggleList;
-  final VoidCallback onToggleLiningCopy;
   final PaperType? paperFilter;
   final QuestionType? typeFilter;
   final void Function(PaperType? paper, QuestionType? type) onFilterChanged;
@@ -1542,7 +1530,6 @@ class _QBankToolbar extends StatelessWidget {
     required this.currentIdx,
     required this.isWide,
     required this.isListCollapsed,
-    required this.isLiningCopyMode,
     required this.onLangChanged,
     required this.onFontDec,
     required this.onFontInc,
@@ -1551,7 +1538,6 @@ class _QBankToolbar extends StatelessWidget {
     required this.onPrev,
     required this.onNext,
     required this.onToggleList,
-    required this.onToggleLiningCopy,
     required this.paperFilter,
     required this.typeFilter,
     required this.onFilterChanged,
@@ -1590,42 +1576,6 @@ class _QBankToolbar extends StatelessWidget {
                         active: isListCollapsed,
                         onTap: onToggleList,
                       ),
-                    // Lining Copy Focus Mode Toggle Pill
-                    InkWell(
-                      onTap: onToggleLiningCopy,
-                      borderRadius: BorderRadius.circular(7),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 160),
-                        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: isLiningCopyMode ? AppTheme.iconRed : Colors.white,
-                          borderRadius: BorderRadius.circular(7),
-                          border: Border.all(
-                            color: isLiningCopyMode ? AppTheme.iconRed : AppTheme.divider,
-                            width: 1.2,
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.menu_book_rounded,
-                              size: 15,
-                              color: isLiningCopyMode ? Colors.white : AppTheme.iconRed,
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              isLiningCopyMode ? 'Lining Copy Focus ✓' : 'Lining Copy Mode',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w800,
-                                color: isLiningCopyMode ? Colors.white : AppTheme.textPrimary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
                     // Search field
                     SizedBox(
                       width: isMobile ? (screenW - 28).clamp(180.0, 500.0) : 210,
@@ -2181,7 +2131,6 @@ class _StudyReader extends StatefulWidget {
   final int totalQuestions;
   final String lang;
   final double fontSize;
-  final bool liningCopyMode;
   final bool isStudied;
   final VoidCallback onToggleStudied;
   final VoidCallback? onBack;
@@ -2195,7 +2144,6 @@ class _StudyReader extends StatefulWidget {
     required this.totalQuestions,
     required this.lang,
     required this.fontSize,
-    required this.liningCopyMode,
     required this.isStudied,
     required this.onToggleStudied,
     this.onBack,
@@ -2231,173 +2179,20 @@ class _StudyReaderState extends State<_StudyReader> {
     final locked = plan == SubscriptionPlan.free && widget.question.isPremium;
     final isMobile = MediaQuery.of(context).size.width < 600;
 
-    if (widget.liningCopyMode) {
-      return _LinedCopySheet(
-        scrollController: _scroll,
-        question: widget.question,
-        questionNumber: widget.questionNumber,
-        totalQuestions: widget.totalQuestions,
-        lang: widget.lang,
-        fontSize: widget.fontSize,
-        isStudied: widget.isStudied,
-        locked: locked,
-        isMobile: isMobile,
-        onToggleStudied: widget.onToggleStudied,
-        onBack: widget.onBack,
-        onPrev: widget.onPrev,
-        onNext: widget.onNext,
-      );
-    }
-
-    final questionText = widget.lang == 'english'
-        ? widget.question.questionEnglish
-        : widget.question.questionNepali;
-
-    return Container(
-      color: Colors.white,
-      child: SingleChildScrollView(
-        controller: _scroll,
-        padding: EdgeInsets.symmetric(
-          horizontal: isMobile ? 16 : 32,
-          vertical: isMobile ? 18 : 28,
-        ),
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 820),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // ── Back button (mobile) ──
-                if (widget.onBack != null) ...[
-                  InkWell(
-                    onTap: widget.onBack,
-                    borderRadius: BorderRadius.circular(6),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: AppTheme.bgSurface,
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: AppTheme.divider),
-                      ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.arrow_back_rounded, size: 15, color: AppTheme.textPrimary),
-                          SizedBox(width: 6),
-                          Text(
-                            'Back to Question List',
-                            style: TextStyle(
-                              fontSize: 12.5,
-                              fontWeight: FontWeight.w700,
-                              color: AppTheme.textPrimary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                ],
-
-                // ── Meta row ──
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 8,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  alignment: WrapAlignment.spaceBetween,
-                  children: [
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: [
-                        _MetaBadge(
-                          widget.question.paper == PaperType.paper1 ? 'Paper I' : 'Paper II',
-                          red: true,
-                        ),
-                        _MetaBadge('Unit ${widget.question.unitNumber}'),
-                        if (widget.question.type == QuestionType.mcq)
-                          const _MetaBadge('MCQ')
-                        else
-                          _MetaBadge('${widget.question.marks} Marks', red: true),
-                        if (widget.question.yearsAsked.isNotEmpty)
-                          _MetaBadge(widget.question.yearsAsked.join(' · ')),
-                      ],
-                    ),
-                    // Studied toggle
-                    GestureDetector(
-                      onTap: widget.onToggleStudied,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                        decoration: BoxDecoration(
-                          color: widget.isStudied ? AppTheme.iconRedLight : Colors.white,
-                          borderRadius: BorderRadius.circular(5),
-                          border: Border.all(
-                            color: widget.isStudied ? AppTheme.iconRed.withOpacity(0.4) : AppTheme.divider,
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              widget.isStudied ? Icons.check_circle_rounded : Icons.check_circle_outline_rounded,
-                              size: 14,
-                              color: widget.isStudied ? AppTheme.iconRed : AppTheme.textMuted,
-                            ),
-                            const SizedBox(width: 5),
-                            Text(
-                              widget.isStudied ? 'Revised' : 'Mark Revised',
-                              style: TextStyle(
-                                fontSize: 11.5,
-                                fontWeight: FontWeight.w700,
-                                color: widget.isStudied ? AppTheme.iconRedDark : AppTheme.textMuted,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 20),
-
-                // ── Question Text ──
-                SelectableText(
-                  questionText,
-                  style: TextStyle(
-                    fontSize: widget.fontSize + 2,
-                    fontWeight: FontWeight.w700,
-                    height: 1.6,
-                    color: AppTheme.textPrimary,
-                    letterSpacing: -0.2,
-                  ),
-                ),
-
-                const SizedBox(height: 28),
-
-                // ── Divider ──
-                const Divider(color: AppTheme.divider, height: 1),
-                const SizedBox(height: 24),
-
-                // ── Answer Area ──
-                if (widget.question.type == QuestionType.mcq)
-                  _MCQView(question: widget.question, fontSize: widget.fontSize)
-                else if (locked)
-                  _PaywallCard()
-                else
-                  _SubjectiveView(
-                    question: widget.question,
-                    lang: widget.lang,
-                    fontSize: widget.fontSize,
-                  ),
-
-                const SizedBox(height: 40),
-              ],
-            ),
-          ),
-        ),
-      ),
+    return _LinedCopySheet(
+      scrollController: _scroll,
+      question: widget.question,
+      questionNumber: widget.questionNumber,
+      totalQuestions: widget.totalQuestions,
+      lang: widget.lang,
+      fontSize: widget.fontSize,
+      isStudied: widget.isStudied,
+      locked: locked,
+      isMobile: isMobile,
+      onToggleStudied: widget.onToggleStudied,
+      onBack: widget.onBack,
+      onPrev: widget.onPrev,
+      onNext: widget.onNext,
     );
   }
 }
@@ -3214,30 +3009,6 @@ class _LinedAnswerBody extends StatelessWidget {
   }
 }
 
-class _MetaBadge extends StatelessWidget {
-  final String text;
-  final bool red;
-  const _MetaBadge(this.text, {this.red = false});
-
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-    decoration: BoxDecoration(
-      color: red ? AppTheme.iconRedLight : const Color(0xFFF4F4F5),
-      borderRadius: BorderRadius.circular(4),
-      border: Border.all(color: red ? AppTheme.iconRed.withOpacity(0.3) : AppTheme.divider),
-    ),
-    child: Text(
-      text,
-      style: TextStyle(
-        fontSize: 11,
-        fontWeight: FontWeight.w700,
-        color: red ? AppTheme.iconRedDark : AppTheme.textPrimary,
-      ),
-    ),
-  );
-}
-
 // ── MCQ Interactive Practice ────────────────────────────────────
 class _MCQView extends StatefulWidget {
   final Question question;
@@ -3258,6 +3029,31 @@ class _MCQViewState extends State<_MCQView> {
       _chosen = null;
       _revealed = false;
     }
+  }
+
+  Widget _richExplanation(String raw, {required TextStyle baseStyle}) {
+    final spans = <TextSpan>[];
+    final regex = RegExp(r'\*\*(.+?)\*\*');
+    int lastEnd = 0;
+    for (final match in regex.allMatches(raw)) {
+      if (match.start > lastEnd) {
+        spans.add(TextSpan(text: raw.substring(lastEnd, match.start)));
+      }
+      spans.add(
+        TextSpan(
+          text: match.group(1),
+          style: baseStyle.copyWith(fontWeight: FontWeight.w800, color: AppTheme.textPrimary),
+        ),
+      );
+      lastEnd = match.end;
+    }
+    if (lastEnd < raw.length) {
+      spans.add(TextSpan(text: raw.substring(lastEnd).replaceAll('**', '')));
+    }
+    if (spans.isEmpty) {
+      return SelectableText(raw.replaceAll('**', ''), style: baseStyle);
+    }
+    return SelectableText.rich(TextSpan(style: baseStyle, children: spans));
   }
 
   @override
@@ -3378,7 +3174,7 @@ class _MCQViewState extends State<_MCQView> {
                   ],
                 ),
                 const SizedBox(height: 8),
-                _AnswerBody.richText(
+                _richExplanation(
                   widget.question.explanation!,
                   baseStyle: TextStyle(fontSize: widget.fontSize - 0.5, height: 1.7, color: AppTheme.textBody),
                 ),
@@ -3387,203 +3183,6 @@ class _MCQViewState extends State<_MCQView> {
           ),
         ],
       ],
-    );
-  }
-}
-
-// ── Subjective Model Answer ─────────────────────────────────────
-class _SubjectiveView extends StatelessWidget {
-  final Question question;
-  final String lang;
-  final double fontSize;
-  const _SubjectiveView({required this.question, required this.lang, required this.fontSize});
-
-  @override
-  Widget build(BuildContext context) {
-    final nepaliText = question.answerNepali ?? 'उत्तर उपलब्ध छैन।';
-    final englishText = question.answerEnglish ?? 'Answer not available.';
-    final activeText = lang == 'english' ? englishText : nepaliText;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Header row
-        Row(
-          children: [
-            const Icon(Icons.verified_rounded, size: 15, color: AppTheme.iconRed),
-            const SizedBox(width: 6),
-            Text(
-              'MODEL ANSWER · ${question.marks} MARKS',
-              style: const TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 0.8,
-                color: AppTheme.textMuted,
-              ),
-            ),
-            const Spacer(),
-            // Copy
-            InkWell(
-              onTap: () {
-                final cleanCopy = activeText.replaceAll('**', '');
-                Clipboard.setData(ClipboardData(text: '${lang == "english" ? question.questionEnglish : question.questionNepali}\n\n$cleanCopy'));
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Copied to clipboard'), duration: Duration(seconds: 2)),
-                );
-              },
-              borderRadius: BorderRadius.circular(5),
-              child: const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.copy_outlined, size: 13, color: AppTheme.textMuted),
-                    SizedBox(width: 4),
-                    Text('Copy', style: TextStyle(fontSize: 12, color: AppTheme.textMuted)),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 18),
-        // Answer body
-        _AnswerBody(content: activeText, fontSize: fontSize),
-        const SizedBox(height: 24),
-        // Writing tip
-        Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: const Color(0xFFFAFAFA),
-            borderRadius: BorderRadius.circular(7),
-            border: Border.all(color: AppTheme.divider),
-          ),
-          child: Text(
-            question.marks >= 10
-                ? '📝 Exam Tip: Write a 3-tier answer — Definition/Context → Core Points with headings → Way Forward/Conclusion. Aim for ${question.marks == 10 ? "400–500 words" : "600–700 words"}.'
-                : '📝 Exam Tip: Open directly with the concept → ${question.marks == 5 ? "5–6 crisp bullets" : "2–3 well-developed points"} → Brief conclusion. Aim for ${question.marks * 45}–${question.marks * 55} words.',
-            style: const TextStyle(fontSize: 12.5, color: AppTheme.textBody, height: 1.55),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _AnswerBody extends StatelessWidget {
-  final String content;
-  final double fontSize;
-  const _AnswerBody({required this.content, required this.fontSize});
-
-  /// Parses inline `**bold**` markers into [TextSpan] children and renders with [SelectableText.rich].
-  static Widget richText(String raw, {required TextStyle baseStyle}) {
-    final spans = <TextSpan>[];
-    final regex = RegExp(r'\*\*(.+?)\*\*');
-    int lastEnd = 0;
-    for (final match in regex.allMatches(raw)) {
-      if (match.start > lastEnd) {
-        spans.add(TextSpan(text: raw.substring(lastEnd, match.start)));
-      }
-      spans.add(
-        TextSpan(
-          text: match.group(1),
-          style: baseStyle.copyWith(fontWeight: FontWeight.w800, color: AppTheme.textPrimary),
-        ),
-      );
-      lastEnd = match.end;
-    }
-    if (lastEnd < raw.length) {
-      spans.add(TextSpan(text: raw.substring(lastEnd).replaceAll('**', '')));
-    }
-    if (spans.isEmpty) {
-      return SelectableText(raw.replaceAll('**', ''), style: baseStyle);
-    }
-    return SelectableText.rich(TextSpan(style: baseStyle, children: spans));
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final blocks = content.split('\n\n').where((b) => b.trim().isNotEmpty).toList();
-    if (blocks.isEmpty) {
-      return richText(content, baseStyle: TextStyle(fontSize: fontSize, height: 1.85, color: AppTheme.textPrimary));
-    }
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: blocks.map((block) {
-        final lines = block.split('\n').where((l) => l.trim().isNotEmpty).toList();
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 18),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: lines.map((line) {
-              final t = line.trim();
-              final cleanForCheck = t.replaceAll('**', '').trim();
-              final isFullBoldLine = t.startsWith('**') && t.endsWith('**') && cleanForCheck.length < 90;
-              final isHeading = isFullBoldLine ||
-                  (cleanForCheck.endsWith(':') && cleanForCheck.length < 80 && !t.startsWith('•') && !t.startsWith('-') && !t.startsWith('* ')) ||
-                  RegExp(r'^[१२३४५६७८९1-9][.।]').hasMatch(cleanForCheck) ||
-                  cleanForCheck.startsWith('Introduction') || cleanForCheck.startsWith('Conclusion') ||
-                  cleanForCheck.startsWith('Way Forward') || cleanForCheck.startsWith('परिचय') || cleanForCheck.startsWith('निष्कर्ष');
-              final isBullet = t.startsWith('•') || t.startsWith('-') || (t.startsWith('*') && !t.startsWith('**'));
-
-              if (isHeading) {
-                return Container(
-                  margin: const EdgeInsets.only(top: 8, bottom: 6),
-                  padding: const EdgeInsets.only(left: 12),
-                  decoration: const BoxDecoration(
-                    border: Border(left: BorderSide(color: AppTheme.iconRed, width: 2.5)),
-                  ),
-                  child: SelectableText(
-                    cleanForCheck,
-                    style: TextStyle(
-                      fontSize: fontSize,
-                      fontWeight: FontWeight.w800,
-                      height: 1.55,
-                      color: AppTheme.textPrimary,
-                    ),
-                  ),
-                );
-              }
-
-              if (isBullet) {
-                final bulletContent = t.replaceFirst(RegExp(r'^[•\-\*]\s*'), '');
-                return Padding(
-                  padding: const EdgeInsets.only(left: 4, bottom: 8),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Padding(
-                        padding: EdgeInsets.only(top: fontSize * 0.42, right: 10),
-                        child: Container(
-                          width: 5, height: 5,
-                          decoration: BoxDecoration(
-                            color: AppTheme.iconRed.withOpacity(0.6),
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        child: richText(
-                          bulletContent,
-                          baseStyle: TextStyle(fontSize: fontSize, height: 1.8, color: AppTheme.textPrimary),
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              }
-
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 6),
-                child: richText(
-                  t,
-                  baseStyle: TextStyle(fontSize: fontSize, height: 1.85, color: AppTheme.textPrimary),
-                ),
-              );
-            }).toList(),
-          ),
-        );
-      }).toList(),
     );
   }
 }
