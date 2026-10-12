@@ -730,6 +730,7 @@ class _HomeTabState extends State<_HomeTab> {
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
+              mainAxisSize: flexibleHeight ? MainAxisSize.min : MainAxisSize.max,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
@@ -848,7 +849,7 @@ class _HomeTabState extends State<_HomeTab> {
                         style: FilledButton.styleFrom(
                           backgroundColor: AppTheme.iconRed,
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                           minimumSize: Size.zero,
                           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         ),
@@ -862,7 +863,7 @@ class _HomeTabState extends State<_HomeTab> {
                         style: OutlinedButton.styleFrom(
                           foregroundColor: AppTheme.textPrimary,
                           side: const BorderSide(color: AppTheme.divider),
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
                           minimumSize: Size.zero,
                           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         ),
@@ -900,23 +901,16 @@ class _HomeTabState extends State<_HomeTab> {
                         await auth.enrollInExam(exam.id, action: 'set_single');
                         qp.selectExam(exam.id);
                         if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Enrolled in ${exam.title}! Showing only its study materials.'),
-                              backgroundColor: AppTheme.primaryColor,
-                              duration: const Duration(seconds: 2),
-                            ),
-                          );
+                          GoRouter.of(context).go(AppConstants.routeSubscription);
                         }
                       },
-                      icon: const Icon(Icons.how_to_reg_rounded, size: 15, color: Colors.white),
-                      label: const Text('Enroll in Exam', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                      icon: const Icon(Icons.how_to_reg_rounded, size: 16, color: Colors.white),
+                      label: const Text('Enroll in Exam', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
                       style: FilledButton.styleFrom(
                         backgroundColor: AppTheme.primaryColor,
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 9),
-                        minimumSize: Size.zero,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                       ),
                     ),
                   ),

@@ -32,10 +32,12 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
     final w = MediaQuery.of(context).size.width;
     final isNarrow = w < 850;
 
+    final selectedExam = qp.selectedExam;
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text('Choose Your Lok Sewa Pass'),
+        title: const Text('Choose Your Plan — Free or Pro'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_rounded, color: AppTheme.primaryColor),
           onPressed: () => context.go(AppConstants.routeDashboard),
@@ -50,7 +52,7 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
                 color: Colors.white,
                 border: Border(bottom: BorderSide(color: AppTheme.divider, width: 1)),
               ),
-              padding: EdgeInsets.symmetric(vertical: isNarrow ? 28 : 40, horizontal: isNarrow ? 16 : 24),
+              padding: EdgeInsets.symmetric(vertical: isNarrow ? 24 : 36, horizontal: isNarrow ? 16 : 24),
               child: Column(
                 children: [
                   Container(
@@ -61,17 +63,49 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
                     ),
                     child: const Icon(Icons.workspace_premium_outlined, color: AppTheme.iconRed, size: 26),
                   ),
-                  const SizedBox(height: 14),
+                  if (selectedExam != null) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                      decoration: BoxDecoration(
+                        color: AppTheme.bgSurface,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: AppTheme.divider),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.check_circle_rounded, color: AppTheme.iconRed, size: 16),
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: Text(
+                              'Selected Course: ${selectedExam.title}',
+                              style: const TextStyle(
+                                color: AppTheme.textPrimary,
+                                fontWeight: FontWeight.w800,
+                                fontSize: 12.5,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 12),
                   Text(
-                    'One Pass for All Lok Sewa Exams',
+                    'Choose Your Plan to Start Studying',
                     style: TextStyle(color: AppTheme.textPrimary, fontSize: isNarrow ? 22 : 28, fontWeight: FontWeight.w800, letterSpacing: -0.5),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 8),
-                  Text(
-                    'Pay via QR / eSewa / Khalti / Bank & send screenshot to our Official WhatsApp. Admin will verify your screenshot and activate your plan.',
-                    style: TextStyle(color: AppTheme.textMuted, fontSize: isNarrow ? 13.5 : 15),
-                    textAlign: TextAlign.center,
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 680),
+                    child: Text(
+                      'Select whether you want to continue with the Free Starter Plan or upgrade to the Pro Plan (रू 199) for complete access to all papers, model answers, and mock tests.',
+                      style: TextStyle(color: AppTheme.textMuted, fontSize: isNarrow ? 13.5 : 15, height: 1.45),
+                      textAlign: TextAlign.center,
+                    ),
                   ),
                   if (user != null) ...[
                     const SizedBox(height: 16),
@@ -92,8 +126,8 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
                           ),
                           child: Text(
                             user.plan == SubscriptionPlan.free
-                                ? 'Active Plan: FREE'
-                                : 'Active Plan: PRO (रू 199)${user.planExpiresAt != null ? " • Expires: ${user.planExpiresAt!.toLocal().toString().split(' ').first}" : ""}',
+                                ? 'Current Plan: FREE'
+                                : 'Current Plan: PRO (रू 199)${user.planExpiresAt != null ? " • Expires: ${user.planExpiresAt!.toLocal().toString().split(' ').first}" : ""}',
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               color: user.plan == SubscriptionPlan.free ? AppTheme.textPrimary : AppTheme.iconRedDark,
@@ -135,10 +169,10 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
                 child: Column(
                   children: [
                     isNarrow
-                        ? Column(children: _buildPlans(context, user, settings))
+                        ? Column(children: _buildPlans(context, user, settings, selectedExam?.title))
                         : Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
-                            children: _buildPlans(context, user, settings).map((w) => w is SizedBox ? w : Expanded(child: w)).toList(),
+                            children: _buildPlans(context, user, settings, selectedExam?.title).map((w) => w is SizedBox ? w : Expanded(child: w)).toList(),
                           ),
                     const SizedBox(height: 36),
                     _PaymentAndWhatsAppVerificationHub(settings: settings, isNarrow: isNarrow),
@@ -154,14 +188,14 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
     );
   }
 
-  List<Widget> _buildPlans(BuildContext context, AppUser? user, AppSettings settings) {
+  List<Widget> _buildPlans(BuildContext context, AppUser? user, AppSettings settings, String? selectedExamTitle) {
     final isProUser = user != null && user.plan != SubscriptionPlan.free;
     return [
       _FullPlanCard(
         plan: SubscriptionPlan.free,
-        name: 'Free Starter',
-        price: 'नि:शुल्क',
-        priceSub: 'Forever free',
+        name: 'Free Starter Plan',
+        price: 'नि:शुल्क (रू 0)',
+        priceSub: 'Stay on Free Plan • Forever Free',
         monthlyPrice: 0,
         features: const [
           ('Enroll in Your Target Lok Sewa Exam', true),
@@ -174,14 +208,27 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
         ],
         isCurrentPlan: user?.plan == SubscriptionPlan.free,
         isPopular: false,
-        onSelect: (_) {},
+        onSelect: (_) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                selectedExamTitle != null
+                    ? 'Enrolled in $selectedExamTitle on Free Plan! Start studying now.'
+                    : 'Continuing with Free Plan!',
+              ),
+              backgroundColor: AppTheme.primaryColor,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+          context.go(AppConstants.routeDashboard);
+        },
       ),
       const SizedBox(width: 24, height: 20),
       _FullPlanCard(
         plan: SubscriptionPlan.premium,
         name: 'Pro Plan',
         price: 'रू १९९',
-        priceSub: 'full exam pass',
+        priceSub: 'Full Exam Pass • Unlock Everything',
         monthlyPrice: 199,
         features: const [
           ('Full Access to Your Enrolled Exam', true),
@@ -227,6 +274,7 @@ class _FullPlanCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isFreeCard = plan == SubscriptionPlan.free;
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -234,7 +282,7 @@ class _FullPlanCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: isPopular ? AppTheme.iconRed : AppTheme.divider,
-          width: isPopular ? 1.8 : 1,
+          width: isPopular ? 1.8 : 1.2,
         ),
       ),
       child: Column(
@@ -258,14 +306,24 @@ class _FullPlanCard extends StatelessWidget {
                     color: AppTheme.iconRedLight,
                     borderRadius: BorderRadius.circular(6),
                   ),
-                  child: const Text('Most Popular', style: TextStyle(color: AppTheme.iconRed, fontWeight: FontWeight.w800, fontSize: 10.5)),
+                  child: const Text('Recommended • Pro', style: TextStyle(color: AppTheme.iconRed, fontWeight: FontWeight.w800, fontSize: 10.5)),
+                )
+              else if (isCurrentPlan)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppTheme.bgSurface,
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: AppTheme.divider),
+                  ),
+                  child: const Text('Active', style: TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.w700, fontSize: 10.5)),
                 ),
             ],
           ),
           const SizedBox(height: 12),
           Text(
             price,
-            style: const TextStyle(fontSize: 30, fontWeight: FontWeight.w800, color: AppTheme.textPrimary),
+            style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: AppTheme.textPrimary),
           ),
           Text(priceSub, style: const TextStyle(color: AppTheme.textMuted, fontSize: 12)),
           const SizedBox(height: 20),
@@ -296,31 +354,50 @@ class _FullPlanCard extends StatelessWidget {
           const SizedBox(height: 20),
           SizedBox(
             width: double.infinity,
-            child: isCurrentPlan
-                ? Container(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: AppTheme.divider),
-                    ),
-                    child: const Center(
-                      child: Text('Current Plan ✓', style: TextStyle(color: AppTheme.textMuted, fontWeight: FontWeight.w700)),
-                    ),
-                  )
-                : FilledButton.icon(
-                    onPressed: plan == SubscriptionPlan.free ? null : () => onSelect(plan),
-                    icon: const Icon(Icons.qr_code_scanner_rounded, size: 17, color: Colors.white),
+            child: isFreeCard
+                ? OutlinedButton.icon(
+                    onPressed: () => onSelect(plan),
+                    icon: const Icon(Icons.arrow_forward_rounded, size: 17, color: AppTheme.primaryColor),
                     label: Text(
-                      plan == SubscriptionPlan.free ? 'Your Free Plan' : 'Pay & Verify via WhatsApp',
-                      style: const TextStyle(fontWeight: FontWeight.w700),
+                      isCurrentPlan ? 'Stay in Free Plan & Start Studying' : 'Continue with Free Plan',
+                      style: const TextStyle(fontWeight: FontWeight.w800, color: AppTheme.primaryColor),
                     ),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: isPopular ? AppTheme.iconRed : AppTheme.primaryColor,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppTheme.primaryColor,
+                      side: const BorderSide(color: AppTheme.primaryColor, width: 1.5),
+                      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
-                  ),
+                  )
+                : isCurrentPlan
+                    ? FilledButton.icon(
+                        onPressed: () => context.go(AppConstants.routeDashboard),
+                        icon: const Icon(Icons.verified_rounded, size: 17, color: Colors.white),
+                        label: const Text(
+                          'Pro Plan Active ✓ — Go to Course',
+                          style: TextStyle(fontWeight: FontWeight.w800),
+                        ),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: AppTheme.primaryColor,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                      )
+                    : FilledButton.icon(
+                        onPressed: () => onSelect(plan),
+                        icon: const Icon(Icons.qr_code_scanner_rounded, size: 17, color: Colors.white),
+                        label: const Text(
+                          'Go for Pro Plan (रू 199) — Pay Now',
+                          style: TextStyle(fontWeight: FontWeight.w800),
+                        ),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: AppTheme.iconRed,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                      ),
           ),
         ],
       ),
