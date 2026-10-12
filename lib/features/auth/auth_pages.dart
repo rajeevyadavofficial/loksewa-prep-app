@@ -57,6 +57,12 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
+    final auth = context.watch<AuthProvider>();
+    if (!auth.initializing && auth.isCandidateLoggedIn && !_isSubmitting) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) context.go(AppConstants.routeDashboard);
+      });
+    }
     final isSmall = MediaQuery.of(context).size.width < 480;
     return Scaffold(
       backgroundColor: Colors.white,
@@ -205,21 +211,13 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
     });
 
     final auth = context.read<AuthProvider>();
-    final error = await auth.login(_emailCtrl.text.trim(), _passCtrl.text.trim());
+    final error = await auth.login(
+      _emailCtrl.text.trim(),
+      _passCtrl.text.trim(),
+      forAdminPortal: true,
+    );
     if (!mounted) return;
     if (error == null) {
-      if (!(auth.user?.isAdmin ?? false)) {
-        await auth.logout();
-        if (!mounted) return;
-        setState(() => _isSubmitting = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Access Denied: This portal is restricted to Administrators only.'),
-            backgroundColor: AppTheme.iconRed,
-          ),
-        );
-        return;
-      }
       setState(() {
         _statusMessage = 'Authenticated! Loading Admin CMS Portal...';
       });
@@ -236,6 +234,12 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
 
   @override
   Widget build(BuildContext context) {
+    final auth = context.watch<AuthProvider>();
+    if (!auth.initializing && auth.isAdminLoggedIn && !_isSubmitting) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) context.go(AppConstants.routeAdmin);
+      });
+    }
     final isSmall = MediaQuery.of(context).size.width < 480;
     return Scaffold(
       backgroundColor: Colors.white,

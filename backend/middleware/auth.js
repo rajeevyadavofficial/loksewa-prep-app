@@ -12,7 +12,7 @@ function signToken(user) {
       isAdmin: !!user.isAdmin,
     },
     JWT_SECRET,
-    { expiresIn: '30d' }
+    { expiresIn: '90d' }
   );
 }
 
@@ -22,7 +22,10 @@ async function optionalAuth(req, res, next) {
     const token = header.slice(7);
     try {
       const decoded = jwt.verify(token, JWT_SECRET);
-      const dbUser = await DB.findUserById(decoded.uid);
+      let dbUser = await DB.findUserById(decoded.uid);
+      if (!dbUser && decoded.email) {
+        dbUser = await DB.findUserByEmail(decoded.email);
+      }
       if (dbUser) {
         req.user = dbUser;
         return next();
@@ -43,7 +46,10 @@ async function requireAuth(req, res, next) {
   const token = header.slice(7);
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
-    const dbUser = await DB.findUserById(decoded.uid);
+    let dbUser = await DB.findUserById(decoded.uid);
+    if (!dbUser && decoded.email) {
+      dbUser = await DB.findUserByEmail(decoded.email);
+    }
     if (!dbUser) {
       return res.status(401).json({ error: 'User no longer exists' });
     }

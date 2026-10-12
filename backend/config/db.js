@@ -261,6 +261,7 @@ const DB = {
 
   async findUserById(id) {
     if (isMongoConnected) {
+      if (!mongoose.Types.ObjectId.isValid(id)) return null;
       const u = await User.findById(id).lean();
       if (!u) return null;
       return await this._checkAndExpireUser({ ...u, _id: u._id.toString() });

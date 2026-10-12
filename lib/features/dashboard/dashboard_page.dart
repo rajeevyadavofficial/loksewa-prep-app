@@ -628,7 +628,7 @@ class _TopBar extends StatelessWidget {
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (user.isAdmin)
+              if (user.isAdmin || auth.isAdminLoggedIn)
                 Padding(
                   padding: const EdgeInsets.only(right: 8),
                   child: OutlinedButton.icon(

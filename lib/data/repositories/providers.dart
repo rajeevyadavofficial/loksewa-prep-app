@@ -1,4 +1,6 @@
 import 'dart:convert';
+// ignore: avoid_web_libraries_in_flutter
+import 'dart:html' as html;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
@@ -8,20 +10,43 @@ import '../../core/constants/app_constants.dart';
 
 // ─── Auth Provider (Connected to Node.js + MongoDB API) ──────
 class AuthProvider extends ChangeNotifier {
+  static const String _lsCandidateKey = 'loksewa_candidate_session_v1';
+  static const String _lsAdminKey = 'loksewa_admin_session_v1';
+
+  static const String _prefAdminLoggedIn = 'admin_is_logged_in';
+  static const String _prefAdminToken = 'admin_jwt_token';
+  static const String _prefAdminId = 'admin_user_id';
+  static const String _prefAdminName = 'admin_user_name';
+  static const String _prefAdminEmail = 'admin_user_email';
+
   AppUser? _user;
   String? _token;
+
+  AppUser? _adminUser;
+  String? _adminToken;
+
   bool _initializing = true;
   bool _loading = false;
   String? _error;
 
-  AppUser? get user => _user;
-  String? get token => _token;
-  bool get isLoggedIn => _user != null;
+  /// Active user for Candidate screens (/dashboard, /subscription).
+  /// Falls back to _adminUser if Admin is previewing Candidate View without a separate candidate login.
+  AppUser? get user => _user ?? _adminUser;
+  AppUser? get candidateUser => _user;
+  AppUser? get adminUser => _adminUser ?? (_user?.isAdmin == true ? _user : null);
+
+  String? get token => _token ?? _adminToken;
+  String? get adminToken => _adminToken ?? (_user?.isAdmin == true ? _token : null);
+
+  bool get isLoggedIn => user != null;
+  bool get isCandidateLoggedIn => _user != null;
+  bool get isAdminLoggedIn => adminUser?.isAdmin == true && (adminToken?.isNotEmpty ?? false);
   bool get initializing => _initializing;
   bool get loading => _loading;
   String? get error => _error;
 
   AuthProvider() {
+    _restoreSyncFromLocalStorage();
     _restore();
   }
 
@@ -32,26 +57,105 @@ class AuthProvider extends ChangeNotifier {
     return DateTime.tryParse(str);
   }
 
+  void _restoreSyncFromLocalStorage() {
+    try {
+      final rawAdmin = html.window.localStorage[_lsAdminKey];
+      if (rawAdmin != null && rawAdmin.isNotEmpty) {
+        final map = jsonDecode(rawAdmin) as Map<String, dynamic>;
+        final tok = map['token']?.toString() ?? '';
+        if (tok.isNotEmpty) {
+          _adminToken = tok;
+          _adminUser = AppUser(
+            uid: map['uid']?.toString() ?? 'usr_admin_01',
+            name: map['name']?.toString() ?? 'Admin',
+            email: map['email']?.toString() ?? 'admin@loksewa.com',
+            plan: SubscriptionPlan.premium,
+            planExpiresAt: _parseExpiry(map['planExpiresAt']),
+            isAdmin: true,
+            enrolledExams: List<String>.from(map['enrolledExams'] ?? const []),
+          );
+        }
+      }
+    } catch (_) {}
+
+    try {
+      final rawCandidate = html.window.localStorage[_lsCandidateKey];
+      if (rawCandidate != null && rawCandidate.isNotEmpty) {
+        final map = jsonDecode(rawCandidate) as Map<String, dynamic>;
+        final tok = map['token']?.toString() ?? '';
+        if (tok.isNotEmpty) {
+          _token = tok;
+          _user = AppUser(
+            uid: map['uid']?.toString() ?? 'u-local',
+            name: map['name']?.toString() ?? 'User',
+            email: map['email']?.toString() ?? '',
+            plan: _plan(map['plan']?.toString() ?? 'free'),
+            planExpiresAt: _parseExpiry(map['planExpiresAt']),
+            isAdmin: map['isAdmin'] == true,
+            enrolledExams: List<String>.from(map['enrolledExams'] ?? const []),
+          );
+        }
+      }
+    } catch (_) {}
+
+    if (_user != null || _adminUser != null) {
+      _initializing = false;
+    }
+  }
+
   Future<void> _restore() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      if (prefs.getBool(AppConstants.prefIsLoggedIn) ?? false) {
-        _token = prefs.getString(AppConstants.prefAuthToken);
+
+      // 1. Restore Admin session if not already restored from localStorage
+      if (_adminUser == null && (prefs.getBool(_prefAdminLoggedIn) ?? false)) {
+        final admTok = prefs.getString(_prefAdminToken);
+        if (admTok != null && admTok.isNotEmpty) {
+          _adminToken = admTok;
+          _adminUser = AppUser(
+            uid: prefs.getString(_prefAdminId) ?? 'usr_admin_01',
+            name: prefs.getString(_prefAdminName) ?? 'Admin',
+            email: prefs.getString(_prefAdminEmail) ?? 'admin@loksewa.com',
+            plan: SubscriptionPlan.premium,
+            isAdmin: true,
+          );
+          _saveAdminToLocalStorage();
+        }
+      }
+
+      // 2. Restore Candidate (or legacy Admin) session
+      if (_user == null && (prefs.getBool(AppConstants.prefIsLoggedIn) ?? false)) {
+        final savedToken = prefs.getString(AppConstants.prefAuthToken);
         final savedEnrolled = prefs.getStringList(AppConstants.prefEnrolledExams) ?? const [];
-        _user = AppUser(
+        final savedIsAdmin = prefs.getBool(AppConstants.prefIsAdmin) ?? false;
+        final restoredUser = AppUser(
           uid: prefs.getString(AppConstants.prefUserId) ?? 'u-local',
           name: prefs.getString(AppConstants.prefUserName) ?? 'User',
           email: prefs.getString(AppConstants.prefUserEmail) ?? '',
           plan: _plan(prefs.getString(AppConstants.prefUserPlan) ?? 'free'),
           planExpiresAt: _parseExpiry(prefs.getString(AppConstants.prefPlanExpiresAt)),
-          isAdmin: prefs.getBool(AppConstants.prefIsAdmin) ?? false,
+          isAdmin: savedIsAdmin,
           enrolledExams: savedEnrolled,
         );
-        // Sync latest profile from Node.js + MongoDB backend if token exists
-        if (_token != null && _token!.isNotEmpty) {
-          _syncMe();
+        if (savedIsAdmin) {
+          _adminToken ??= savedToken;
+          _adminUser ??= restoredUser;
+          _saveAdminToLocalStorage();
+        } else {
+          _token = savedToken;
+          _user = restoredUser;
+          _saveCandidateToLocalStorage();
         }
       }
+
+      if (_token != null && _token!.isNotEmpty) {
+        _syncMe();
+      }
+      if (_adminToken != null && _adminToken!.isNotEmpty) {
+        _syncAdminMe();
+      }
+    } catch (_) {
+      // Ignore SharedPreferences read errors; localStorage fallback already loaded
     } finally {
       _initializing = false;
       notifyListeners();
@@ -59,11 +163,12 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<void> _syncMe() async {
+    if (_token == null || _token!.isEmpty) return;
     try {
       final res = await http.get(
         Uri.parse('${AppConstants.apiBaseUrl}/auth/me'),
         headers: {'Authorization': 'Bearer $_token'},
-      ).timeout(const Duration(seconds: 6));
+      ).timeout(const Duration(seconds: 10));
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
         final u = data['user'];
@@ -81,7 +186,36 @@ class AuthProvider extends ChangeNotifier {
         notifyListeners();
       }
     } catch (_) {
-      // Offline / backend not running fallback
+      // Offline / backend waking up fallback — keep existing session
+    }
+  }
+
+  Future<void> _syncAdminMe() async {
+    if (_adminToken == null || _adminToken!.isEmpty) return;
+    try {
+      final res = await http.get(
+        Uri.parse('${AppConstants.apiBaseUrl}/auth/me'),
+        headers: {'Authorization': 'Bearer $_adminToken'},
+      ).timeout(const Duration(seconds: 10));
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        final u = data['user'];
+        if (u['isAdmin'] == true) {
+          _adminUser = AppUser(
+            uid: u['uid'] ?? '',
+            name: u['name'] ?? 'Admin',
+            email: u['email'] ?? '',
+            plan: _plan(u['plan'] ?? 'premium'),
+            planExpiresAt: _parseExpiry(u['planExpiresAt']),
+            isAdmin: true,
+            enrolledExams: List<String>.from(u['enrolledExams'] ?? []),
+          );
+          await _saveAdminSession();
+          notifyListeners();
+        }
+      }
+    } catch (_) {
+      // Keep existing admin session
     }
   }
 
@@ -91,7 +225,7 @@ class AuthProvider extends ChangeNotifier {
     return SubscriptionPlan.free;
   }
 
-  Future<String?> login(String email, String password) async {
+  Future<String?> login(String email, String password, {bool forAdminPortal = false}) async {
     _loading = true;
     _error = null;
     notifyListeners();
@@ -105,18 +239,36 @@ class AuthProvider extends ChangeNotifier {
 
       final data = jsonDecode(res.body);
       if (res.statusCode == 200) {
-        _token = data['token'];
+        final jwtToken = data['token']?.toString() ?? '';
         final u = data['user'];
-        _user = AppUser(
+        final isUserAdmin = u['isAdmin'] == true;
+        final loggedInUser = AppUser(
           uid: u['uid'] ?? '',
           name: u['name'] ?? 'User',
           email: u['email'] ?? email,
           plan: _plan(u['plan'] ?? 'free'),
           planExpiresAt: _parseExpiry(u['planExpiresAt']),
-          isAdmin: u['isAdmin'] == true,
+          isAdmin: isUserAdmin,
           enrolledExams: List<String>.from(u['enrolledExams'] ?? []),
         );
-        await _saveSession();
+
+        if (forAdminPortal && !isUserAdmin) {
+          _loading = false;
+          _error = 'Access Denied: This portal is restricted to Administrators only.';
+          notifyListeners();
+          return _error;
+        }
+
+        if (isUserAdmin) {
+          _adminToken = jwtToken;
+          _adminUser = loggedInUser;
+          await _saveAdminSession();
+        } else {
+          _token = jwtToken;
+          _user = loggedInUser;
+          await _saveSession();
+        }
+
         _loading = false;
         notifyListeners();
         return null;
@@ -177,35 +329,117 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> _saveSession() async {
+  void _saveCandidateToLocalStorage() {
     if (_user == null) return;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(AppConstants.prefIsLoggedIn, true);
-    await prefs.setString(AppConstants.prefAuthToken, _token ?? '');
-    await prefs.setString(AppConstants.prefUserId, _user!.uid);
-    await prefs.setString(AppConstants.prefUserName, _user!.name);
-    await prefs.setString(AppConstants.prefUserEmail, _user!.email);
-    await prefs.setString(AppConstants.prefUserPlan, _user!.plan.name);
-    if (_user!.planExpiresAt != null) {
-      await prefs.setString(AppConstants.prefPlanExpiresAt, _user!.planExpiresAt!.toIso8601String());
-    } else {
-      await prefs.remove(AppConstants.prefPlanExpiresAt);
-    }
-    await prefs.setBool(AppConstants.prefIsAdmin, _user!.isAdmin);
-    await prefs.setStringList(AppConstants.prefEnrolledExams, _user!.enrolledExams);
+    try {
+      html.window.localStorage[_lsCandidateKey] = jsonEncode({
+        'token': _token ?? '',
+        'uid': _user!.uid,
+        'name': _user!.name,
+        'email': _user!.email,
+        'plan': _user!.plan.name,
+        'planExpiresAt': _user!.planExpiresAt?.toIso8601String(),
+        'isAdmin': _user!.isAdmin,
+        'enrolledExams': _user!.enrolledExams,
+      });
+    } catch (_) {}
   }
 
+  void _saveAdminToLocalStorage() {
+    if (_adminUser == null) return;
+    try {
+      html.window.localStorage[_lsAdminKey] = jsonEncode({
+        'token': _adminToken ?? '',
+        'uid': _adminUser!.uid,
+        'name': _adminUser!.name,
+        'email': _adminUser!.email,
+        'plan': _adminUser!.plan.name,
+        'planExpiresAt': _adminUser!.planExpiresAt?.toIso8601String(),
+        'isAdmin': true,
+        'enrolledExams': _adminUser!.enrolledExams,
+      });
+    } catch (_) {}
+  }
+
+  Future<void> _saveSession() async {
+    if (_user == null) return;
+    _saveCandidateToLocalStorage();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(AppConstants.prefIsLoggedIn, true);
+      await prefs.setString(AppConstants.prefAuthToken, _token ?? '');
+      await prefs.setString(AppConstants.prefUserId, _user!.uid);
+      await prefs.setString(AppConstants.prefUserName, _user!.name);
+      await prefs.setString(AppConstants.prefUserEmail, _user!.email);
+      await prefs.setString(AppConstants.prefUserPlan, _user!.plan.name);
+      if (_user!.planExpiresAt != null) {
+        await prefs.setString(AppConstants.prefPlanExpiresAt, _user!.planExpiresAt!.toIso8601String());
+      } else {
+        await prefs.remove(AppConstants.prefPlanExpiresAt);
+      }
+      await prefs.setBool(AppConstants.prefIsAdmin, _user!.isAdmin);
+      await prefs.setStringList(AppConstants.prefEnrolledExams, _user!.enrolledExams);
+    } catch (_) {}
+  }
+
+  Future<void> _saveAdminSession() async {
+    if (_adminUser == null) return;
+    _saveAdminToLocalStorage();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_prefAdminLoggedIn, true);
+      await prefs.setString(_prefAdminToken, _adminToken ?? '');
+      await prefs.setString(_prefAdminId, _adminUser!.uid);
+      await prefs.setString(_prefAdminName, _adminUser!.name);
+      await prefs.setString(_prefAdminEmail, _adminUser!.email);
+    } catch (_) {}
+  }
+
+  /// Logs out the Candidate session ONLY (does not log out Admin from /admin).
   Future<void> logout() async {
     _user = null;
     _token = null;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.clear();
+    try {
+      html.window.localStorage.remove(_lsCandidateKey);
+    } catch (_) {}
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(AppConstants.prefIsLoggedIn);
+      await prefs.remove(AppConstants.prefAuthToken);
+      await prefs.remove(AppConstants.prefUserId);
+      await prefs.remove(AppConstants.prefUserName);
+      await prefs.remove(AppConstants.prefUserEmail);
+      await prefs.remove(AppConstants.prefUserPlan);
+      await prefs.remove(AppConstants.prefPlanExpiresAt);
+      await prefs.remove(AppConstants.prefIsAdmin);
+      await prefs.remove(AppConstants.prefEnrolledExams);
+    } catch (_) {}
+    notifyListeners();
+  }
+
+  /// Explicitly logs out the Admin session from /admin.
+  Future<void> logoutAdmin() async {
+    _adminUser = null;
+    _adminToken = null;
+    try {
+      html.window.localStorage.remove(_lsAdminKey);
+    } catch (_) {}
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_prefAdminLoggedIn);
+      await prefs.remove(_prefAdminToken);
+      await prefs.remove(_prefAdminId);
+      await prefs.remove(_prefAdminName);
+      await prefs.remove(_prefAdminEmail);
+    } catch (_) {}
     notifyListeners();
   }
 
   Future<bool> enrollInExam(String examId, {String action = 'enroll'}) async {
-    if (_user == null) return false;
-    final current = List<String>.from(_user!.enrolledExams);
+    final activeUser = user;
+    final activeToken = token;
+    if (activeUser == null) return false;
+    final current = List<String>.from(activeUser.enrolledExams);
     if (action == 'unenroll') {
       current.remove(examId);
     } else if (action == 'set_single') {
@@ -215,17 +449,22 @@ class AuthProvider extends ChangeNotifier {
     } else {
       if (!current.contains(examId)) current.add(examId);
     }
-    _user = _user!.copyWith(enrolledExams: current);
-    await _saveSession();
+    if (_user != null) {
+      _user = _user!.copyWith(enrolledExams: current);
+      await _saveSession();
+    } else if (_adminUser != null) {
+      _adminUser = _adminUser!.copyWith(enrolledExams: current);
+      await _saveAdminSession();
+    }
     notifyListeners();
 
     try {
-      if (_token != null && _token!.isNotEmpty) {
+      if (activeToken != null && activeToken.isNotEmpty) {
         final res = await http.post(
           Uri.parse('${AppConstants.apiBaseUrl}/auth/enroll'),
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': 'Bearer $_token',
+            'Authorization': 'Bearer $activeToken',
           },
           body: jsonEncode({'examId': examId, 'action': action}),
         ).timeout(const Duration(seconds: 6));
@@ -233,10 +472,14 @@ class AuthProvider extends ChangeNotifier {
           final data = jsonDecode(res.body);
           if (data['user'] != null) {
             final u = data['user'];
-            _user = _user!.copyWith(
-              enrolledExams: List<String>.from(u['enrolledExams'] ?? current),
-            );
-            await _saveSession();
+            final updatedEnrolled = List<String>.from(u['enrolledExams'] ?? current);
+            if (_user != null) {
+              _user = _user!.copyWith(enrolledExams: updatedEnrolled);
+              await _saveSession();
+            } else if (_adminUser != null) {
+              _adminUser = _adminUser!.copyWith(enrolledExams: updatedEnrolled);
+              await _saveAdminSession();
+            }
             notifyListeners();
           }
           return true;
@@ -251,14 +494,16 @@ class AuthProvider extends ChangeNotifier {
     String method = 'esewa',
     String transactionRef = '',
   }) async {
-    if (_user == null) return false;
+    final activeUser = user;
+    final activeToken = token;
+    if (activeUser == null) return false;
     try {
-      if (_token != null && _token!.isNotEmpty) {
+      if (activeToken != null && activeToken.isNotEmpty) {
         final res = await http.post(
           Uri.parse('${AppConstants.apiBaseUrl}/auth/upgrade'),
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': 'Bearer $_token',
+            'Authorization': 'Bearer $activeToken',
           },
           body: jsonEncode({
             'plan': plan.name,
@@ -275,7 +520,10 @@ class AuthProvider extends ChangeNotifier {
     return false;
   }
 
-  Future<void> refreshUserProfile() => _syncMe();
+  Future<void> refreshUserProfile() async {
+    await _syncMe();
+    await _syncAdminMe();
+  }
 }
 
 // ─── Question & Exam Provider (Connected to Node.js + MongoDB API) ──

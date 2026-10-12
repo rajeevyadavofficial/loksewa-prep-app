@@ -32,7 +32,7 @@ class _AdminPageState extends State<AdminPage> {
   }
 
   Future<void> _fetchAdminStats() async {
-    final token = context.read<AuthProvider>().token;
+    final token = context.read<AuthProvider>().adminToken;
     if (token == null || token.isEmpty) {
       if (mounted) setState(() => _loadingStats = false);
       return;
@@ -225,7 +225,7 @@ class _AdminPageState extends State<AdminPage> {
   }
 
   Future<void> _updateUserPlan(String userId, String newPlan) async {
-    final token = context.read<AuthProvider>().token;
+    final token = context.read<AuthProvider>().adminToken;
     if (token == null) return;
 
     Map<String, dynamic>? expiryConfig;
@@ -260,7 +260,7 @@ class _AdminPageState extends State<AdminPage> {
   }
 
   Future<void> _verifyPayment(String paymentId, String action) async {
-    final token = context.read<AuthProvider>().token;
+    final token = context.read<AuthProvider>().adminToken;
     if (token == null) return;
 
     Map<String, dynamic>? expiryConfig;
@@ -326,7 +326,7 @@ class _AdminPageState extends State<AdminPage> {
     );
     if (confirmed != true || !mounted) return;
 
-    final token = context.read<AuthProvider>().token;
+    final token = context.read<AuthProvider>().adminToken;
     if (token == null) return;
     try {
       final res = await http.delete(
@@ -520,7 +520,7 @@ class _AdminPageState extends State<AdminPage> {
                 label: const Text('Save Exam to MongoDB'),
                 style: FilledButton.styleFrom(backgroundColor: AppTheme.iconRed, foregroundColor: Colors.white),
                 onPressed: () async {
-                  final token = context.read<AuthProvider>().token ?? '';
+                  final token = context.read<AuthProvider>().adminToken ?? '';
                   final schemeList = schemeCtrl.text
                       .split('\n')
                       .map((s) => s.trim())
@@ -789,7 +789,7 @@ class _AdminPageState extends State<AdminPage> {
                 label: const Text('Save Question to MongoDB'),
                 style: FilledButton.styleFrom(backgroundColor: AppTheme.iconRed, foregroundColor: Colors.white),
                 onPressed: () async {
-                  final token = context.read<AuthProvider>().token ?? '';
+                  final token = context.read<AuthProvider>().adminToken ?? '';
                   final payload = <String, dynamic>{
                     'id': idCtrl.text.trim(),
                     'exam_id': selectedExamId,
@@ -847,7 +847,7 @@ class _AdminPageState extends State<AdminPage> {
         body: Center(child: CircularProgressIndicator(color: AppTheme.iconRed)),
       );
     }
-    if (!(auth.user?.isAdmin ?? false)) {
+    if (!auth.isAdminLoggedIn) {
       return Scaffold(
         backgroundColor: Colors.white,
         body: Center(
@@ -929,7 +929,7 @@ class _AdminPageState extends State<AdminPage> {
             },
           ),
           Padding(
-            padding: const EdgeInsets.only(right: 10),
+            padding: const EdgeInsets.only(right: 6),
             child: OutlinedButton.icon(
               icon: const Icon(Icons.arrow_back_rounded, color: AppTheme.primaryColor, size: 16),
               label: Text(
@@ -943,6 +943,17 @@ class _AdminPageState extends State<AdminPage> {
               ),
             ),
           ),
+          IconButton(
+            icon: const Icon(Icons.logout_rounded, color: AppTheme.iconRed, size: 20),
+            tooltip: 'Logout Admin Session',
+            onPressed: () async {
+              await context.read<AuthProvider>().logoutAdmin();
+              if (context.mounted) {
+                GoRouter.of(context).go(AppConstants.routeAdminLogin);
+              }
+            },
+          ),
+          const SizedBox(width: 4),
         ],
       ),
       body: isMobile
@@ -1325,7 +1336,7 @@ class _ExamsManagerPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final qp = context.watch<QuestionProvider>();
-    final token = context.read<AuthProvider>().token ?? '';
+    final token = context.read<AuthProvider>().adminToken ?? '';
     final isMobile = MediaQuery.of(context).size.width < 650;
 
     return SingleChildScrollView(
@@ -1525,7 +1536,7 @@ class _QuestionsManagerPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final qp = context.watch<QuestionProvider>();
-    final token = context.read<AuthProvider>().token ?? '';
+    final token = context.read<AuthProvider>().adminToken ?? '';
     final isMobile = MediaQuery.of(context).size.width < 650;
 
     return SingleChildScrollView(
@@ -2007,7 +2018,7 @@ class _PaymentQrSettingsPanelState extends State<_PaymentQrSettingsPanel> {
         final dataUrl = reader.result as String?;
         if (dataUrl == null || !mounted) return;
 
-        final token = context.read<AuthProvider>().token ?? '';
+        final token = context.read<AuthProvider>().adminToken ?? '';
         final uploadedUrl = await context.read<QuestionProvider>().uploadImageToCloudinary(
               imageDataUrl: dataUrl,
               targetField: targetField,
@@ -2042,7 +2053,7 @@ class _PaymentQrSettingsPanelState extends State<_PaymentQrSettingsPanel> {
 
   Future<void> _saveSettings() async {
     setState(() => _saving = true);
-    final token = context.read<AuthProvider>().token ?? '';
+    final token = context.read<AuthProvider>().adminToken ?? '';
     final updated = AppSettings(
       whatsappNumber: _whatsappNumCtrl.text.trim(),
       whatsappLink: _whatsappLinkCtrl.text.trim(),
