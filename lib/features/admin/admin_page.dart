@@ -299,6 +299,37 @@ class _AdminPageState extends State<AdminPage> {
     } catch (_) {}
   }
 
+  Future<void> _verifyDonation(String donationId, String action) async {
+    final token = context.read<AuthProvider>().adminToken;
+    if (token == null) return;
+    try {
+      final res = await http.put(
+        Uri.parse('${AppConstants.apiBaseUrl}/admin/donations/$donationId/verify'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({'action': action}),
+      );
+      if (res.statusCode == 200 && mounted) {
+        final data = jsonDecode(res.body);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              data['message']?.toString() ??
+                  (action == 'approve'
+                      ? 'Question verified & published to Question Bank!'
+                      : 'Donated question rejected.'),
+            ),
+            backgroundColor: action == 'approve' ? AppTheme.primaryColor : AppTheme.iconRed,
+          ),
+        );
+        context.read<QuestionProvider>().loadAll(forceRefresh: true);
+        _fetchAdminStats();
+      }
+    } catch (_) {}
+  }
+
   Future<void> _deleteUser(String userId, String userName) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -899,6 +930,7 @@ class _AdminPageState extends State<AdminPage> {
                 onAddQuestion: _showAddQuestionDialog,
                 onOpenQrSettings: () => setState(() => _tab = 4),
                 onVerifyPayment: _verifyPayment,
+                onVerifyDonation: _verifyDonation,
               ),
               _ExamsManagerPanel(onAddExam: _showAddExamDialog),
               _QuestionsManagerPanel(onAddQuestion: _showAddQuestionDialog),
@@ -1022,6 +1054,7 @@ class _AdminOverview extends StatelessWidget {
   final VoidCallback onAddQuestion;
   final VoidCallback onOpenQrSettings;
   final void Function(String paymentId, String action) onVerifyPayment;
+  final void Function(String donationId, String action) onVerifyDonation;
 
   const _AdminOverview({
     required this.stats,
@@ -1029,6 +1062,7 @@ class _AdminOverview extends StatelessWidget {
     required this.onAddQuestion,
     required this.onOpenQrSettings,
     required this.onVerifyPayment,
+    required this.onVerifyDonation,
   });
 
   @override
@@ -1040,6 +1074,7 @@ class _AdminOverview extends StatelessWidget {
     final recentPayments = (stats?['recentPayments'] as List<dynamic>?) ?? [];
     final pendingPayments = (stats?['pendingPayments'] as List<dynamic>?) ??
         recentPayments.where((p) => p['status'] == 'pending').toList();
+    final pendingDonations = (stats?['pendingDonations'] as List<dynamic>?) ?? [];
     final screenW = MediaQuery.of(context).size.width;
     final isMobile = screenW < 650;
 
@@ -1218,6 +1253,132 @@ class _AdminOverview extends StatelessWidget {
                                 onPressed: () => onVerifyPayment(payId, 'approve'),
                                 icon: const Icon(Icons.check_circle_outline_rounded, size: 16, color: Colors.white),
                                 label: Text('Verify & Activate $planName', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: AppTheme.iconRed,
+                                  foregroundColor: Colors.white,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+          // Pending Candidate Question Donations Verification Queue
+          Container(
+            padding: EdgeInsets.all(isMobile ? 14 : 20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: pendingDonations.isNotEmpty ? AppTheme.iconRed : AppTheme.divider,
+                width: pendingDonations.isNotEmpty ? 1.5 : 1.0,
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.volunteer_activism_rounded, color: AppTheme.iconRed, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Pending Candidate Question Donations (${pendingDonations.length}) — 100 Verified Qs = रू 5',
+                        style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15.5, color: AppTheme.textPrimary),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  'Verify candidate-donated questions below. Clicking "Verify & Publish" immediately publishes the question to that exam\'s Question Bank and credits +रू 0.05 toward the candidate\'s reward balance.',
+                  style: TextStyle(fontSize: 12.5, color: AppTheme.textMuted),
+                ),
+                const Divider(height: 20, color: AppTheme.divider),
+                if (pendingDonations.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 8),
+                    child: Text(
+                      'No pending candidate question donations right now.',
+                      style: TextStyle(color: AppTheme.textMuted, fontSize: 13),
+                    ),
+                  )
+                else
+                  ...pendingDonations.map((d) {
+                    final donId = d['_id']?.toString() ?? '';
+                    final examId = d['exam_id']?.toString() ?? 'rbb_it_5';
+                    final qType = (d['type']?.toString() ?? 'subjective').toUpperCase();
+                    final qText = d['question_nepali']?.toString() ?? d['question_english']?.toString() ?? '';
+                    final ansPreview = d['type'] == 'mcq'
+                        ? 'Options: ${(d['options'] as List<dynamic>? ?? []).join(" | ")}'
+                        : (d['answer_nepali']?.toString() ?? d['answer_english']?.toString() ?? '');
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 10),
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: AppTheme.bgSurface,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: AppTheme.iconRed.withOpacity(0.35)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 6,
+                            alignment: WrapAlignment.spaceBetween,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
+                              Text(
+                                '${d['userName']} (${d['userEmail']})${d['walletId'] != null && d['walletId'].toString().isNotEmpty ? " • Wallet: ${d['walletId']}" : ""}',
+                                style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5, color: AppTheme.textPrimary),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.iconRedLight,
+                                  borderRadius: BorderRadius.circular(5),
+                                ),
+                                child: Text(
+                                  '$examId • $qType • ${d['marks'] ?? 5}M',
+                                  style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: AppTheme.iconRedDark),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Q: $qText',
+                            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: AppTheme.textPrimary),
+                          ),
+                          if (ansPreview.isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              'Ans: $ansPreview',
+                              maxLines: 3,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontSize: 12, color: AppTheme.textBody),
+                            ),
+                          ],
+                          const SizedBox(height: 10),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              OutlinedButton.icon(
+                                onPressed: () => onVerifyDonation(donId, 'reject'),
+                                icon: const Icon(Icons.close_rounded, size: 15, color: AppTheme.iconRed),
+                                label: const Text('Reject', style: TextStyle(fontSize: 12, color: AppTheme.iconRed, fontWeight: FontWeight.w700)),
+                              ),
+                              FilledButton.icon(
+                                onPressed: () => onVerifyDonation(donId, 'approve'),
+                                icon: const Icon(Icons.check_circle_outline_rounded, size: 16, color: Colors.white),
+                                label: const Text('Verify & Publish (+रू 0.05)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
                                 style: FilledButton.styleFrom(
                                   backgroundColor: AppTheme.iconRed,
                                   foregroundColor: Colors.white,

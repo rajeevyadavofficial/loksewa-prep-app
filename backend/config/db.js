@@ -9,6 +9,7 @@ const Exam = require('../models/Exam');
 const Question = require('../models/Question');
 const Payment = require('../models/Payment');
 const Settings = require('../models/Settings');
+const QuestionDonation = require('../models/QuestionDonation');
 
 const DATA_DIR = path.join(__dirname, '..', 'data');
 const LOCAL_DB_FILE = path.join(DATA_DIR, 'mongodb_collections.json');
@@ -40,6 +41,7 @@ let localStore = {
   exams: [],
   questions: [],
   payments: [],
+  donations: [],
   settings: { ...DEFAULT_SETTINGS },
 };
 
@@ -548,6 +550,110 @@ const DB = {
       return updated;
     }
     return localStore.settings;
+  },
+
+  // QUESTION DONATIONS (Candidate Donate & Earn: 100 Verified Questions = Rs. 5)
+  async createQuestionDonation(dData) {
+    if (isMongoConnected) {
+      const created = await QuestionDonation.create(dData);
+      const obj = { ...created.toObject(), _id: created._id.toString() };
+      localStore.donations = localStore.donations || [];
+      localStore.donations.push(obj);
+      saveLocalStore();
+      return obj;
+    }
+    localStore.donations = localStore.donations || [];
+    const newDonation = {
+      _id: 'don_' + crypto.randomBytes(6).toString('hex'),
+      status: 'pending',
+      ...dData,
+      createdAt: new Date().toISOString(),
+    };
+    localStore.donations.push(newDonation);
+    saveLocalStore();
+    return newDonation;
+  },
+
+  async getDonationsByUser(userId) {
+    if (isMongoConnected) {
+      const docs = await QuestionDonation.find({ userId: String(userId) }).sort({ createdAt: -1 }).lean();
+      return docs.map((d) => ({ ...d, _id: d._id.toString() }));
+    }
+    localStore.donations = localStore.donations || [];
+    return [...localStore.donations]
+      .filter((d) => String(d.userId) === String(userId))
+      .reverse();
+  },
+
+  async getAllDonations() {
+    if (isMongoConnected) {
+      const docs = await QuestionDonation.find().sort({ createdAt: -1 }).lean();
+      return docs.map((d) => ({ ...d, _id: d._id.toString() }));
+    }
+    localStore.donations = localStore.donations || [];
+    return [...localStore.donations].reverse();
+  },
+
+  async verifyQuestionDonation(donationId, action) {
+    const newStatus = action === 'approve' ? 'approved' : 'rejected';
+    let donation = null;
+
+    if (isMongoConnected && mongoose.Types.ObjectId.isValid(donationId)) {
+      donation = await QuestionDonation.findById(donationId).lean();
+    }
+    if (!donation) {
+      localStore.donations = localStore.donations || [];
+      donation = localStore.donations.find((d) => String(d._id) === String(donationId)) || null;
+    }
+    if (!donation) return null;
+
+    let publishedQuestionId = donation.publishedQuestionId || null;
+    let publishedQuestion = null;
+
+    if (action === 'approve' && !publishedQuestionId) {
+      publishedQuestionId = `donated_${Date.now().toString(36)}_${crypto.randomBytes(2).toString('hex')}`;
+      publishedQuestion = await this.createQuestion({
+        id: publishedQuestionId,
+        exam_id: donation.exam_id || 'rbb_it_5',
+        paper: donation.paper || 'paper1',
+        section: donation.section || 'sectionA',
+        unit_number: Number(donation.unit_number) || 1,
+        unit_title: donation.unit_title || `Unit ${donation.unit_number || 1}`,
+        marks: Number(donation.marks) || (donation.type === 'mcq' ? 1 : 5),
+        type: donation.type || 'subjective',
+        years_asked: Array.isArray(donation.years_asked) && donation.years_asked.length > 0
+          ? donation.years_asked
+          : ['Candidate Contributed'],
+        question_nepali: donation.question_nepali,
+        question_english: donation.question_english,
+        answer_nepali: donation.answer_nepali || null,
+        answer_english: donation.answer_english || null,
+        options: donation.options || null,
+        correct_option_index: donation.correct_option_index ?? null,
+        explanation: donation.explanation || null,
+        is_premium: false,
+      });
+    }
+
+    if (isMongoConnected && mongoose.Types.ObjectId.isValid(donationId)) {
+      donation = await QuestionDonation.findByIdAndUpdate(
+        donationId,
+        { $set: { status: newStatus, publishedQuestionId } },
+        { new: true }
+      ).lean();
+      if (donation) donation = { ...donation, _id: donation._id.toString() };
+    }
+
+    localStore.donations = localStore.donations || [];
+    const idx = localStore.donations.findIndex((d) => String(d._id) === String(donationId));
+    if (idx >= 0) {
+      localStore.donations[idx].status = newStatus;
+      localStore.donations[idx].publishedQuestionId = publishedQuestionId;
+      saveLocalStore();
+      if (!donation) donation = localStore.donations[idx];
+    }
+
+    return { donation, publishedQuestion };
   },
 };
 

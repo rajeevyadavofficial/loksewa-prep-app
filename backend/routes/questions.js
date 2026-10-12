@@ -50,6 +50,127 @@ router.get('/', optionalAuth, async (req, res) => {
   }
 });
 
+// GET /api/questions/donations/my (Candidate's own donated questions & Rs. earnings)
+router.get('/donations/my', requireAuth, async (req, res) => {
+  try {
+    const donations = await DB.getDonationsByUser(req.user._id);
+    const verifiedCount = donations.filter((d) => d.status === 'approved').length;
+    const pendingCount = donations.filter((d) => d.status === 'pending').length;
+    const rejectedCount = donations.filter((d) => d.status === 'rejected').length;
+    // 100 valid and verified questions generate Rs. 5 (Rs. 0.05 per verified question)
+    const earnedRupees = Number((verifiedCount * 0.05).toFixed(2));
+    return res.json({
+      totalSubmitted: donations.length,
+      verifiedCount,
+      pendingCount,
+      rejectedCount,
+      earnedRupees,
+      rateDescription: '100 Valid & Verified Questions = Rs. 5.00 (Rs. 0.05 / verified question)',
+      donations,
+    });
+  } catch (err) {
+    console.error('Error loading user donations:', err);
+    return res.status(500).json({ error: 'Failed to load donated questions' });
+  }
+});
+
+// POST /api/questions/donations (Candidate donates a question for their enrolled exam)
+router.post('/donations', requireAuth, async (req, res) => {
+  try {
+    const {
+      exam_id,
+      paper,
+      section,
+      unit_number,
+      unit_title,
+      marks,
+      type,
+      years_asked,
+      question_nepali,
+      question_english,
+      answer_nepali,
+      answer_english,
+      options,
+      correct_option_index,
+      explanation,
+      walletId,
+    } = req.body || {};
+
+    const targetExam = (exam_id || '').trim();
+    const enrolledExams = Array.isArray(req.user.enrolledExams) ? req.user.enrolledExams : [];
+
+    // Enforce that a candidate can only donate questions for the exam course(s) they are enrolled in
+    if (!req.user.isAdmin) {
+      if (enrolledExams.length === 0) {
+        return res.status(403).json({
+          error: 'Please enroll in an exam course first before donating questions.',
+        });
+      }
+      if (!targetExam || !enrolledExams.includes(targetExam)) {
+        return res.status(403).json({
+          error: 'You can only donate questions for the exam course you are enrolled in.',
+        });
+      }
+    }
+
+    const qNp = (question_nepali || '').trim();
+    const qEn = (question_english || '').trim();
+    if (!qNp && !qEn) {
+      return res.status(400).json({ error: 'Please enter the question text.' });
+    }
+
+    const cleanType = type === 'mcq' ? 'mcq' : 'subjective';
+    if (cleanType === 'subjective') {
+      const aNp = (answer_nepali || '').trim();
+      const aEn = (answer_english || '').trim();
+      if (!aNp && !aEn) {
+        return res.status(400).json({
+          error: 'Please provide the model answer (in Nepali or English) for a valid question donation.',
+        });
+      }
+    } else {
+      if (!Array.isArray(options) || options.filter((o) => String(o).trim().length > 0).length < 4) {
+        return res.status(400).json({
+          error: 'Please provide all 4 MCQ options (A, B, C, and D).',
+        });
+      }
+    }
+
+    const created = await DB.createQuestionDonation({
+      userId: String(req.user._id),
+      userName: req.user.name,
+      userEmail: req.user.email,
+      walletId: (walletId || '').trim(),
+      exam_id: targetExam || enrolledExams[0] || 'rbb_it_5',
+      paper: paper === 'paper2' ? 'paper2' : 'paper1',
+      section: section === 'sectionB' ? 'sectionB' : 'sectionA',
+      unit_number: Number(unit_number) || 1,
+      unit_title: (unit_title || `Unit ${unit_number || 1}`).trim(),
+      marks: Number(marks) || (cleanType === 'mcq' ? 1 : 5),
+      type: cleanType,
+      years_asked: Array.isArray(years_asked) && years_asked.length > 0
+        ? years_asked
+        : ['Candidate Contributed'],
+      question_nepali: qNp || qEn,
+      question_english: qEn || qNp,
+      answer_nepali: cleanType === 'subjective' ? ((answer_nepali || answer_english || '').trim()) : null,
+      answer_english: cleanType === 'subjective' ? ((answer_english || answer_nepali || '').trim()) : null,
+      options: cleanType === 'mcq' ? options.map((o) => String(o).trim()) : null,
+      correct_option_index: cleanType === 'mcq' ? (Number(correct_option_index) || 0) : null,
+      explanation: cleanType === 'mcq' ? ((explanation || '').trim() || null) : null,
+      status: 'pending',
+    });
+
+    return res.status(201).json({
+      message: 'Question submitted for Admin verification! Once verified, it adds toward your Rs. 5 / 100 questions reward.',
+      donation: created,
+    });
+  } catch (err) {
+    console.error('Error submitting question donation:', err);
+    return res.status(500).json({ error: 'Failed to submit question donation' });
+  }
+});
+
 // POST /api/questions (Admin only)
 router.post('/', requireAuth, requireAdmin, async (req, res) => {
   try {

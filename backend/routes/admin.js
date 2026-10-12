@@ -7,17 +7,19 @@ const router = express.Router();
 // GET /api/admin/stats
 router.get('/stats', requireAuth, requireAdmin, async (req, res) => {
   try {
-    const [exams, users, questions, payments] = await Promise.all([
+    const [exams, users, questions, payments, donations] = await Promise.all([
       DB.getAllExams(),
       DB.getAllUsers(),
       DB.getAllQuestions(),
       DB.getAllPayments(),
+      DB.getAllDonations(),
     ]);
 
     const freeCount = users.filter((u) => u.plan === 'free').length;
     const basicCount = users.filter((u) => u.plan === 'basic').length;
     const premiumCount = users.filter((u) => u.plan === 'premium').length;
     const pendingPayments = payments.filter((p) => p.status === 'pending');
+    const pendingDonations = donations.filter((d) => d.status === 'pending');
     const totalRevenue = payments
       .filter((p) => p.status === 'completed')
       .reduce((acc, p) => acc + (Number(p.amount) || 0), 0);
@@ -34,6 +36,9 @@ router.get('/stats', requireAuth, requireAdmin, async (req, res) => {
       pendingCount: pendingPayments.length,
       pendingPayments,
       recentPayments: payments.slice(0, 20),
+      pendingDonationsCount: pendingDonations.length,
+      pendingDonations,
+      recentDonations: donations.slice(0, 30),
       users: users.map((u) => ({
         uid: u._id,
         name: u.name,
@@ -47,6 +52,31 @@ router.get('/stats', requireAuth, requireAdmin, async (req, res) => {
   } catch (err) {
     console.error('Admin stats error:', err);
     return res.status(500).json({ error: 'Failed to load admin statistics' });
+  }
+});
+
+// PUT /api/admin/donations/:id/verify (Admin Only — Verify donated question & auto-publish to Question Bank)
+router.put('/donations/:id/verify', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { action } = req.body || {};
+    if (!['approve', 'reject'].includes(action)) {
+      return res.status(400).json({ error: 'Action must be approve or reject' });
+    }
+    const result = await DB.verifyQuestionDonation(req.params.id, action);
+    if (!result) {
+      return res.status(404).json({ error: 'Donated question not found' });
+    }
+    return res.json({
+      message:
+        action === 'approve'
+          ? `Question verified & published to ${result.donation.exam_id}! Credited +Rs. 0.05 to ${result.donation.userName}.`
+          : `Donated question from ${result.donation.userName} rejected.`,
+      donation: result.donation,
+      publishedQuestion: result.publishedQuestion,
+    });
+  } catch (err) {
+    console.error('Admin verify donation error:', err);
+    return res.status(500).json({ error: 'Failed to verify donated question' });
   }
 });
 

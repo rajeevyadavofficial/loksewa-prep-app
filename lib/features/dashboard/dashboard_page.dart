@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/constants/app_constants.dart';
@@ -70,10 +72,11 @@ class _DashboardPageState extends State<DashboardPage> {
                     selectedIndex: _selectedIndex,
                     onDestinationSelected: (i) => setState(() => _selectedIndex = i),
                     destinations: const [
-                      NavigationDestination(icon: Icon(Icons.dashboard_outlined), selectedIcon: Icon(Icons.dashboard), label: 'Exams & Home'),
+                      NavigationDestination(icon: Icon(Icons.dashboard_outlined), selectedIcon: Icon(Icons.dashboard), label: 'Exams'),
                       NavigationDestination(icon: Icon(Icons.menu_book_outlined), selectedIcon: Icon(Icons.menu_book), label: 'Q&A Bank'),
                       NavigationDestination(icon: Icon(Icons.timer_outlined), selectedIcon: Icon(Icons.timer), label: 'Mock Test'),
                       NavigationDestination(icon: Icon(Icons.description_outlined), selectedIcon: Icon(Icons.description), label: 'Syllabus'),
+                      NavigationDestination(icon: Icon(Icons.volunteer_activism_outlined), selectedIcon: Icon(Icons.volunteer_activism), label: 'Donate & Earn'),
                     ],
                   ),
                 ),
@@ -99,6 +102,7 @@ class _DashboardPageState extends State<DashboardPage> {
               QuestionsTab(onGoToExams: () => setState(() => _selectedIndex = 0)),
               MockTestTab(onGoToExams: () => setState(() => _selectedIndex = 0)),
               SyllabusTab(onGoToExams: () => setState(() => _selectedIndex = 0)),
+              DonateQuestionsTab(onGoToExams: () => setState(() => _selectedIndex = 0)),
             ],
           ),
         ),
@@ -126,6 +130,7 @@ class _SideNav extends StatelessWidget {
     (Icons.menu_book_outlined, Icons.menu_book_rounded, 'Question Bank'),
     (Icons.timer_outlined, Icons.timer_rounded, 'Timed Mock Test'),
     (Icons.description_outlined, Icons.description_rounded, 'Exam Syllabus'),
+    (Icons.volunteer_activism_outlined, Icons.volunteer_activism_rounded, 'Donate & Earn (रू 5)'),
   ];
 
   @override
@@ -1017,6 +1022,17 @@ class _HomeTabState extends State<_HomeTab> {
                         style: OutlinedButton.styleFrom(
                           foregroundColor: AppTheme.primaryColor,
                           side: const BorderSide(color: AppTheme.divider, width: 1.2),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                      ),
+                      OutlinedButton.icon(
+                        onPressed: () => widget.onGoToTab(4),
+                        icon: const Icon(Icons.volunteer_activism_outlined, size: 16, color: AppTheme.iconRed),
+                        label: const Text('Donate Questions & Earn रू'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppTheme.iconRedDark,
+                          backgroundColor: AppTheme.iconRedLight,
+                          side: BorderSide(color: AppTheme.iconRed.withOpacity(0.4), width: 1.2),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                         ),
                       ),
@@ -3774,3 +3790,997 @@ class SyllabusTab extends StatelessWidget {
     );
   }
 }
+
+// ─── Donate Questions & Earn Money Tab (100 Verified Questions = रू 5) ───
+class DonateQuestionsTab extends StatefulWidget {
+  final VoidCallback? onGoToExams;
+  const DonateQuestionsTab({super.key, this.onGoToExams});
+
+  @override
+  State<DonateQuestionsTab> createState() => _DonateQuestionsTabState();
+}
+
+class _DonateQuestionsTabState extends State<DonateQuestionsTab> {
+  final _unitTitleCtrl = TextEditingController(text: 'Unit 1: Core Syllabus Topic');
+  final _yearCtrl = TextEditingController(text: '2081 BS / Model Practice');
+  final _qNpCtrl = TextEditingController();
+  final _qEnCtrl = TextEditingController();
+  final _ansNpCtrl = TextEditingController();
+  final _ansEnCtrl = TextEditingController();
+  final _optACtrl = TextEditingController();
+  final _optBCtrl = TextEditingController();
+  final _optCCtrl = TextEditingController();
+  final _optDCtrl = TextEditingController();
+  final _expCtrl = TextEditingController();
+  final _walletCtrl = TextEditingController();
+
+  String _qType = 'subjective';
+  String _paper = 'paper1';
+  String _section = 'sectionA';
+  int _unitNum = 1;
+  int _marks = 5;
+  int _correctIdx = 0;
+  String? _selectedExamId;
+
+  bool _submitting = false;
+  bool _loadingDonations = false;
+  int _totalSubmitted = 0;
+  int _verifiedCount = 0;
+  int _pendingCount = 0;
+  double _earnedRupees = 0.0;
+  List<Map<String, dynamic>> _myDonations = [];
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadMyDonations();
+    });
+  }
+
+  @override
+  void dispose() {
+    _unitTitleCtrl.dispose();
+    _yearCtrl.dispose();
+    _qNpCtrl.dispose();
+    _qEnCtrl.dispose();
+    _ansNpCtrl.dispose();
+    _ansEnCtrl.dispose();
+    _optACtrl.dispose();
+    _optBCtrl.dispose();
+    _optCCtrl.dispose();
+    _optDCtrl.dispose();
+    _expCtrl.dispose();
+    _walletCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadMyDonations() async {
+    final token = context.read<AuthProvider>().token;
+    if (token == null || token.isEmpty) return;
+    setState(() => _loadingDonations = true);
+    try {
+      final res = await http.get(
+        Uri.parse('${AppConstants.apiBaseUrl}/questions/donations/my'),
+        headers: {'Authorization': 'Bearer $token'},
+      ).timeout(const Duration(seconds: 15));
+      if (res.statusCode == 200 && mounted) {
+        final data = jsonDecode(res.body) as Map<String, dynamic>;
+        final rawList = (data['donations'] as List<dynamic>?) ?? [];
+        setState(() {
+          _totalSubmitted = (data['totalSubmitted'] as num?)?.toInt() ?? rawList.length;
+          _verifiedCount = (data['verifiedCount'] as num?)?.toInt() ?? 0;
+          _pendingCount = (data['pendingCount'] as num?)?.toInt() ?? 0;
+          _earnedRupees = (data['earnedRupees'] as num?)?.toDouble() ?? (_verifiedCount * 0.05);
+          _myDonations = rawList.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+          if (_walletCtrl.text.isEmpty && _myDonations.isNotEmpty) {
+            final savedWallet = _myDonations.first['walletId']?.toString() ?? '';
+            if (savedWallet.isNotEmpty) _walletCtrl.text = savedWallet;
+          }
+          _loadingDonations = false;
+        });
+        return;
+      }
+    } catch (_) {}
+    if (mounted) setState(() => _loadingDonations = false);
+  }
+
+  Future<void> _submitDonation(String examId) async {
+    final qNp = _qNpCtrl.text.trim();
+    final qEn = _qEnCtrl.text.trim();
+    if (qNp.isEmpty && qEn.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter the question text (in Nepali or English).'),
+          backgroundColor: AppTheme.iconRed,
+        ),
+      );
+      return;
+    }
+
+    if (_qType == 'subjective') {
+      if (_ansNpCtrl.text.trim().isEmpty && _ansEnCtrl.text.trim().isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please provide the model answer so the question can be verified.'),
+            backgroundColor: AppTheme.iconRed,
+          ),
+        );
+        return;
+      }
+    } else {
+      if (_optACtrl.text.trim().isEmpty ||
+          _optBCtrl.text.trim().isEmpty ||
+          _optCCtrl.text.trim().isEmpty ||
+          _optDCtrl.text.trim().isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please enter all 4 MCQ options (Option A, B, C, and D).'),
+            backgroundColor: AppTheme.iconRed,
+          ),
+        );
+        return;
+      }
+    }
+
+    final token = context.read<AuthProvider>().token;
+    if (token == null || token.isEmpty) return;
+
+    setState(() => _submitting = true);
+    try {
+      final payload = <String, dynamic>{
+        'exam_id': examId,
+        'paper': _paper,
+        'section': _section,
+        'unit_number': _unitNum,
+        'unit_title': _unitTitleCtrl.text.trim().isEmpty
+            ? 'Unit $_unitNum'
+            : _unitTitleCtrl.text.trim(),
+        'marks': _marks,
+        'type': _qType,
+        'years_asked': [
+          _yearCtrl.text.trim().isEmpty ? 'Candidate Contributed' : _yearCtrl.text.trim()
+        ],
+        'question_nepali': qNp.isEmpty ? qEn : qNp,
+        'question_english': qEn.isEmpty ? qNp : qEn,
+        'walletId': _walletCtrl.text.trim(),
+      };
+
+      if (_qType == 'subjective') {
+        payload['answer_nepali'] = _ansNpCtrl.text.trim().isEmpty
+            ? _ansEnCtrl.text.trim()
+            : _ansNpCtrl.text.trim();
+        payload['answer_english'] = _ansEnCtrl.text.trim().isEmpty
+            ? _ansNpCtrl.text.trim()
+            : _ansEnCtrl.text.trim();
+      } else {
+        payload['options'] = [
+          _optACtrl.text.trim(),
+          _optBCtrl.text.trim(),
+          _optCCtrl.text.trim(),
+          _optDCtrl.text.trim(),
+        ];
+        payload['correct_option_index'] = _correctIdx;
+        payload['explanation'] = _expCtrl.text.trim();
+      }
+
+      final res = await http.post(
+        Uri.parse('${AppConstants.apiBaseUrl}/questions/donations'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(payload),
+      ).timeout(const Duration(seconds: 15));
+
+      if (!mounted) return;
+      final data = jsonDecode(res.body) as Map<String, dynamic>;
+
+      if (res.statusCode == 201) {
+        _qNpCtrl.clear();
+        _qEnCtrl.clear();
+        _ansNpCtrl.clear();
+        _ansEnCtrl.clear();
+        _optACtrl.clear();
+        _optBCtrl.clear();
+        _optCCtrl.clear();
+        _optDCtrl.clear();
+        _expCtrl.clear();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              data['message']?.toString() ??
+                  'Question donated successfully! Sent for Admin verification.',
+            ),
+            backgroundColor: AppTheme.primaryColor,
+          ),
+        );
+        await _loadMyDonations();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(data['error']?.toString() ?? 'Failed to donate question'),
+            backgroundColor: AppTheme.iconRed,
+          ),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Network error while submitting question. Please try again.'),
+            backgroundColor: AppTheme.iconRed,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final qp = context.watch<QuestionProvider>();
+    final auth = context.watch<AuthProvider>();
+    final user = auth.user;
+
+    final isEnrolled = (user?.isAdmin ?? false) || (user?.enrolledExams.isNotEmpty ?? false);
+    if (!isEnrolled) {
+      return _NotEnrolledPrompt(onGoToExams: widget.onGoToExams);
+    }
+
+    // Restrict available exams strictly to the candidate's enrolled exam(s)
+    final enrolledExamCourses = (user?.isAdmin ?? false)
+        ? qp.exams
+        : qp.exams.where((e) => user!.enrolledExams.contains(e.id)).toList();
+
+    final activeExam = enrolledExamCourses.isNotEmpty
+        ? enrolledExamCourses.firstWhere(
+            (e) => e.id == (_selectedExamId ?? qp.selectedExamId),
+            orElse: () => enrolledExamCourses.first,
+          )
+        : qp.selectedExam;
+
+    final targetExamId = activeExam?.id ??
+        (user!.enrolledExams.isNotEmpty ? user.enrolledExams.first : 'rbb_it_5');
+
+    final screenW = MediaQuery.of(context).size.width;
+    final isMobile = screenW < 680;
+    final progressInBatch = _verifiedCount % 100;
+    final progressRatio = (progressInBatch / 100.0).clamp(0.0, 1.0);
+
+    return SingleChildScrollView(
+      padding: EdgeInsets.all(isMobile ? 14 : 24),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 920),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ── 1. REWARD PROGRAM BANNER & EARNINGS TRACKER ──
+              Container(
+                width: double.infinity,
+                padding: EdgeInsets.all(isMobile ? 16 : 24),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppTheme.iconRed, width: 1.5),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 8,
+                      alignment: WrapAlignment.spaceBetween,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: AppTheme.iconRedLight,
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: AppTheme.iconRed.withOpacity(0.35)),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.volunteer_activism_rounded, size: 14, color: AppTheme.iconRed),
+                              SizedBox(width: 6),
+                              Text(
+                                'CANDIDATE QUESTION DONATION & REWARD PROGRAM',
+                                style: TextStyle(
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppTheme.iconRedDark,
+                                  letterSpacing: 0.4,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        InkWell(
+                          onTap: _loadMyDonations,
+                          borderRadius: BorderRadius.circular(6),
+                          child: const Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.refresh_rounded, size: 14, color: AppTheme.iconRed),
+                                SizedBox(width: 4),
+                                Text(
+                                  'Refresh Status',
+                                  style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: AppTheme.iconRed),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Donate Valid Questions & Earn Money (100 Verified Questions = रू 5.00)',
+                      style: TextStyle(
+                        fontSize: isMobile ? 17.5 : 20,
+                        fontWeight: FontWeight.w800,
+                        color: AppTheme.textPrimary,
+                        letterSpacing: -0.3,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    const Text(
+                      'Contribute authentic Lok Sewa subjective Q&As or objective MCQs for your enrolled exam course. Every valid question approved by our Admin team earns रू 0.05 (100 Verified Questions = रू 5.00) directly to your eSewa/Khalti wallet and gets published to help fellow aspirants!',
+                      style: TextStyle(fontSize: 13, color: AppTheme.textBody, height: 1.5),
+                    ),
+                    const SizedBox(height: 18),
+
+                    // Stats cards row
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 12,
+                      children: [
+                        _DonationStatBox(
+                          label: 'Total Earned',
+                          value: 'रू ${_earnedRupees.toStringAsFixed(2)}',
+                          sub: 'रू 5 per 100 verified',
+                          highlightRed: true,
+                          width: isMobile ? (screenW - 76) / 2 : 195,
+                        ),
+                        _DonationStatBox(
+                          label: 'Verified & Valid',
+                          value: '$_verifiedCount Qs',
+                          sub: 'Approved by Admin',
+                          highlightRed: false,
+                          width: isMobile ? (screenW - 76) / 2 : 195,
+                        ),
+                        _DonationStatBox(
+                          label: 'Pending Review',
+                          value: '$_pendingCount Qs',
+                          sub: 'Awaiting verification',
+                          highlightRed: false,
+                          width: isMobile ? (screenW - 76) / 2 : 195,
+                        ),
+                        _DonationStatBox(
+                          label: 'Total Donated',
+                          value: '$_totalSubmitted Qs',
+                          sub: 'All submissions',
+                          highlightRed: false,
+                          width: isMobile ? (screenW - 76) / 2 : 195,
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 16),
+                    // Milestone Progress Bar (0 -> 100 Verified Questions = Rs. 5)
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFAFAFA),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: AppTheme.divider),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Progress to Next रू 5.00 Milestone ($progressInBatch / 100 Verified Questions)',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppTheme.textPrimary,
+                                ),
+                              ),
+                              Text(
+                                '${(progressRatio * 100).toInt()}%',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppTheme.iconRed,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(4),
+                            child: LinearProgressIndicator(
+                              value: progressRatio,
+                              minHeight: 7,
+                              backgroundColor: AppTheme.divider,
+                              color: AppTheme.iconRed,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 20),
+
+              // ── 2. QUESTION DONATION INPUT FORM (SCOPED TO ENROLLED COURSE) ──
+              Container(
+                width: double.infinity,
+                padding: EdgeInsets.all(isMobile ? 16 : 24),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppTheme.divider),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(Icons.edit_note_rounded, color: AppTheme.iconRed, size: 22),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Donate a Question for Your Enrolled Course',
+                            style: TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w800,
+                              color: AppTheme.textPrimary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                      decoration: BoxDecoration(
+                        color: AppTheme.iconRedLight,
+                        borderRadius: BorderRadius.circular(7),
+                        border: Border.all(color: AppTheme.iconRed.withOpacity(0.3)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.verified_user_outlined, size: 16, color: AppTheme.iconRed),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              user!.isAdmin
+                                  ? 'Admin Mode: You can donate questions to any exam course.'
+                                  : 'Enrolled Course Rule: Since you are enrolled in "${activeExam?.title ?? targetExamId}", you can donate questions exclusively for this exam course.',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: AppTheme.iconRedDark,
+                                height: 1.4,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+
+                    // Enrolled Exam Selector (Locked to Enrolled Exam if single course)
+                    if (enrolledExamCourses.length <= 1 && activeExam != null)
+                      TextField(
+                        readOnly: true,
+                        controller: TextEditingController(
+                          text: '${activeExam.title} (${activeExam.titleNepali}) — Enrolled',
+                        ),
+                        decoration: const InputDecoration(
+                          labelText: 'Target Enrolled Exam Course (Locked to Your Course) *',
+                          prefixIcon: Icon(Icons.lock_outline_rounded, size: 18, color: AppTheme.iconRed),
+                        ),
+                      )
+                    else
+                      DropdownButtonFormField<String>(
+                        isExpanded: true,
+                        value: targetExamId,
+                        decoration: const InputDecoration(
+                          labelText: 'Select Your Enrolled Exam Course *',
+                          prefixIcon: Icon(Icons.school_outlined, size: 18, color: AppTheme.iconRed),
+                        ),
+                        items: enrolledExamCourses
+                            .map(
+                              (e) => DropdownMenuItem(
+                                value: e.id,
+                                child: Text('${e.title} (${e.category})', overflow: TextOverflow.ellipsis),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (v) => setState(() => _selectedExamId = v),
+                      ),
+
+                    const SizedBox(height: 14),
+
+                    // Row: Question Type + Paper + Section
+                    if (isMobile) ...[
+                      DropdownButtonFormField<String>(
+                        value: _qType,
+                        decoration: const InputDecoration(labelText: 'Question Type *'),
+                        items: const [
+                          DropdownMenuItem(value: 'subjective', child: Text('Subjective (Written Q&A — विषयगत)')),
+                          DropdownMenuItem(value: 'mcq', child: Text('Objective MCQ (4 Options — वस्तुगत)')),
+                        ],
+                        onChanged: (v) => setState(() {
+                          _qType = v!;
+                          _marks = _qType == 'mcq' ? 1 : 5;
+                        }),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: DropdownButtonFormField<String>(
+                              value: _paper,
+                              decoration: const InputDecoration(labelText: 'Paper *'),
+                              items: const [
+                                DropdownMenuItem(value: 'paper1', child: Text('Paper I')),
+                                DropdownMenuItem(value: 'paper2', child: Text('Paper II')),
+                              ],
+                              onChanged: (v) => setState(() => _paper = v!),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: DropdownButtonFormField<String>(
+                              value: _section,
+                              decoration: const InputDecoration(labelText: 'Section *'),
+                              items: const [
+                                DropdownMenuItem(value: 'sectionA', child: Text('Section A')),
+                                DropdownMenuItem(value: 'sectionB', child: Text('Section B')),
+                              ],
+                              onChanged: (v) => setState(() => _section = v!),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ] else
+                      Row(
+                        children: [
+                          Expanded(
+                            flex: 2,
+                            child: DropdownButtonFormField<String>(
+                              value: _qType,
+                              decoration: const InputDecoration(labelText: 'Question Type *'),
+                              items: const [
+                                DropdownMenuItem(value: 'subjective', child: Text('Subjective (Written Q&A — विषयगत)')),
+                                DropdownMenuItem(value: 'mcq', child: Text('Objective MCQ (4 Options — वस्तुगत)')),
+                              ],
+                              onChanged: (v) => setState(() {
+                                _qType = v!;
+                                _marks = _qType == 'mcq' ? 1 : 5;
+                              }),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: DropdownButtonFormField<String>(
+                              value: _paper,
+                              decoration: const InputDecoration(labelText: 'Paper *'),
+                              items: const [
+                                DropdownMenuItem(value: 'paper1', child: Text('Paper I')),
+                                DropdownMenuItem(value: 'paper2', child: Text('Paper II')),
+                              ],
+                              onChanged: (v) => setState(() => _paper = v!),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: DropdownButtonFormField<String>(
+                              value: _section,
+                              decoration: const InputDecoration(labelText: 'Section *'),
+                              items: const [
+                                DropdownMenuItem(value: 'sectionA', child: Text('Section A')),
+                                DropdownMenuItem(value: 'sectionB', child: Text('Section B')),
+                              ],
+                              onChanged: (v) => setState(() => _section = v!),
+                            ),
+                          ),
+                        ],
+                      ),
+
+                    const SizedBox(height: 14),
+
+                    // Row: Unit Number + Marks + Year Asked/Source
+                    Row(
+                      children: [
+                        Expanded(
+                          child: DropdownButtonFormField<int>(
+                            value: _unitNum,
+                            decoration: const InputDecoration(labelText: 'Syllabus Unit *'),
+                            items: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+                                .map((u) => DropdownMenuItem(value: u, child: Text('Unit $u')))
+                                .toList(),
+                            onChanged: (v) => setState(() {
+                              _unitNum = v!;
+                              if (_unitTitleCtrl.text.startsWith('Unit ')) {
+                                _unitTitleCtrl.text = 'Unit $_unitNum: Core Syllabus Topic';
+                              }
+                            }),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: DropdownButtonFormField<int>(
+                            value: _marks,
+                            decoration: const InputDecoration(labelText: 'Marks *'),
+                            items: const [
+                              DropdownMenuItem(value: 1, child: Text('1 Mark')),
+                              DropdownMenuItem(value: 2, child: Text('2 Marks')),
+                              DropdownMenuItem(value: 5, child: Text('5 Marks')),
+                              DropdownMenuItem(value: 10, child: Text('10 Marks')),
+                            ],
+                            onChanged: (v) => setState(() => _marks = v!),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          flex: isMobile ? 1 : 2,
+                          child: TextField(
+                            controller: _yearCtrl,
+                            decoration: const InputDecoration(
+                              labelText: 'Past Year / Source',
+                              hintText: 'e.g. 2081 BS / Model',
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 14),
+                    TextField(
+                      controller: _unitTitleCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Unit / Topic Title *',
+                        hintText: 'e.g. Unit 1: Banking Laws & NRB Directives',
+                      ),
+                    ),
+
+                    const SizedBox(height: 14),
+                    TextField(
+                      controller: _qNpCtrl,
+                      maxLines: 2,
+                      decoration: const InputDecoration(
+                        labelText: 'Question in Nepali (नेपालीमा प्रश्न) *',
+                        hintText: 'यहाँ नेपालीमा प्रश्न लेख्नुहोस्...',
+                      ),
+                    ),
+
+                    const SizedBox(height: 14),
+                    TextField(
+                      controller: _qEnCtrl,
+                      maxLines: 2,
+                      decoration: const InputDecoration(
+                        labelText: 'Question in English (अंग्रेजीमा प्रश्न) *',
+                        hintText: 'Write the question in English here...',
+                      ),
+                    ),
+
+                    const SizedBox(height: 14),
+                    if (_qType == 'subjective') ...[
+                      TextField(
+                        controller: _ansNpCtrl,
+                        maxLines: 5,
+                        decoration: const InputDecoration(
+                          labelText: 'Model Answer in Nepali (नेपालीमा नमुना उत्तर) *',
+                          hintText: 'लोकसेवा परीक्षाको ढाँचामा बुँदागत नमुना उत्तर लेख्नुहोस्...',
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      TextField(
+                        controller: _ansEnCtrl,
+                        maxLines: 5,
+                        decoration: const InputDecoration(
+                          labelText: 'Model Answer in English (Optional if Nepali provided)',
+                          hintText: 'Write structured model answer in English...',
+                        ),
+                      ),
+                    ] else ...[
+                      if (isMobile) ...[
+                        TextField(controller: _optACtrl, decoration: const InputDecoration(labelText: 'Option A *')),
+                        const SizedBox(height: 10),
+                        TextField(controller: _optBCtrl, decoration: const InputDecoration(labelText: 'Option B *')),
+                        const SizedBox(height: 10),
+                        TextField(controller: _optCCtrl, decoration: const InputDecoration(labelText: 'Option C *')),
+                        const SizedBox(height: 10),
+                        TextField(controller: _optDCtrl, decoration: const InputDecoration(labelText: 'Option D *')),
+                      ] else ...[
+                        Row(
+                          children: [
+                            Expanded(child: TextField(controller: _optACtrl, decoration: const InputDecoration(labelText: 'Option A *'))),
+                            const SizedBox(width: 12),
+                            Expanded(child: TextField(controller: _optBCtrl, decoration: const InputDecoration(labelText: 'Option B *'))),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(child: TextField(controller: _optCCtrl, decoration: const InputDecoration(labelText: 'Option C *'))),
+                            const SizedBox(width: 12),
+                            Expanded(child: TextField(controller: _optDCtrl, decoration: const InputDecoration(labelText: 'Option D *'))),
+                          ],
+                        ),
+                      ],
+                      const SizedBox(height: 14),
+                      DropdownButtonFormField<int>(
+                        value: _correctIdx,
+                        decoration: const InputDecoration(labelText: 'Correct Option *'),
+                        items: const [
+                          DropdownMenuItem(value: 0, child: Text('Option A is Correct')),
+                          DropdownMenuItem(value: 1, child: Text('Option B is Correct')),
+                          DropdownMenuItem(value: 2, child: Text('Option C is Correct')),
+                          DropdownMenuItem(value: 3, child: Text('Option D is Correct')),
+                        ],
+                        onChanged: (v) => setState(() => _correctIdx = v!),
+                      ),
+                      const SizedBox(height: 14),
+                      TextField(
+                        controller: _expCtrl,
+                        maxLines: 2,
+                        decoration: const InputDecoration(
+                          labelText: 'Brief Explanation / Solution Note',
+                          hintText: 'Explain why this option is correct...',
+                        ),
+                      ),
+                    ],
+
+                    const SizedBox(height: 14),
+                    TextField(
+                      controller: _walletCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Your eSewa / Khalti ID (for रू 5 / 100 Verified Questions Payout)',
+                        hintText: 'e.g. 98XXXXXXXX (eSewa / Khalti)',
+                        prefixIcon: Icon(Icons.account_balance_wallet_outlined, size: 18, color: AppTheme.iconRed),
+                      ),
+                    ),
+
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton.icon(
+                        onPressed: _submitting ? null : () => _submitDonation(targetExamId),
+                        icon: _submitting
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                              )
+                            : const Icon(Icons.cloud_upload_outlined, size: 18, color: Colors.white),
+                        label: Text(
+                          _submitting
+                              ? 'Submitting Question for Verification...'
+                              : 'Submit Question Donation (+रू 0.05 on Verification)',
+                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
+                        ),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: AppTheme.iconRed,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 18),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 24),
+
+              // ── 3. MY DONATED QUESTIONS & VERIFICATION STATUS HISTORY ──
+              const Text(
+                'My Donated Questions & Verification History',
+                style: TextStyle(fontSize: 16.5, fontWeight: FontWeight.w800, color: AppTheme.textPrimary),
+              ),
+              const SizedBox(height: 10),
+              if (_loadingDonations)
+                const Padding(
+                  padding: EdgeInsets.all(24),
+                  child: Center(child: CircularProgressIndicator(color: AppTheme.iconRed, strokeWidth: 2)),
+                )
+              else if (_myDonations.isEmpty)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: AppTheme.divider),
+                  ),
+                  child: const Column(
+                    children: [
+                      Icon(Icons.volunteer_activism_outlined, size: 32, color: AppTheme.textMuted),
+                      SizedBox(height: 8),
+                      Text(
+                        'No Questions Donated Yet',
+                        style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w800, color: AppTheme.textPrimary),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        'Submit your first valid question above for your enrolled exam course to start earning!',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 12.5, color: AppTheme.textMuted),
+                      ),
+                    ],
+                  ),
+                )
+              else
+                ..._myDonations.map((d) {
+                  final status = (d['status'] ?? 'pending').toString();
+                  final isApproved = status == 'approved';
+                  final isRejected = status == 'rejected';
+                  final qTitle = (d['question_nepali'] ?? d['question_english'] ?? '').toString();
+                  final examId = (d['exam_id'] ?? 'rbb_it_5').toString();
+                  final qType = (d['type'] ?? 'subjective').toString().toUpperCase();
+                  final marks = d['marks'] ?? 5;
+
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 10),
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: isApproved ? AppTheme.iconRed.withOpacity(0.45) : AppTheme.divider,
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 6,
+                          alignment: WrapAlignment.spaceBetween,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            Wrap(
+                              spacing: 6,
+                              runSpacing: 6,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFF4F4F5),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    '$examId • $qType • ${marks}M',
+                                    style: const TextStyle(
+                                      fontSize: 10.5,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppTheme.textPrimary,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: isApproved
+                                    ? AppTheme.iconRedLight
+                                    : (isRejected ? const Color(0xFFF4F4F5) : const Color(0xFFFAFAFA)),
+                                borderRadius: BorderRadius.circular(5),
+                                border: Border.all(
+                                  color: isApproved ? AppTheme.iconRed : AppTheme.divider,
+                                ),
+                              ),
+                              child: Text(
+                                isApproved
+                                    ? '✓ VERIFIED & PUBLISHED (+रू 0.05)'
+                                    : (isRejected ? '✕ REJECTED' : '⏳ PENDING ADMIN VERIFICATION'),
+                                style: TextStyle(
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.w800,
+                                  color: isApproved
+                                      ? AppTheme.iconRedDark
+                                      : (isRejected ? AppTheme.textMuted : AppTheme.textPrimary),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          qTitle,
+                          style: const TextStyle(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w700,
+                            color: AppTheme.textPrimary,
+                            height: 1.4,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+              const SizedBox(height: 24),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DonationStatBox extends StatelessWidget {
+  final String label;
+  final String value;
+  final String sub;
+  final bool highlightRed;
+  final double width;
+
+  const _DonationStatBox({
+    required this.label,
+    required this.value,
+    required this.sub,
+    required this.highlightRed,
+    required this.width,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: width,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: highlightRed ? AppTheme.iconRedLight : const Color(0xFFFAFAFA),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: highlightRed ? AppTheme.iconRed : AppTheme.divider,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11.5,
+              fontWeight: FontWeight.w700,
+              color: highlightRed ? AppTheme.iconRedDark : AppTheme.textMuted,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+              color: highlightRed ? AppTheme.iconRedDark : AppTheme.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            sub,
+            style: const TextStyle(fontSize: 10.5, color: AppTheme.textMuted),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
