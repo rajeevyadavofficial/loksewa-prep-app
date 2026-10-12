@@ -21,12 +21,22 @@ class DashboardPage extends StatefulWidget {
 class _DashboardPageState extends State<DashboardPage> {
   int _selectedIndex = 0;
   bool _sidebarCollapsed = false;
+  bool _isFullFocusMode = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<QuestionProvider>().loadAll();
+    });
+  }
+
+  void _setTab(int i) {
+    setState(() {
+      _selectedIndex = i;
+      if (i != 1) {
+        _isFullFocusMode = false;
+      }
     });
   }
 
@@ -47,64 +57,97 @@ class _DashboardPageState extends State<DashboardPage> {
 
     final w = MediaQuery.of(context).size.width;
     final isWide = w > 1050;
+    final isSmallMobile = w < 420;
+    final hideChrome = _isFullFocusMode && _selectedIndex == 1;
 
     return Scaffold(
       backgroundColor: Colors.white,
-      body: isWide
-          ? Row(
-              children: [
-                _SideNav(
-                  selectedIndex: _selectedIndex,
-                  isCollapsed: _sidebarCollapsed,
-                  onToggleCollapse: () => setState(() => _sidebarCollapsed = !_sidebarCollapsed),
-                  onTap: (i) => setState(() => _selectedIndex = i),
-                ),
-                Expanded(child: _buildBody(user, isWide: true)),
-              ],
-            )
-          : Column(
-              children: [
-                Expanded(child: _buildBody(user, isWide: false)),
-                Container(
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    border: Border(top: BorderSide(color: AppTheme.divider, width: 1)),
-                  ),
-                  child: NavigationBar(
-                    selectedIndex: _selectedIndex,
-                    onDestinationSelected: (i) => setState(() => _selectedIndex = i),
-                    destinations: const [
-                      NavigationDestination(icon: Icon(Icons.dashboard_outlined), selectedIcon: Icon(Icons.dashboard), label: 'Exams'),
-                      NavigationDestination(icon: Icon(Icons.menu_book_outlined), selectedIcon: Icon(Icons.menu_book), label: 'Q&A Bank'),
-                      NavigationDestination(icon: Icon(Icons.timer_outlined), selectedIcon: Icon(Icons.timer), label: 'Mock Test'),
-                      NavigationDestination(icon: Icon(Icons.description_outlined), selectedIcon: Icon(Icons.description), label: 'Syllabus'),
-                      NavigationDestination(icon: Icon(Icons.volunteer_activism_outlined), selectedIcon: Icon(Icons.volunteer_activism), label: 'Donate & Earn'),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+      body: SafeArea(
+        child: isWide
+            ? Row(
+                children: [
+                  if (!hideChrome)
+                    _SideNav(
+                      selectedIndex: _selectedIndex,
+                      isCollapsed: _sidebarCollapsed,
+                      onToggleCollapse: () => setState(() => _sidebarCollapsed = !_sidebarCollapsed),
+                      onTap: _setTab,
+                    ),
+                  Expanded(child: _buildBody(user, isWide: true, hideTopBar: hideChrome)),
+                ],
+              )
+            : Column(
+                children: [
+                  Expanded(child: _buildBody(user, isWide: false, hideTopBar: hideChrome)),
+                  if (!hideChrome)
+                    Container(
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        border: Border(top: BorderSide(color: AppTheme.divider, width: 1)),
+                      ),
+                      child: NavigationBar(
+                        height: isSmallMobile ? 60 : 66,
+                        selectedIndex: _selectedIndex,
+                        onDestinationSelected: _setTab,
+                        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+                        destinations: [
+                          const NavigationDestination(
+                            icon: Icon(Icons.dashboard_outlined, size: 20),
+                            selectedIcon: Icon(Icons.dashboard, size: 20),
+                            label: 'Exams',
+                          ),
+                          NavigationDestination(
+                            icon: const Icon(Icons.menu_book_outlined, size: 20),
+                            selectedIcon: const Icon(Icons.menu_book, size: 20),
+                            label: isSmallMobile ? 'Q&A' : 'Q&A Bank',
+                          ),
+                          NavigationDestination(
+                            icon: const Icon(Icons.timer_outlined, size: 20),
+                            selectedIcon: const Icon(Icons.timer, size: 20),
+                            label: isSmallMobile ? 'Mock' : 'Mock Test',
+                          ),
+                          const NavigationDestination(
+                            icon: Icon(Icons.description_outlined, size: 20),
+                            selectedIcon: Icon(Icons.description, size: 20),
+                            label: 'Syllabus',
+                          ),
+                          NavigationDestination(
+                            icon: const Icon(Icons.volunteer_activism_outlined, size: 20),
+                            selectedIcon: const Icon(Icons.volunteer_activism, size: 20),
+                            label: isSmallMobile ? 'Earn' : 'Donate',
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+      ),
     );
   }
 
-  Widget _buildBody(AppUser user, {required bool isWide}) {
+  Widget _buildBody(AppUser user, {required bool isWide, required bool hideTopBar}) {
     return Column(
       children: [
-        _TopBar(
-          user: user,
-          showSidebarToggle: isWide,
-          isSidebarCollapsed: _sidebarCollapsed,
-          onToggleSidebar: () => setState(() => _sidebarCollapsed = !_sidebarCollapsed),
-        ),
+        if (!hideTopBar)
+          _TopBar(
+            user: user,
+            showSidebarToggle: isWide,
+            isSidebarCollapsed: _sidebarCollapsed,
+            onToggleSidebar: () => setState(() => _sidebarCollapsed = !_sidebarCollapsed),
+          ),
         Expanded(
           child: IndexedStack(
             index: _selectedIndex,
             children: [
-              _HomeTab(user: user, onGoToTab: (t) => setState(() => _selectedIndex = t)),
-              QuestionsTab(onGoToExams: () => setState(() => _selectedIndex = 0)),
-              MockTestTab(onGoToExams: () => setState(() => _selectedIndex = 0)),
-              SyllabusTab(onGoToExams: () => setState(() => _selectedIndex = 0)),
-              DonateQuestionsTab(onGoToExams: () => setState(() => _selectedIndex = 0)),
+              _HomeTab(user: user, onGoToTab: _setTab),
+              QuestionsTab(
+                onGoToExams: () => _setTab(0),
+                isFullFocusMode: _isFullFocusMode,
+                onToggleFullFocusMode: (val) => setState(() => _isFullFocusMode = val),
+              ),
+              MockTestTab(onGoToExams: () => _setTab(0)),
+              SyllabusTab(onGoToExams: () => _setTab(0)),
+              DonateQuestionsTab(onGoToExams: () => _setTab(0)),
             ],
           ),
         ),
@@ -495,7 +538,9 @@ class _TopBar extends StatelessWidget {
 
     final currentExamId = qp.selectedExamId;
     final activeEnrolledExam = enrolledExams.where((e) => e.id == currentExamId).firstOrNull ?? enrolledExams.firstOrNull;
-    final isMobile = MediaQuery.of(context).size.width < 650;
+    final screenW = MediaQuery.of(context).size.width;
+    final isMobile = screenW < 650;
+    final isTinyMobile = screenW < 375;
 
     return Container(
       width: double.infinity,
@@ -503,52 +548,48 @@ class _TopBar extends StatelessWidget {
         color: Colors.white,
         border: Border(bottom: BorderSide(color: AppTheme.divider, width: 1)),
       ),
-      padding: EdgeInsets.symmetric(horizontal: isMobile ? 12 : 20, vertical: isMobile ? 8 : 10),
-      child: Wrap(
-        spacing: 10,
-        runSpacing: 8,
-        alignment: WrapAlignment.spaceBetween,
-        crossAxisAlignment: WrapCrossAlignment.center,
+      padding: EdgeInsets.symmetric(horizontal: isMobile ? 10 : 20, vertical: isMobile ? 7 : 10),
+      child: Row(
         children: [
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (showSidebarToggle && onToggleSidebar != null) ...[
-                Tooltip(
-                  message: isSidebarCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar',
-                  child: InkWell(
-                    onTap: onToggleSidebar,
+          if (showSidebarToggle && onToggleSidebar != null) ...[
+            Tooltip(
+              message: isSidebarCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar',
+              child: InkWell(
+                onTap: onToggleSidebar,
+                borderRadius: BorderRadius.circular(8),
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
                     borderRadius: BorderRadius.circular(8),
-                    child: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: AppTheme.divider),
-                      ),
-                      child: Icon(
-                        isSidebarCollapsed ? Icons.menu_open_rounded : Icons.view_sidebar_outlined,
-                        size: 18,
-                        color: AppTheme.textPrimary,
-                      ),
-                    ),
+                    border: Border.all(color: AppTheme.divider),
+                  ),
+                  child: Icon(
+                    isSidebarCollapsed ? Icons.menu_open_rounded : Icons.view_sidebar_outlined,
+                    size: 18,
+                    color: AppTheme.textPrimary,
                   ),
                 ),
-                const SizedBox(width: 10),
-              ],
-              Flexible(
+              ),
+            ),
+            const SizedBox(width: 10),
+          ],
+          Expanded(
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: isMobile ? double.infinity : 540),
                 child: Container(
-                  constraints: BoxConstraints(maxWidth: isMobile ? MediaQuery.of(context).size.width - 24 : 520),
-                  padding: EdgeInsets.symmetric(horizontal: isMobile ? 10 : 12, vertical: 6),
+                  padding: EdgeInsets.symmetric(horizontal: isMobile ? 9 : 12, vertical: isMobile ? 5 : 6),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(color: AppTheme.divider),
                   ),
                   child: Row(
-                    mainAxisSize: MainAxisSize.min,
+                    mainAxisSize: isMobile ? MainAxisSize.max : MainAxisSize.min,
                     children: [
-                      const Icon(Icons.menu_book_rounded, size: 16, color: AppTheme.iconRed),
+                      const Icon(Icons.menu_book_rounded, size: 15, color: AppTheme.iconRed),
                       const SizedBox(width: 6),
                       if (!isMobile) ...[
                         const Text(
@@ -558,53 +599,63 @@ class _TopBar extends StatelessWidget {
                         const SizedBox(width: 8),
                       ],
                       if (enrolledExams.isEmpty)
-                        Flexible(
+                        Expanded(
                           child: Text(
-                            isMobile ? 'Select an Exam Below' : 'Not Enrolled Yet (Select an exam below)',
+                            isMobile ? 'Select Exam Below' : 'Not Enrolled Yet (Select an exam below)',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppTheme.iconRed),
+                            style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: AppTheme.iconRed),
                           ),
                         )
                       else if (enrolledExams.length == 1)
-                        Flexible(
+                        Expanded(
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Flexible(
+                              Expanded(
                                 child: Text(
                                   isMobile
                                       ? activeEnrolledExam!.title
                                       : '${activeEnrolledExam!.title} (${activeEnrolledExam.category})',
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12.5, color: AppTheme.textPrimary),
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: isMobile ? 12 : 12.5,
+                                    color: AppTheme.textPrimary,
+                                  ),
                                 ),
                               ),
-                              const SizedBox(width: 6),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: AppTheme.iconRedLight,
-                                  borderRadius: BorderRadius.circular(4),
+                              if (!isTinyMobile) ...[
+                                const SizedBox(width: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                  decoration: BoxDecoration(
+                                    color: AppTheme.iconRedLight,
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: const Text(
+                                    'ACTIVE',
+                                    style: TextStyle(fontSize: 8.5, fontWeight: FontWeight.w800, color: AppTheme.iconRedDark),
+                                  ),
                                 ),
-                                child: const Text(
-                                  'ACTIVE',
-                                  style: TextStyle(fontSize: 9, fontWeight: FontWeight.w800, color: AppTheme.iconRedDark),
-                                ),
-                              ),
+                              ],
                             ],
                           ),
                         )
                       else
-                        Flexible(
+                        Expanded(
                           child: DropdownButton<String>(
                             value: activeEnrolledExam?.id ?? enrolledExams.first.id,
                             underline: const SizedBox.shrink(),
                             isDense: true,
-                            isExpanded: isMobile,
+                            isExpanded: true,
                             dropdownColor: Colors.white,
-                            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: AppTheme.textPrimary),
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: isMobile ? 12 : 13,
+                              color: AppTheme.textPrimary,
+                            ),
                             items: enrolledExams.map((e) {
                               return DropdownMenuItem<String>(
                                 value: e.id,
@@ -630,40 +681,40 @@ class _TopBar extends StatelessWidget {
                   ),
                 ),
               ),
-            ],
+            ),
           ),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              OutlinedButton.icon(
-                onPressed: () => GoRouter.of(context).go(AppConstants.routeSubscription),
-                icon: const Icon(Icons.workspace_premium_outlined, size: 15, color: AppTheme.iconRed),
-                label: Text(
-                  user.plan == SubscriptionPlan.free ? 'UPGRADE' : 'PRO PLAN',
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
-                ),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppTheme.textPrimary,
-                  side: const BorderSide(color: AppTheme.divider),
-                  padding: EdgeInsets.symmetric(horizontal: isMobile ? 10 : 14, vertical: 8),
-                  minimumSize: Size.zero,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-              ),
-              if (!showSidebarToggle) ...[
-                const SizedBox(width: 6),
-                IconButton(
-                  icon: const Icon(Icons.logout_rounded, color: AppTheme.iconRed, size: 19),
-                  tooltip: 'Logout',
-                  visualDensity: VisualDensity.compact,
-                  onPressed: () async {
-                    await auth.logout();
-                    if (context.mounted) context.go(AppConstants.routeHome);
-                  },
-                ),
-              ],
-            ],
+          const SizedBox(width: 8),
+          OutlinedButton.icon(
+            onPressed: () => GoRouter.of(context).go(AppConstants.routeSubscription),
+            icon: const Icon(Icons.workspace_premium_outlined, size: 14, color: AppTheme.iconRed),
+            label: Text(
+              user.plan == SubscriptionPlan.free
+                  ? (isTinyMobile ? 'PRO' : 'UPGRADE')
+                  : 'PRO',
+              style: TextStyle(fontSize: isMobile ? 11 : 12, fontWeight: FontWeight.w800),
+            ),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppTheme.textPrimary,
+              side: const BorderSide(color: AppTheme.divider),
+              padding: EdgeInsets.symmetric(horizontal: isMobile ? 8 : 14, vertical: isMobile ? 6 : 8),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
           ),
+          if (!showSidebarToggle) ...[
+            const SizedBox(width: 4),
+            IconButton(
+              icon: const Icon(Icons.logout_rounded, color: AppTheme.iconRed, size: 18),
+              tooltip: 'Logout',
+              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+              padding: const EdgeInsets.all(6),
+              visualDensity: VisualDensity.compact,
+              onPressed: () async {
+                await auth.logout();
+                if (context.mounted) context.go(AppConstants.routeHome);
+              },
+            ),
+          ],
         ],
       ),
     );
@@ -1318,7 +1369,14 @@ class _StatCard extends StatelessWidget {
 // ─── Clean Focused Question Bank ─────────────────────────────
 class QuestionsTab extends StatefulWidget {
   final VoidCallback? onGoToExams;
-  const QuestionsTab({super.key, this.onGoToExams});
+  final bool isFullFocusMode;
+  final ValueChanged<bool>? onToggleFullFocusMode;
+  const QuestionsTab({
+    super.key,
+    this.onGoToExams,
+    this.isFullFocusMode = false,
+    this.onToggleFullFocusMode,
+  });
   @override
   State<QuestionsTab> createState() => _QuestionsTabState();
 }
@@ -1343,6 +1401,13 @@ class _QuestionsTabState extends State<QuestionsTab> {
     final next = idx + delta;
     if (next >= 0 && next < list.length) {
       setState(() => _selected = list[next]);
+    }
+  }
+
+  void _exitMobileReader() {
+    setState(() => _selected = null);
+    if (widget.isFullFocusMode) {
+      widget.onToggleFullFocusMode?.call(false);
     }
   }
 
@@ -1378,43 +1443,68 @@ class _QuestionsTabState extends State<QuestionsTab> {
     final currentIdx = selectedId != null
         ? accessible.indexWhere((q) => q.id == selectedId)
         : -1;
+    final isMobileReading = !isWide && _selected != null;
 
     return Column(
       children: [
-        // ── Single Clean Toolbar ────────────────────────────────
-        _QBankToolbar(
-          searchCtrl: _searchCtrl,
-          lang: _lang,
-          fontSize: _fontSize,
-          studiedCount: _studiedIds.length,
-          total: accessible.length,
-          currentIdx: currentIdx,
-          isWide: isWide,
-          isListCollapsed: _listCollapsed,
-          onLangChanged: (l) => setState(() => _lang = l),
-          onFontDec: () => setState(() => _fontSize = (_fontSize - 1).clamp(13, 22)),
-          onFontInc: () => setState(() => _fontSize = (_fontSize + 1).clamp(13, 22)),
-          onSearch: (v) { qp.setFilters(query: v); setState(() {}); },
-          onClearSearch: () { _searchCtrl.clear(); qp.setFilters(query: ''); setState(() {}); },
-          onPrev: currentIdx > 0 ? () => _go(accessible, -1) : null,
-          onNext: currentIdx >= 0 && currentIdx < accessible.length - 1 ? () => _go(accessible, 1) : null,
-          onToggleList: () => setState(() => _listCollapsed = !_listCollapsed),
-          paperFilter: qp.paperFilter,
-          typeFilter: qp.typeFilter,
-          onFilterChanged: (paper, type) {
-            if (paper == null && type == null) {
-              qp.clearFilters();
-            } else {
-              qp.setFilters(
-                paper: paper,
-                clearPaper: paper == null,
-                type: type,
-                clearType: type == null,
-                clearSection: true,
-              );
-            }
-          },
-        ),
+        // ── Adaptive Toolbar: Mobile Study Focus Bar vs Browse Toolbar ──
+        if (isMobileReading)
+          _MobileFocusReaderBar(
+            lang: _lang,
+            fontSize: _fontSize,
+            currentIdx: currentIdx,
+            total: accessible.length,
+            isFullFocusMode: widget.isFullFocusMode,
+            onBackToList: _exitMobileReader,
+            onLangChanged: (l) => setState(() => _lang = l),
+            onFontDec: () => setState(() => _fontSize = (_fontSize - 1).clamp(13, 22)),
+            onFontInc: () => setState(() => _fontSize = (_fontSize + 1).clamp(13, 22)),
+            onToggleFullFocus: () => widget.onToggleFullFocusMode?.call(!widget.isFullFocusMode),
+            onPrev: currentIdx > 0 ? () => _go(accessible, -1) : null,
+            onNext: currentIdx >= 0 && currentIdx < accessible.length - 1 ? () => _go(accessible, 1) : null,
+          )
+        else
+          _QBankToolbar(
+            searchCtrl: _searchCtrl,
+            lang: _lang,
+            fontSize: _fontSize,
+            studiedCount: _studiedIds.length,
+            total: accessible.length,
+            currentIdx: currentIdx,
+            isWide: isWide,
+            isListCollapsed: _listCollapsed,
+            isFullFocusMode: widget.isFullFocusMode,
+            onToggleFullFocus: () {
+              final nextFocus = !widget.isFullFocusMode;
+              widget.onToggleFullFocusMode?.call(nextFocus);
+              if (isWide) {
+                setState(() => _listCollapsed = nextFocus);
+              }
+            },
+            onLangChanged: (l) => setState(() => _lang = l),
+            onFontDec: () => setState(() => _fontSize = (_fontSize - 1).clamp(13, 22)),
+            onFontInc: () => setState(() => _fontSize = (_fontSize + 1).clamp(13, 22)),
+            onSearch: (v) { qp.setFilters(query: v); setState(() {}); },
+            onClearSearch: () { _searchCtrl.clear(); qp.setFilters(query: ''); setState(() {}); },
+            onPrev: currentIdx > 0 ? () => _go(accessible, -1) : null,
+            onNext: currentIdx >= 0 && currentIdx < accessible.length - 1 ? () => _go(accessible, 1) : null,
+            onToggleList: () => setState(() => _listCollapsed = !_listCollapsed),
+            paperFilter: qp.paperFilter,
+            typeFilter: qp.typeFilter,
+            onFilterChanged: (paper, type) {
+              if (paper == null && type == null) {
+                qp.clearFilters();
+              } else {
+                qp.setFilters(
+                  paper: paper,
+                  clearPaper: paper == null,
+                  type: type,
+                  clearType: type == null,
+                  clearSection: true,
+                );
+              }
+            },
+          ),
         // ── Main Layout ─────────────────────────────────────────
         Expanded(
           child: qp.loading
@@ -1456,6 +1546,7 @@ class _QuestionsTabState extends State<QuestionsTab> {
                                       lang: _lang,
                                       fontSize: _fontSize,
                                       isStudied: _studiedIds.contains(_selected!.id),
+                                      isFullFocusMode: widget.isFullFocusMode,
                                       onToggleStudied: () => setState(() {
                                         final id = _selected!.id;
                                         _studiedIds.contains(id) ? _studiedIds.remove(id) : _studiedIds.add(id);
@@ -1487,16 +1578,278 @@ class _QuestionsTabState extends State<QuestionsTab> {
                               lang: _lang,
                               fontSize: _fontSize,
                               isStudied: _studiedIds.contains(_selected!.id),
+                              isFullFocusMode: widget.isFullFocusMode,
                               onToggleStudied: () => setState(() {
                                 final id = _selected!.id;
                                 _studiedIds.contains(id) ? _studiedIds.remove(id) : _studiedIds.add(id);
                               }),
-                              onBack: () => setState(() => _selected = null),
+                              onBack: _exitMobileReader,
                               onPrev: currentIdx > 0 ? () => _go(accessible, -1) : null,
                               onNext: currentIdx >= 0 && currentIdx < accessible.length - 1 ? () => _go(accessible, 1) : null,
                             ),
         ),
       ],
+    );
+  }
+}
+
+// ── Mobile Focus Study Reader Bar (Single-Row Compact Header on Mobile) ──
+class _MobileFocusReaderBar extends StatelessWidget {
+  final String lang;
+  final double fontSize;
+  final int currentIdx;
+  final int total;
+  final bool isFullFocusMode;
+  final VoidCallback onBackToList;
+  final ValueChanged<String> onLangChanged;
+  final VoidCallback onFontDec;
+  final VoidCallback onFontInc;
+  final VoidCallback onToggleFullFocus;
+  final VoidCallback? onPrev;
+  final VoidCallback? onNext;
+
+  const _MobileFocusReaderBar({
+    required this.lang,
+    required this.fontSize,
+    required this.currentIdx,
+    required this.total,
+    required this.isFullFocusMode,
+    required this.onBackToList,
+    required this.onLangChanged,
+    required this.onFontDec,
+    required this.onFontInc,
+    required this.onToggleFullFocus,
+    this.onPrev,
+    this.onNext,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isTiny = MediaQuery.of(context).size.width < 370;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(bottom: BorderSide(color: AppTheme.divider, width: 1)),
+      ),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minWidth: MediaQuery.of(context).size.width - 16),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              // Back to list button
+              InkWell(
+                onTap: onBackToList,
+                borderRadius: BorderRadius.circular(6),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF4F4F5),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: AppTheme.divider),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.arrow_back_rounded, size: 15, color: AppTheme.textPrimary),
+                      const SizedBox(width: 4),
+                      Text(
+                        isTiny ? 'List' : 'All Qs',
+                        style: const TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w800,
+                          color: AppTheme.textPrimary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 6),
+
+              // Compact Controls Row: Lang + Font + Full Focus + Prev/Next
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Language toggle (ने / EN)
+                  Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF4F4F5),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: AppTheme.divider),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        GestureDetector(
+                          onTap: () => onLangChanged('nepali'),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3.5),
+                            decoration: BoxDecoration(
+                              color: lang == 'nepali' ? Colors.white : Colors.transparent,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              'ने',
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                fontWeight: lang == 'nepali' ? FontWeight.w800 : FontWeight.w600,
+                                color: lang == 'nepali' ? AppTheme.iconRed : AppTheme.textMuted,
+                              ),
+                            ),
+                          ),
+                        ),
+                        GestureDetector(
+                          onTap: () => onLangChanged('english'),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3.5),
+                            decoration: BoxDecoration(
+                              color: lang == 'english' ? Colors.white : Colors.transparent,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              'EN',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: lang == 'english' ? FontWeight.w800 : FontWeight.w600,
+                                color: lang == 'english' ? AppTheme.iconRed : AppTheme.textMuted,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 5),
+
+                  // Compact Font Size (A- / A+)
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: AppTheme.divider),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        InkWell(
+                          onTap: onFontDec,
+                          child: const Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 7, vertical: 4.5),
+                            child: Text('A−', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppTheme.textPrimary)),
+                          ),
+                        ),
+                        Container(width: 1, height: 14, color: AppTheme.divider),
+                        InkWell(
+                          onTap: onFontInc,
+                          child: const Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 7, vertical: 4.5),
+                            child: Text('A+', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800, color: AppTheme.textPrimary)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 5),
+
+                  // Full Screen Focus Mode Toggle Button
+                  InkWell(
+                    onTap: onToggleFullFocus,
+                    borderRadius: BorderRadius.circular(6),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: isFullFocusMode ? AppTheme.iconRed : AppTheme.iconRedLight,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(
+                          color: isFullFocusMode ? AppTheme.iconRed : AppTheme.iconRed.withOpacity(0.4),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            isFullFocusMode ? Icons.fullscreen_exit_rounded : Icons.fullscreen_rounded,
+                            size: 15,
+                            color: isFullFocusMode ? Colors.white : AppTheme.iconRed,
+                          ),
+                          const SizedBox(width: 3),
+                          Text(
+                            isFullFocusMode ? 'Exit Focus' : 'Focus',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                              color: isFullFocusMode ? Colors.white : AppTheme.iconRedDark,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 5),
+
+                  // Compact Page Turner (< 1/N >)
+                  if (currentIdx >= 0)
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        InkWell(
+                          onTap: onPrev,
+                          borderRadius: BorderRadius.circular(5),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4.5),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(5),
+                              border: Border.all(color: AppTheme.divider),
+                            ),
+                            child: Icon(
+                              Icons.chevron_left_rounded,
+                              size: 16,
+                              color: onPrev != null ? AppTheme.textPrimary : AppTheme.divider,
+                            ),
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 5),
+                          child: Text(
+                            '${currentIdx + 1}/$total',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                              color: AppTheme.textPrimary,
+                            ),
+                          ),
+                        ),
+                        InkWell(
+                          onTap: onNext,
+                          borderRadius: BorderRadius.circular(5),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4.5),
+                            decoration: BoxDecoration(
+                              color: onNext != null ? AppTheme.iconRed : Colors.white,
+                              borderRadius: BorderRadius.circular(5),
+                              border: Border.all(color: onNext != null ? AppTheme.iconRed : AppTheme.divider),
+                            ),
+                            child: Icon(
+                              Icons.chevron_right_rounded,
+                              size: 16,
+                              color: onNext != null ? Colors.white : AppTheme.divider,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -1511,6 +1864,8 @@ class _QBankToolbar extends StatelessWidget {
   final int currentIdx;
   final bool isWide;
   final bool isListCollapsed;
+  final bool isFullFocusMode;
+  final VoidCallback onToggleFullFocus;
   final ValueChanged<String> onLangChanged;
   final VoidCallback onFontDec;
   final VoidCallback onFontInc;
@@ -1532,6 +1887,8 @@ class _QBankToolbar extends StatelessWidget {
     required this.currentIdx,
     required this.isWide,
     required this.isListCollapsed,
+    required this.isFullFocusMode,
+    required this.onToggleFullFocus,
     required this.onLangChanged,
     required this.onFontDec,
     required this.onFontInc,
@@ -1559,113 +1916,215 @@ class _QBankToolbar extends StatelessWidget {
         children: [
           // Row 1: Search + Lang + Font + Nav
           Padding(
-            padding: const EdgeInsets.fromLTRB(14, 10, 14, 0),
-            child: Wrap(
-              spacing: 10,
-              runSpacing: 8,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              alignment: WrapAlignment.spaceBetween,
-              children: [
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    if (isWide)
-                      _ToolBtn(
-                        tooltip: isListCollapsed ? 'Show Question List' : 'Hide Question List',
-                        icon: isListCollapsed ? Icons.view_list_rounded : Icons.view_sidebar_outlined,
-                        active: isListCollapsed,
-                        onTap: onToggleList,
-                      ),
-                    // Search field
-                    SizedBox(
-                      width: isMobile ? (screenW - 28).clamp(180.0, 500.0) : 210,
-                      height: 34,
-                      child: TextField(
-                        controller: searchCtrl,
-                        style: const TextStyle(fontSize: 13),
-                        decoration: InputDecoration(
-                          hintText: 'Search questions...',
-                          hintStyle: const TextStyle(fontSize: 12.5, color: AppTheme.textMuted),
-                          prefixIcon: const Icon(Icons.search_rounded, size: 17, color: AppTheme.primaryColor),
-                          suffixIcon: searchCtrl.text.isNotEmpty
-                              ? InkWell(
-                                  onTap: onClearSearch,
-                                  child: const Icon(Icons.close_rounded, size: 15, color: AppTheme.textMuted),
-                                )
-                              : null,
-                          isDense: true,
-                          contentPadding: const EdgeInsets.symmetric(vertical: 9),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(7),
-                            borderSide: const BorderSide(color: AppTheme.divider),
+            padding: EdgeInsets.fromLTRB(isMobile ? 10 : 14, isMobile ? 8 : 10, isMobile ? 10 : 14, 0),
+            child: isMobile
+                ? Column(
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: SizedBox(
+                              height: 34,
+                              child: TextField(
+                                controller: searchCtrl,
+                                style: const TextStyle(fontSize: 13),
+                                decoration: InputDecoration(
+                                  hintText: 'Search questions...',
+                                  hintStyle: const TextStyle(fontSize: 12, color: AppTheme.textMuted),
+                                  prefixIcon: const Icon(Icons.search_rounded, size: 16, color: AppTheme.primaryColor),
+                                  suffixIcon: searchCtrl.text.isNotEmpty
+                                      ? InkWell(
+                                          onTap: onClearSearch,
+                                          child: const Icon(Icons.close_rounded, size: 15, color: AppTheme.textMuted),
+                                        )
+                                      : null,
+                                  isDense: true,
+                                  contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(7),
+                                    borderSide: const BorderSide(color: AppTheme.divider),
+                                  ),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(7),
+                                    borderSide: const BorderSide(color: AppTheme.divider),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(7),
+                                    borderSide: BorderSide(color: AppTheme.iconRed.withOpacity(0.5)),
+                                  ),
+                                ),
+                                onChanged: onSearch,
+                              ),
+                            ),
                           ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(7),
-                            borderSide: const BorderSide(color: AppTheme.divider),
+                          const SizedBox(width: 8),
+                          _SegToggle(
+                            options: const ['ने', 'EN'],
+                            values: const ['nepali', 'english'],
+                            selected: lang,
+                            onChanged: onLangChanged,
                           ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(7),
-                            borderSide: BorderSide(color: AppTheme.iconRed.withOpacity(0.5)),
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF4F4F5),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: AppTheme.divider),
+                            ),
+                            child: Text(
+                              '✓ $studiedCount/$total',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                color: AppTheme.textPrimary,
+                              ),
+                            ),
                           ),
-                        ),
-                        onChanged: onSearch,
+                        ],
                       ),
-                    ),
-                  ],
-                ),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    // Lang toggle
-                    _SegToggle(
-                      options: const ['नेपाली', 'English'],
-                      values: const ['nepali', 'english'],
-                      selected: lang,
-                      onChanged: onLangChanged,
-                    ),
-                    // Font size
-                    _FontControl(
-                      size: fontSize,
-                      onDec: onFontDec,
-                      onInc: onFontInc,
-                    ),
-                    // Progress pill
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF4F4F5),
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: AppTheme.divider),
+                    ],
+                  )
+                : Wrap(
+                    spacing: 10,
+                    runSpacing: 8,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    alignment: WrapAlignment.spaceBetween,
+                    children: [
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          if (isWide)
+                            _ToolBtn(
+                              tooltip: isListCollapsed ? 'Show Question List' : 'Hide Question List',
+                              icon: isListCollapsed ? Icons.view_list_rounded : Icons.view_sidebar_outlined,
+                              active: isListCollapsed,
+                              onTap: onToggleList,
+                            ),
+                          // Search field
+                          SizedBox(
+                            width: 210,
+                            height: 34,
+                            child: TextField(
+                              controller: searchCtrl,
+                              style: const TextStyle(fontSize: 13),
+                              decoration: InputDecoration(
+                                hintText: 'Search questions...',
+                                hintStyle: const TextStyle(fontSize: 12.5, color: AppTheme.textMuted),
+                                prefixIcon: const Icon(Icons.search_rounded, size: 17, color: AppTheme.primaryColor),
+                                suffixIcon: searchCtrl.text.isNotEmpty
+                                    ? InkWell(
+                                        onTap: onClearSearch,
+                                        child: const Icon(Icons.close_rounded, size: 15, color: AppTheme.textMuted),
+                                      )
+                                    : null,
+                                isDense: true,
+                                contentPadding: const EdgeInsets.symmetric(vertical: 9),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(7),
+                                  borderSide: const BorderSide(color: AppTheme.divider),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(7),
+                                  borderSide: const BorderSide(color: AppTheme.divider),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(7),
+                                  borderSide: BorderSide(color: AppTheme.iconRed.withOpacity(0.5)),
+                                ),
+                              ),
+                              onChanged: onSearch,
+                            ),
+                          ),
+                        ],
                       ),
-                      child: Text(
-                        '✓ $studiedCount / $total',
-                        style: const TextStyle(
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w700,
-                          color: AppTheme.textPrimary,
-                        ),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          // Lang toggle
+                          _SegToggle(
+                            options: const ['नेपाली', 'English'],
+                            values: const ['nepali', 'english'],
+                            selected: lang,
+                            onChanged: onLangChanged,
+                          ),
+                          // Font size
+                          _FontControl(
+                            size: fontSize,
+                            onDec: onFontDec,
+                            onInc: onFontInc,
+                          ),
+                          // Full Focus Mode toggle button
+                          InkWell(
+                            onTap: onToggleFullFocus,
+                            borderRadius: BorderRadius.circular(6),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                              decoration: BoxDecoration(
+                                color: isFullFocusMode ? AppTheme.iconRed : AppTheme.iconRedLight,
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(
+                                  color: isFullFocusMode ? AppTheme.iconRed : AppTheme.iconRed.withOpacity(0.35),
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    isFullFocusMode ? Icons.fullscreen_exit_rounded : Icons.fullscreen_rounded,
+                                    size: 15,
+                                    color: isFullFocusMode ? Colors.white : AppTheme.iconRed,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    isFullFocusMode ? 'Exit Focus' : 'Full Focus',
+                                    style: TextStyle(
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.w800,
+                                      color: isFullFocusMode ? Colors.white : AppTheme.iconRedDark,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          // Progress pill
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF4F4F5),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: AppTheme.divider),
+                            ),
+                            child: Text(
+                              '✓ $studiedCount / $total',
+                              style: const TextStyle(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w700,
+                                color: AppTheme.textPrimary,
+                              ),
+                            ),
+                          ),
+                          if (currentIdx >= 0)
+                            // Prev / Next
+                            _NavControl(
+                              currentIdx: currentIdx,
+                              total: total,
+                              onPrev: onPrev,
+                              onNext: onNext,
+                            ),
+                        ],
                       ),
-                    ),
-                    if (currentIdx >= 0)
-                      // Prev / Next
-                      _NavControl(
-                        currentIdx: currentIdx,
-                        total: total,
-                        onPrev: onPrev,
-                        onNext: onNext,
-                      ),
-                  ],
-                ),
-              ],
-            ),
+                    ],
+                  ),
           ),
           // Row 2: Filter chips
           Padding(
-            padding: const EdgeInsets.fromLTRB(14, 8, 14, 10),
+            padding: EdgeInsets.fromLTRB(isMobile ? 10 : 14, 7, isMobile ? 10 : 14, isMobile ? 8 : 10),
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
@@ -1772,7 +2231,7 @@ class _SegToggle extends StatelessWidget {
             onTap: () => onChanged(values[i]),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 150),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
               decoration: BoxDecoration(
                 color: isActive ? Colors.white : Colors.transparent,
                 borderRadius: BorderRadius.circular(5),
@@ -2134,6 +2593,7 @@ class _StudyReader extends StatefulWidget {
   final String lang;
   final double fontSize;
   final bool isStudied;
+  final bool isFullFocusMode;
   final VoidCallback onToggleStudied;
   final VoidCallback? onBack;
   final VoidCallback? onPrev;
@@ -2147,6 +2607,7 @@ class _StudyReader extends StatefulWidget {
     required this.lang,
     required this.fontSize,
     required this.isStudied,
+    this.isFullFocusMode = false,
     required this.onToggleStudied,
     this.onBack,
     this.onPrev,
@@ -2181,20 +2642,31 @@ class _StudyReaderState extends State<_StudyReader> {
     final locked = plan == SubscriptionPlan.free && widget.question.isPremium;
     final isMobile = MediaQuery.of(context).size.width < 600;
 
-    return _LinedCopySheet(
-      scrollController: _scroll,
-      question: widget.question,
-      questionNumber: widget.questionNumber,
-      totalQuestions: widget.totalQuestions,
-      lang: widget.lang,
-      fontSize: widget.fontSize,
-      isStudied: widget.isStudied,
-      locked: locked,
-      isMobile: isMobile,
-      onToggleStudied: widget.onToggleStudied,
-      onBack: widget.onBack,
-      onPrev: widget.onPrev,
-      onNext: widget.onNext,
+    return GestureDetector(
+      onHorizontalDragEnd: (details) {
+        final v = details.primaryVelocity ?? 0;
+        if (v < -320 && widget.onNext != null) {
+          widget.onNext!();
+        } else if (v > 320 && widget.onPrev != null) {
+          widget.onPrev!();
+        }
+      },
+      child: _LinedCopySheet(
+        scrollController: _scroll,
+        question: widget.question,
+        questionNumber: widget.questionNumber,
+        totalQuestions: widget.totalQuestions,
+        lang: widget.lang,
+        fontSize: widget.fontSize,
+        isStudied: widget.isStudied,
+        locked: locked,
+        isMobile: isMobile,
+        isFullFocusMode: widget.isFullFocusMode,
+        onToggleStudied: widget.onToggleStudied,
+        onBack: widget.onBack,
+        onPrev: widget.onPrev,
+        onNext: widget.onNext,
+      ),
     );
   }
 }
@@ -2210,6 +2682,7 @@ class _LinedCopySheet extends StatelessWidget {
   final bool isStudied;
   final bool locked;
   final bool isMobile;
+  final bool isFullFocusMode;
   final VoidCallback onToggleStudied;
   final VoidCallback? onBack;
   final VoidCallback? onPrev;
@@ -2225,6 +2698,7 @@ class _LinedCopySheet extends StatelessWidget {
     required this.isStudied,
     required this.locked,
     required this.isMobile,
+    this.isFullFocusMode = false,
     required this.onToggleStudied,
     this.onBack,
     this.onPrev,
@@ -2250,10 +2724,10 @@ class _LinedCopySheet extends StatelessWidget {
     final activeAnswer = lang == 'english' ? englishAnswer : nepaliAnswer;
 
     // Exact line-height locking so every text baseline rests on a physical ruled line
-    final double lineHeight = (fontSize * 2.15).roundToDouble();
+    final double lineHeight = (fontSize * (isMobile ? 2.08 : 2.15)).roundToDouble();
     final double textHeightRatio = lineHeight / fontSize;
-    final double leftMarginWidth = isMobile ? 54.0 : 80.0;
-    final double rightPad = isMobile ? 14.0 : 28.0;
+    final double leftMarginWidth = isMobile ? 42.0 : 80.0;
+    final double rightPad = isMobile ? 10.0 : 28.0;
 
     final baseQuestionStyle = TextStyle(
       fontSize: fontSize + 0.5,
@@ -2269,31 +2743,32 @@ class _LinedCopySheet extends StatelessWidget {
       leading: 0,
     );
 
+    final marginLabelFontSize = isMobile ? 10.5 : 13.0;
     final marginLabelStyle = TextStyle(
-      fontSize: isMobile ? 12.0 : 13.0,
+      fontSize: marginLabelFontSize,
       fontWeight: FontWeight.w800,
-      height: lineHeight / (isMobile ? 12.0 : 13.0),
+      height: lineHeight / marginLabelFontSize,
       color: AppTheme.iconRed,
     );
     final marginLabelStrut = StrutStyle(
-      fontSize: isMobile ? 12.0 : 13.0,
-      height: lineHeight / (isMobile ? 12.0 : 13.0),
+      fontSize: marginLabelFontSize,
+      height: lineHeight / marginLabelFontSize,
       forceStrutHeight: true,
       leading: 0,
     );
 
     final qLabel = lang == 'nepali'
-        ? 'प्र. ${_toNepaliDigits(questionNumber)}.'
+        ? (isMobile ? 'प्र.${_toNepaliDigits(questionNumber)}' : 'प्र. ${_toNepaliDigits(questionNumber)}.')
         : 'Q.$questionNumber';
     final ansLabel = lang == 'nepali' ? 'उत्तर:' : 'Ans:';
 
     return Container(
-      color: const Color(0xFFEDEDED),
+      color: isMobile && isFullFocusMode ? Colors.white : const Color(0xFFEDEDED),
       child: SingleChildScrollView(
         controller: scrollController,
         padding: EdgeInsets.symmetric(
-          horizontal: isMobile ? 6 : 24,
-          vertical: isMobile ? 10 : 22,
+          horizontal: isMobile ? (isFullFocusMode ? 0 : 3) : 24,
+          vertical: isMobile ? (isFullFocusMode ? 0 : 6) : 22,
         ),
         child: Center(
           child: ConstrainedBox(
@@ -2301,58 +2776,29 @@ class _LinedCopySheet extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                if (onBack != null) ...[
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: InkWell(
-                      onTap: onBack,
-                      borderRadius: BorderRadius.circular(6),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: AppTheme.divider),
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.arrow_back_rounded, size: 15, color: AppTheme.textPrimary),
-                            SizedBox(width: 6),
-                            Text(
-                              'Back to Question List',
-                              style: TextStyle(
-                                fontSize: 12.5,
-                                fontWeight: FontWeight.w700,
-                                color: AppTheme.textPrimary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                ],
-
                 // ── THE PHYSICAL LINING COPY PAGE ──
                 Container(
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(3),
-                    border: Border.all(color: const Color(0xFFD4D4D8), width: 1),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Color(0x18000000),
-                        blurRadius: 16,
-                        offset: Offset(0, 6),
-                      ),
-                      BoxShadow(
-                        color: Color(0x0A000000),
-                        blurRadius: 3,
-                        offset: Offset(2, 2),
-                      ),
-                    ],
+                    borderRadius: BorderRadius.circular(isMobile && isFullFocusMode ? 0 : 3),
+                    border: Border.all(
+                      color: const Color(0xFFD4D4D8),
+                      width: isMobile && isFullFocusMode ? 0.5 : 1,
+                    ),
+                    boxShadow: isMobile && isFullFocusMode
+                        ? null
+                        : const [
+                            BoxShadow(
+                              color: Color(0x18000000),
+                              blurRadius: 16,
+                              offset: Offset(0, 6),
+                            ),
+                            BoxShadow(
+                              color: Color(0x0A000000),
+                              blurRadius: 3,
+                              offset: Offset(2, 2),
+                            ),
+                          ],
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -2381,19 +2827,19 @@ class _LinedCopySheet extends StatelessWidget {
                                   child: Column(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
-                                      const Icon(
+                                      Icon(
                                         Icons.menu_book_rounded,
-                                        size: 16,
+                                        size: isMobile ? 13 : 16,
                                         color: AppTheme.iconRed,
                                       ),
-                                      const SizedBox(height: 2),
+                                      const SizedBox(height: 1),
                                       Text(
                                         lang == 'nepali' ? 'लोकसेवा' : 'PSC',
-                                        style: const TextStyle(
-                                          fontSize: 9.5,
+                                        style: TextStyle(
+                                          fontSize: isMobile ? 8.0 : 9.5,
                                           fontWeight: FontWeight.w800,
                                           color: AppTheme.iconRed,
-                                          letterSpacing: 0.3,
+                                          letterSpacing: 0.2,
                                         ),
                                       ),
                                     ],
@@ -2406,27 +2852,29 @@ class _LinedCopySheet extends StatelessWidget {
                             Expanded(
                               child: Padding(
                                 padding: EdgeInsets.fromLTRB(
-                                  isMobile ? 10 : 18,
-                                  isMobile ? 10 : 14,
+                                  isMobile ? 8 : 18,
+                                  isMobile ? 7 : 14,
                                   rightPad,
-                                  isMobile ? 10 : 12,
+                                  isMobile ? 7 : 12,
                                 ),
                                 child: Wrap(
                                   alignment: WrapAlignment.spaceBetween,
                                   crossAxisAlignment: WrapCrossAlignment.center,
-                                  runSpacing: 10,
-                                  spacing: 12,
+                                  runSpacing: 6,
+                                  spacing: 8,
                                   children: [
                                     // Paper & Unit title + Action pills
                                     Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        Row(
-                                          mainAxisSize: MainAxisSize.min,
+                                        Wrap(
+                                          spacing: 6,
+                                          runSpacing: 4,
+                                          crossAxisAlignment: WrapCrossAlignment.center,
                                           children: [
                                             Container(
-                                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
                                               decoration: BoxDecoration(
                                                 color: AppTheme.iconRedLight,
                                                 borderRadius: BorderRadius.circular(3),
@@ -2434,29 +2882,28 @@ class _LinedCopySheet extends StatelessWidget {
                                               ),
                                               child: Text(
                                                 question.paper == PaperType.paper1 ? 'PAPER I' : 'PAPER II',
-                                                style: const TextStyle(
-                                                  fontSize: 10,
+                                                style: TextStyle(
+                                                  fontSize: isMobile ? 9 : 10,
                                                   fontWeight: FontWeight.w800,
                                                   color: AppTheme.iconRedDark,
-                                                  letterSpacing: 0.5,
+                                                  letterSpacing: 0.4,
                                                 ),
                                               ),
                                             ),
-                                            const SizedBox(width: 6),
                                             Text(
                                               'Unit ${question.unitNumber} · ${question.type == QuestionType.mcq ? "MCQ" : "${question.marks} Marks"}',
-                                              style: const TextStyle(
-                                                fontSize: 11.5,
+                                              style: TextStyle(
+                                                fontSize: isMobile ? 10.5 : 11.5,
                                                 fontWeight: FontWeight.w700,
                                                 color: AppTheme.textPrimary,
                                               ),
                                             ),
                                           ],
                                         ),
-                                        const SizedBox(height: 6),
+                                        const SizedBox(height: 5),
                                         Wrap(
-                                          spacing: 8,
-                                          runSpacing: 6,
+                                          spacing: 6,
+                                          runSpacing: 5,
                                           crossAxisAlignment: WrapCrossAlignment.center,
                                           children: [
                                             // Mark Revised button
@@ -2464,7 +2911,10 @@ class _LinedCopySheet extends StatelessWidget {
                                               onTap: onToggleStudied,
                                               borderRadius: BorderRadius.circular(4),
                                               child: Container(
-                                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
+                                                padding: EdgeInsets.symmetric(
+                                                  horizontal: isMobile ? 7 : 8,
+                                                  vertical: isMobile ? 2.5 : 3.5,
+                                                ),
                                                 decoration: BoxDecoration(
                                                   color: isStudied ? AppTheme.iconRedLight : Colors.white,
                                                   borderRadius: BorderRadius.circular(4),
@@ -2479,14 +2929,14 @@ class _LinedCopySheet extends StatelessWidget {
                                                       isStudied
                                                           ? Icons.check_circle_rounded
                                                           : Icons.check_circle_outline_rounded,
-                                                      size: 13,
+                                                      size: isMobile ? 12 : 13,
                                                       color: isStudied ? AppTheme.iconRed : AppTheme.textMuted,
                                                     ),
                                                     const SizedBox(width: 4),
                                                     Text(
                                                       isStudied ? 'Revised ✓' : 'Mark Revised',
                                                       style: TextStyle(
-                                                        fontSize: 11,
+                                                        fontSize: isMobile ? 10 : 11,
                                                         fontWeight: FontWeight.w700,
                                                         color: isStudied ? AppTheme.iconRedDark : AppTheme.textPrimary,
                                                       ),
@@ -2513,21 +2963,24 @@ class _LinedCopySheet extends StatelessWidget {
                                                 },
                                                 borderRadius: BorderRadius.circular(4),
                                                 child: Container(
-                                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
+                                                  padding: EdgeInsets.symmetric(
+                                                    horizontal: isMobile ? 7 : 8,
+                                                    vertical: isMobile ? 2.5 : 3.5,
+                                                  ),
                                                   decoration: BoxDecoration(
                                                     color: Colors.white,
                                                     borderRadius: BorderRadius.circular(4),
                                                     border: Border.all(color: AppTheme.divider),
                                                   ),
-                                                  child: const Row(
+                                                  child: Row(
                                                     mainAxisSize: MainAxisSize.min,
                                                     children: [
-                                                      Icon(Icons.copy_outlined, size: 12, color: AppTheme.textMuted),
-                                                      SizedBox(width: 4),
+                                                      Icon(Icons.copy_outlined, size: isMobile ? 11 : 12, color: AppTheme.textMuted),
+                                                      const SizedBox(width: 3),
                                                       Text(
                                                         'Copy',
                                                         style: TextStyle(
-                                                          fontSize: 11,
+                                                          fontSize: isMobile ? 10 : 11,
                                                           fontWeight: FontWeight.w600,
                                                           color: AppTheme.textMuted,
                                                         ),
@@ -2543,9 +2996,12 @@ class _LinedCopySheet extends StatelessWidget {
 
                                     // Physical Copy Top-Right Corner Box (Page No. / Marks / Year)
                                     Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                      padding: EdgeInsets.symmetric(
+                                        horizontal: isMobile ? 7 : 10,
+                                        vertical: isMobile ? 4 : 6,
+                                      ),
                                       decoration: BoxDecoration(
-                                        border: Border.all(color: AppTheme.iconRed, width: 1.1),
+                                        border: Border.all(color: AppTheme.iconRed, width: 1.0),
                                         borderRadius: BorderRadius.circular(3),
                                       ),
                                       child: Column(
@@ -2554,23 +3010,23 @@ class _LinedCopySheet extends StatelessWidget {
                                         children: [
                                           Text(
                                             'Page No.: ${questionNumber.toString().padLeft(2, '0')} / $totalQuestions',
-                                            style: const TextStyle(
-                                              fontSize: 10.5,
+                                            style: TextStyle(
+                                              fontSize: isMobile ? 9.5 : 10.5,
                                               fontWeight: FontWeight.w800,
                                               color: AppTheme.iconRedDark,
-                                              height: 1.3,
+                                              height: 1.25,
                                             ),
                                           ),
-                                          const SizedBox(height: 2),
+                                          const SizedBox(height: 1.5),
                                           Text(
                                             question.yearsAsked.isNotEmpty
                                                 ? 'Asked: ${question.yearsAsked.join(", ")}'
                                                 : 'Marks: ${question.marks} Full Marks',
-                                            style: const TextStyle(
-                                              fontSize: 10,
+                                            style: TextStyle(
+                                              fontSize: isMobile ? 9 : 10,
                                               fontWeight: FontWeight.w600,
                                               color: AppTheme.textMuted,
-                                              height: 1.3,
+                                              height: 1.25,
                                             ),
                                           ),
                                         ],
@@ -2600,7 +3056,7 @@ class _LinedCopySheet extends StatelessWidget {
                           // Leave 1 empty ruled line at top and 2 empty ruled lines at bottom
                           padding: EdgeInsets.only(
                             top: lineHeight,
-                            bottom: lineHeight * 2,
+                            bottom: lineHeight * (isMobile ? 1.5 : 2.0),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -2613,8 +3069,8 @@ class _LinedCopySheet extends StatelessWidget {
                                     width: leftMarginWidth,
                                     child: Padding(
                                       padding: EdgeInsets.only(
-                                        left: isMobile ? 6 : 24,
-                                        right: 6,
+                                        left: isMobile ? 3 : 24,
+                                        right: isMobile ? 5 : 6,
                                       ),
                                       child: Text(
                                         qLabel,
@@ -2627,7 +3083,7 @@ class _LinedCopySheet extends StatelessWidget {
                                   Expanded(
                                     child: Padding(
                                       padding: EdgeInsets.only(
-                                        left: isMobile ? 10 : 16,
+                                        left: isMobile ? 8 : 16,
                                         right: rightPad,
                                       ),
                                       child: SelectableText(
@@ -2647,7 +3103,7 @@ class _LinedCopySheet extends StatelessWidget {
                               if (question.type == QuestionType.mcq)
                                 Padding(
                                   padding: EdgeInsets.only(
-                                    left: leftMarginWidth + (isMobile ? 10 : 16),
+                                    left: isMobile ? leftMarginWidth + 8 : leftMarginWidth + 16,
                                     right: rightPad,
                                   ),
                                   child: _MCQView(question: question, fontSize: fontSize),
@@ -2655,7 +3111,7 @@ class _LinedCopySheet extends StatelessWidget {
                               else if (locked)
                                 Padding(
                                   padding: EdgeInsets.only(
-                                    left: leftMarginWidth + (isMobile ? 10 : 16),
+                                    left: isMobile ? leftMarginWidth + 8 : leftMarginWidth + 16,
                                     right: rightPad,
                                   ),
                                   child: _PaywallCard(),
@@ -2668,8 +3124,8 @@ class _LinedCopySheet extends StatelessWidget {
                                       width: leftMarginWidth,
                                       child: Padding(
                                         padding: EdgeInsets.only(
-                                          left: isMobile ? 6 : 24,
-                                          right: 6,
+                                          left: isMobile ? 3 : 24,
+                                          right: isMobile ? 5 : 6,
                                         ),
                                         child: Text(
                                           ansLabel,
@@ -2682,7 +3138,7 @@ class _LinedCopySheet extends StatelessWidget {
                                     Expanded(
                                       child: Padding(
                                         padding: EdgeInsets.only(
-                                          left: isMobile ? 10 : 16,
+                                          left: isMobile ? 8 : 16,
                                           right: rightPad,
                                         ),
                                         child: _LinedAnswerBody(
@@ -2704,8 +3160,8 @@ class _LinedCopySheet extends StatelessWidget {
                       Container(height: 1.0, color: AppTheme.iconRed.withOpacity(0.5)),
                       Container(
                         padding: EdgeInsets.symmetric(
-                          horizontal: isMobile ? 12 : 24,
-                          vertical: 10,
+                          horizontal: isMobile ? 10 : 24,
+                          vertical: isMobile ? 9 : 10,
                         ),
                         color: const Color(0xFFFAFAFA),
                         child: Row(
@@ -2715,7 +3171,7 @@ class _LinedCopySheet extends StatelessWidget {
                               onTap: onPrev,
                               borderRadius: BorderRadius.circular(5),
                               child: Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
@@ -2724,9 +3180,9 @@ class _LinedCopySheet extends StatelessWidget {
                                       size: 12,
                                       color: onPrev != null ? AppTheme.textPrimary : AppTheme.divider,
                                     ),
-                                    const SizedBox(width: 5),
+                                    const SizedBox(width: 4),
                                     Text(
-                                      'Prev Page',
+                                      isMobile ? 'Prev' : 'Prev Page',
                                       style: TextStyle(
                                         fontSize: 12,
                                         fontWeight: FontWeight.w700,
@@ -2738,9 +3194,11 @@ class _LinedCopySheet extends StatelessWidget {
                               ),
                             ),
                             Text(
-                              'Copy Page $questionNumber of $totalQuestions',
-                              style: const TextStyle(
-                                fontSize: 11.5,
+                              isMobile
+                                  ? 'Page $questionNumber / $totalQuestions (Swipe ⇄)'
+                                  : 'Copy Page $questionNumber of $totalQuestions',
+                              style: TextStyle(
+                                fontSize: isMobile ? 11 : 11.5,
                                 fontWeight: FontWeight.w700,
                                 color: AppTheme.textMuted,
                               ),
@@ -2749,19 +3207,19 @@ class _LinedCopySheet extends StatelessWidget {
                               onTap: onNext,
                               borderRadius: BorderRadius.circular(5),
                               child: Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     Text(
-                                      'Next Page',
+                                      isMobile ? 'Next' : 'Next Page',
                                       style: TextStyle(
                                         fontSize: 12,
                                         fontWeight: FontWeight.w700,
                                         color: onNext != null ? AppTheme.iconRed : AppTheme.divider,
                                       ),
                                     ),
-                                    const SizedBox(width: 5),
+                                    const SizedBox(width: 4),
                                     Icon(
                                       Icons.arrow_forward_ios_rounded,
                                       size: 12,
@@ -2777,7 +3235,7 @@ class _LinedCopySheet extends StatelessWidget {
                     ],
                   ),
                 ),
-                const SizedBox(height: 28),
+                SizedBox(height: isMobile ? 16 : 28),
               ],
             ),
           ),
@@ -4468,41 +4926,48 @@ class _DonateQuestionsTabState extends State<DonateQuestionsTab> {
                     const SizedBox(height: 18),
 
                     // Stats cards row
-                    Wrap(
-                      spacing: 12,
-                      runSpacing: 12,
-                      children: [
-                        _DonationStatBox(
-                          label: 'Unclaimed Balance',
-                          value: 'रू ${_claimableRupees.toStringAsFixed(2)}',
-                          sub: 'Total earned: रू ${_earnedRupees.toStringAsFixed(2)}',
-                          highlightRed: true,
-                          width: isMobile ? (screenW - 76) / 2 : 195,
-                        ),
-                        _DonationStatBox(
-                          label: 'Verified (Unclaimed)',
-                          value: '$_unclaimedVerifiedCount / 200',
-                          sub: _claimedCount > 0
-                              ? '$_claimedCount Qs already claimed'
-                              : '200 Qs needed to claim',
-                          highlightRed: eligibleToClaim,
-                          width: isMobile ? (screenW - 76) / 2 : 195,
-                        ),
-                        _DonationStatBox(
-                          label: 'Pending Review',
-                          value: '$_pendingCount Qs',
-                          sub: 'Awaiting verification',
-                          highlightRed: false,
-                          width: isMobile ? (screenW - 76) / 2 : 195,
-                        ),
-                        _DonationStatBox(
-                          label: 'Total Donated',
-                          value: '$_totalSubmitted Qs',
-                          sub: 'All submissions',
-                          highlightRed: false,
-                          width: isMobile ? (screenW - 76) / 2 : 195,
-                        ),
-                      ],
+                    LayoutBuilder(
+                      builder: (ctx, constraints) {
+                        final boxW = isMobile
+                            ? ((constraints.maxWidth - 10) / 2).clamp(115.0, 400.0)
+                            : ((constraints.maxWidth - 36) / 4).clamp(160.0, 220.0);
+                        return Wrap(
+                          spacing: isMobile ? 10 : 12,
+                          runSpacing: isMobile ? 10 : 12,
+                          children: [
+                            _DonationStatBox(
+                              label: 'Unclaimed Balance',
+                              value: 'रू ${_claimableRupees.toStringAsFixed(2)}',
+                              sub: 'Total earned: रू ${_earnedRupees.toStringAsFixed(2)}',
+                              highlightRed: true,
+                              width: boxW,
+                            ),
+                            _DonationStatBox(
+                              label: 'Verified (Unclaimed)',
+                              value: '$_unclaimedVerifiedCount / 200',
+                              sub: _claimedCount > 0
+                                  ? '$_claimedCount Qs already claimed'
+                                  : '200 Qs needed to claim',
+                              highlightRed: eligibleToClaim,
+                              width: boxW,
+                            ),
+                            _DonationStatBox(
+                              label: 'Pending Review',
+                              value: '$_pendingCount Qs',
+                              sub: 'Awaiting verification',
+                              highlightRed: false,
+                              width: boxW,
+                            ),
+                            _DonationStatBox(
+                              label: 'Total Donated',
+                              value: '$_totalSubmitted Qs',
+                              sub: 'All submissions',
+                              highlightRed: false,
+                              width: boxW,
+                            ),
+                          ],
+                        );
+                      },
                     ),
 
                     const SizedBox(height: 16),
@@ -4805,11 +5270,12 @@ class _DonateQuestionsTabState extends State<DonateQuestionsTab> {
                     // Row: Question Type + Paper + Section
                     if (isMobile) ...[
                       DropdownButtonFormField<String>(
+                        isExpanded: true,
                         value: _qType,
                         decoration: const InputDecoration(labelText: 'Question Type *'),
                         items: const [
-                          DropdownMenuItem(value: 'subjective', child: Text('Subjective (Written Q&A — विषयगत)')),
-                          DropdownMenuItem(value: 'mcq', child: Text('Objective MCQ (4 Options — वस्तुगत)')),
+                          DropdownMenuItem(value: 'subjective', child: Text('Subjective (Written Q&A — विषयगत)', overflow: TextOverflow.ellipsis)),
+                          DropdownMenuItem(value: 'mcq', child: Text('Objective MCQ (4 Options — वस्तुगत)', overflow: TextOverflow.ellipsis)),
                         ],
                         onChanged: (v) => setState(() {
                           _qType = v!;
@@ -4892,50 +5358,93 @@ class _DonateQuestionsTabState extends State<DonateQuestionsTab> {
                     const SizedBox(height: 14),
 
                     // Row: Unit Number + Marks + Year Asked/Source
-                    Row(
-                      children: [
-                        Expanded(
-                          child: DropdownButtonFormField<int>(
-                            value: _unitNum,
-                            decoration: const InputDecoration(labelText: 'Syllabus Unit *'),
-                            items: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-                                .map((u) => DropdownMenuItem(value: u, child: Text('Unit $u')))
-                                .toList(),
-                            onChanged: (v) => setState(() {
-                              _unitNum = v!;
-                              if (_unitTitleCtrl.text.startsWith('Unit ')) {
-                                _unitTitleCtrl.text = 'Unit $_unitNum: Core Syllabus Topic';
-                              }
-                            }),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: DropdownButtonFormField<int>(
-                            value: _marks,
-                            decoration: const InputDecoration(labelText: 'Marks *'),
-                            items: const [
-                              DropdownMenuItem(value: 1, child: Text('1 Mark')),
-                              DropdownMenuItem(value: 2, child: Text('2 Marks')),
-                              DropdownMenuItem(value: 5, child: Text('5 Marks')),
-                              DropdownMenuItem(value: 10, child: Text('10 Marks')),
-                            ],
-                            onChanged: (v) => setState(() => _marks = v!),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          flex: isMobile ? 1 : 2,
-                          child: TextField(
-                            controller: _yearCtrl,
-                            decoration: const InputDecoration(
-                              labelText: 'Past Year / Source',
-                              hintText: 'e.g. 2081 BS / Model',
+                    if (isMobile) ...[
+                      Row(
+                        children: [
+                          Expanded(
+                            child: DropdownButtonFormField<int>(
+                              value: _unitNum,
+                              decoration: const InputDecoration(labelText: 'Syllabus Unit *'),
+                              items: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+                                  .map((u) => DropdownMenuItem(value: u, child: Text('Unit $u')))
+                                  .toList(),
+                              onChanged: (v) => setState(() {
+                                _unitNum = v!;
+                                if (_unitTitleCtrl.text.startsWith('Unit ')) {
+                                  _unitTitleCtrl.text = 'Unit $_unitNum: Core Syllabus Topic';
+                                }
+                              }),
                             ),
                           ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: DropdownButtonFormField<int>(
+                              value: _marks,
+                              decoration: const InputDecoration(labelText: 'Marks *'),
+                              items: const [
+                                DropdownMenuItem(value: 1, child: Text('1 Mark')),
+                                DropdownMenuItem(value: 2, child: Text('2 Marks')),
+                                DropdownMenuItem(value: 5, child: Text('5 Marks')),
+                                DropdownMenuItem(value: 10, child: Text('10 Marks')),
+                              ],
+                              onChanged: (v) => setState(() => _marks = v!),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: _yearCtrl,
+                        decoration: const InputDecoration(
+                          labelText: 'Past Year / Source',
+                          hintText: 'e.g. 2081 BS / Model',
                         ),
-                      ],
-                    ),
+                      ),
+                    ] else
+                      Row(
+                        children: [
+                          Expanded(
+                            child: DropdownButtonFormField<int>(
+                              value: _unitNum,
+                              decoration: const InputDecoration(labelText: 'Syllabus Unit *'),
+                              items: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+                                  .map((u) => DropdownMenuItem(value: u, child: Text('Unit $u')))
+                                  .toList(),
+                              onChanged: (v) => setState(() {
+                                _unitNum = v!;
+                                if (_unitTitleCtrl.text.startsWith('Unit ')) {
+                                  _unitTitleCtrl.text = 'Unit $_unitNum: Core Syllabus Topic';
+                                }
+                              }),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: DropdownButtonFormField<int>(
+                              value: _marks,
+                              decoration: const InputDecoration(labelText: 'Marks *'),
+                              items: const [
+                                DropdownMenuItem(value: 1, child: Text('1 Mark')),
+                                DropdownMenuItem(value: 2, child: Text('2 Marks')),
+                                DropdownMenuItem(value: 5, child: Text('5 Marks')),
+                                DropdownMenuItem(value: 10, child: Text('10 Marks')),
+                              ],
+                              onChanged: (v) => setState(() => _marks = v!),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            flex: 2,
+                            child: TextField(
+                              controller: _yearCtrl,
+                              decoration: const InputDecoration(
+                                labelText: 'Past Year / Source',
+                                hintText: 'e.g. 2081 BS / Model',
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
 
                     const SizedBox(height: 14),
                     TextField(
