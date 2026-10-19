@@ -125,12 +125,14 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
                             ),
                           ),
                           child: Text(
-                            user.plan == SubscriptionPlan.free
-                                ? 'Current Plan: FREE'
-                                : 'Current Plan: PRO (रू 199)${user.planExpiresAt != null ? " • Expires: ${user.planExpiresAt!.toLocal().toString().split(' ').first}" : ""}',
+                            user.isAdmin
+                                ? 'Current Account: ADMINISTRATOR (Lifetime Full Access)'
+                                : (user.plan == SubscriptionPlan.free
+                                    ? 'Current Plan: FREE'
+                                    : 'Current Plan: PRO (रू 199)${user.planExpiresAt != null ? " • Expires: ${user.planExpiresAt!.toLocal().toString().split(' ').first}" : ""}'),
                             textAlign: TextAlign.center,
                             style: TextStyle(
-                              color: user.plan == SubscriptionPlan.free ? AppTheme.textPrimary : AppTheme.iconRedDark,
+                              color: user.isAdmin || user.plan != SubscriptionPlan.free ? AppTheme.iconRedDark : AppTheme.textPrimary,
                               fontWeight: FontWeight.w800,
                               fontSize: 12,
                             ),

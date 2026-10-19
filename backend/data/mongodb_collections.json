@@ -1,8 +1,24 @@
 {
-  "users": [],
+  "users": [
+    {
+      "name": "Test User",
+      "email": "test_candidate_123@loksewa.com",
+      "passwordHash": "$2a$10$djOGU.v0g27qOKI1AZpg.eirEVBX0v72ir4uZa9h0s3Kw1n72IogS",
+      "plan": "free",
+      "planExpiresAt": null,
+      "isAdmin": false,
+      "bookmarkedQuestions": [],
+      "enrolledExams": [],
+      "_id": "6ad5e01fc618b690f2593e9b",
+      "createdAt": "2026-10-19T09:17:19.233Z",
+      "updatedAt": "2026-10-19T09:17:19.233Z",
+      "__v": 0
+    }
+  ],
   "exams": [],
   "questions": [],
   "payments": [],
+  "donations": [],
   "settings": {
     "key": "payment_config",
     "whatsappNumber": "+977-9705419699",

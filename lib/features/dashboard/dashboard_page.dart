@@ -387,8 +387,8 @@ class _SideNav extends StatelessWidget {
                   )
                 : Column(
                     children: [
-                      _PlanBadgeWidget(plan: user.plan),
-                      if (user.plan == SubscriptionPlan.free) ...[
+                      _PlanBadgeWidget(plan: user.plan, isAdmin: user.isAdmin),
+                      if (user.plan == SubscriptionPlan.free && !user.isAdmin) ...[
                         const SizedBox(height: 10),
                         SizedBox(
                           width: double.infinity,
@@ -462,10 +462,38 @@ class _SideNav extends StatelessWidget {
 
 class _PlanBadgeWidget extends StatelessWidget {
   final SubscriptionPlan plan;
-  const _PlanBadgeWidget({required this.plan});
+  final bool isAdmin;
+  const _PlanBadgeWidget({required this.plan, this.isAdmin = false});
 
   @override
   Widget build(BuildContext context) {
+    if (isAdmin) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
+        decoration: BoxDecoration(
+          color: AppTheme.bgSurface,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: AppTheme.primaryColor),
+        ),
+        child: const Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.admin_panel_settings_rounded, size: 14, color: AppTheme.primaryColor),
+            SizedBox(width: 6),
+            Text(
+              'ADMINISTRATOR (LIFETIME)',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: AppTheme.primaryColor,
+                fontWeight: FontWeight.w800,
+                fontSize: 11,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
     final (label, isRed) = switch (plan) {
       SubscriptionPlan.premium => ('PRO PLAN (रू 199)', true),
       SubscriptionPlan.basic => ('PRO PLAN (रू 199)', true),
@@ -1388,6 +1416,79 @@ class _QuestionsTabState extends State<QuestionsTab> {
   final Set<String> _studiedIds = {};
   final TextEditingController _searchCtrl = TextEditingController();
   bool _listCollapsed = false;
+  PaperType _selectedPaper = PaperType.paper1;
+  String _subCategory = 'it_mcq'; // 'it_mcq' | 'banking_subjective' | 'it_subjective'
+  int _page = 1;
+  bool _initialLoaded = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_initialLoaded) {
+      _initialLoaded = true;
+      _fetchCurrentPage(page: 1);
+    }
+  }
+
+  void _fetchCurrentPage({int? page}) {
+    final qp = context.read<QuestionProvider>();
+    final targetPage = page ?? _page;
+    _page = targetPage;
+
+    QuestionType? type;
+    SectionType? section;
+
+    if (_selectedPaper == PaperType.paper1) {
+      if (_subCategory == 'it_mcq') {
+        type = QuestionType.mcq;
+        section = SectionType.sectionB;
+      } else {
+        type = QuestionType.subjective;
+        section = SectionType.sectionA;
+      }
+    } else {
+      type = QuestionType.subjective;
+    }
+
+    qp.fetchPagedQuestions(
+      examId: qp.selectedExamId,
+      paper: _selectedPaper,
+      type: type,
+      section: section,
+      query: _searchCtrl.text,
+      page: targetPage,
+      limit: 10,
+    );
+  }
+
+  void _onPaperChanged(PaperType paper) {
+    if (_selectedPaper == paper) return;
+    setState(() {
+      _selectedPaper = paper;
+      _subCategory = paper == PaperType.paper1 ? 'it_mcq' : 'it_subjective';
+      _page = 1;
+      _selected = null;
+    });
+    _fetchCurrentPage(page: 1);
+  }
+
+  void _onSubCategoryChanged(String sub) {
+    if (_subCategory == sub) return;
+    setState(() {
+      _subCategory = sub;
+      _page = 1;
+      _selected = null;
+    });
+    _fetchCurrentPage(page: 1);
+  }
+
+  void _onPageChanged(int targetPage) {
+    setState(() {
+      _page = targetPage;
+      _selected = null;
+    });
+    _fetchCurrentPage(page: targetPage);
+  }
 
   @override
   void dispose() {
@@ -1423,11 +1524,11 @@ class _QuestionsTabState extends State<QuestionsTab> {
       return _NotEnrolledPrompt(onGoToExams: widget.onGoToExams);
     }
 
-    final accessible = qp.getAccessible(
-      user.plan,
-      enrolledExams: user.enrolledExams,
-      isAdmin: user.isAdmin,
-    );
+    final accessible = qp.pagedQuestions;
+    final totalCount = qp.pagedTotal;
+    final totalPages = qp.pagedTotalPages;
+    final currentPage = qp.pagedPage;
+    final isPageLoading = qp.pagedLoading;
 
     // Auto-select first question on wide screens when nothing is selected
     if (isWide && _selected == null && accessible.isNotEmpty) {
@@ -1445,6 +1546,8 @@ class _QuestionsTabState extends State<QuestionsTab> {
         : -1;
     final isMobileReading = !isWide && _selected != null;
 
+    final overallIdx = (currentPage - 1) * 10 + (currentIdx >= 0 ? currentIdx + 1 : 1);
+
     return Column(
       children: [
         // ── Adaptive Toolbar: Mobile Study Focus Bar vs Browse Toolbar ──
@@ -1452,16 +1555,20 @@ class _QuestionsTabState extends State<QuestionsTab> {
           _MobileFocusReaderBar(
             lang: _lang,
             fontSize: _fontSize,
-            currentIdx: currentIdx,
-            total: accessible.length,
+            currentIdx: overallIdx,
+            total: totalCount,
             isFullFocusMode: widget.isFullFocusMode,
             onBackToList: _exitMobileReader,
             onLangChanged: (l) => setState(() => _lang = l),
             onFontDec: () => setState(() => _fontSize = (_fontSize - 1).clamp(13, 22)),
             onFontInc: () => setState(() => _fontSize = (_fontSize + 1).clamp(13, 22)),
             onToggleFullFocus: () => widget.onToggleFullFocusMode?.call(!widget.isFullFocusMode),
-            onPrev: currentIdx > 0 ? () => _go(accessible, -1) : null,
-            onNext: currentIdx >= 0 && currentIdx < accessible.length - 1 ? () => _go(accessible, 1) : null,
+            onPrev: currentIdx > 0
+                ? () => _go(accessible, -1)
+                : (currentPage > 1 ? () => _onPageChanged(currentPage - 1) : null),
+            onNext: currentIdx >= 0 && currentIdx < accessible.length - 1
+                ? () => _go(accessible, 1)
+                : (currentPage < totalPages ? () => _onPageChanged(currentPage + 1) : null),
           )
         else
           _QBankToolbar(
@@ -1469,11 +1576,15 @@ class _QuestionsTabState extends State<QuestionsTab> {
             lang: _lang,
             fontSize: _fontSize,
             studiedCount: _studiedIds.length,
-            total: accessible.length,
+            total: totalCount,
             currentIdx: currentIdx,
             isWide: isWide,
             isListCollapsed: _listCollapsed,
             isFullFocusMode: widget.isFullFocusMode,
+            selectedPaper: _selectedPaper,
+            subCategory: _subCategory,
+            onPaperChanged: _onPaperChanged,
+            onSubCategoryChanged: _onSubCategoryChanged,
             onToggleFullFocus: () {
               final nextFocus = !widget.isFullFocusMode;
               widget.onToggleFullFocusMode?.call(nextFocus);
@@ -1484,36 +1595,24 @@ class _QuestionsTabState extends State<QuestionsTab> {
             onLangChanged: (l) => setState(() => _lang = l),
             onFontDec: () => setState(() => _fontSize = (_fontSize - 1).clamp(13, 22)),
             onFontInc: () => setState(() => _fontSize = (_fontSize + 1).clamp(13, 22)),
-            onSearch: (v) { qp.setFilters(query: v); setState(() {}); },
-            onClearSearch: () { _searchCtrl.clear(); qp.setFilters(query: ''); setState(() {}); },
-            onPrev: currentIdx > 0 ? () => _go(accessible, -1) : null,
-            onNext: currentIdx >= 0 && currentIdx < accessible.length - 1 ? () => _go(accessible, 1) : null,
+            onSearch: (v) { _fetchCurrentPage(page: 1); },
+            onClearSearch: () { _searchCtrl.clear(); _fetchCurrentPage(page: 1); },
+            onPrev: currentIdx > 0
+                ? () => _go(accessible, -1)
+                : (currentPage > 1 ? () => _onPageChanged(currentPage - 1) : null),
+            onNext: currentIdx >= 0 && currentIdx < accessible.length - 1
+                ? () => _go(accessible, 1)
+                : (currentPage < totalPages ? () => _onPageChanged(currentPage + 1) : null),
             onToggleList: () => setState(() => _listCollapsed = !_listCollapsed),
-            paperFilter: qp.paperFilter,
-            typeFilter: qp.typeFilter,
-            onFilterChanged: (paper, type) {
-              if (paper == null && type == null) {
-                qp.clearFilters();
-              } else {
-                qp.setFilters(
-                  paper: paper,
-                  clearPaper: paper == null,
-                  type: type,
-                  clearType: type == null,
-                  clearSection: true,
-                );
-              }
-            },
           ),
         // ── Main Layout ─────────────────────────────────────────
         Expanded(
-          child: qp.loading
+          child: isPageLoading && accessible.isEmpty
               ? const Center(child: CircularProgressIndicator(color: AppTheme.iconRed, strokeWidth: 2))
               : accessible.isEmpty
                   ? _EmptyState(onReset: () {
                       _searchCtrl.clear();
-                      qp.clearFilters();
-                      setState(() {});
+                      _onPaperChanged(PaperType.paper1);
                     })
                   : isWide
                       ? Row(
@@ -1527,10 +1626,15 @@ class _QuestionsTabState extends State<QuestionsTab> {
                                   lang: _lang,
                                   user: user,
                                   studiedIds: _studiedIds,
+                                  currentPage: currentPage,
+                                  totalPages: totalPages,
+                                  totalCount: totalCount,
+                                  isLoading: isPageLoading,
                                   onSelect: (q) => setState(() => _selected = q),
                                   onToggleStudied: (id) => setState(() {
                                     _studiedIds.contains(id) ? _studiedIds.remove(id) : _studiedIds.add(id);
                                   }),
+                                  onPageChanged: _onPageChanged,
                                 ),
                               ),
                             if (!_listCollapsed)
@@ -1541,8 +1645,8 @@ class _QuestionsTabState extends State<QuestionsTab> {
                                   : _StudyReader(
                                       key: ValueKey(_selected!.id),
                                       question: _selected!,
-                                      questionNumber: currentIdx >= 0 ? currentIdx + 1 : 1,
-                                      totalQuestions: accessible.length,
+                                      questionNumber: overallIdx,
+                                      totalQuestions: totalCount,
                                       lang: _lang,
                                       fontSize: _fontSize,
                                       isStudied: _studiedIds.contains(_selected!.id),
@@ -1551,8 +1655,12 @@ class _QuestionsTabState extends State<QuestionsTab> {
                                         final id = _selected!.id;
                                         _studiedIds.contains(id) ? _studiedIds.remove(id) : _studiedIds.add(id);
                                       }),
-                                      onPrev: currentIdx > 0 ? () => _go(accessible, -1) : null,
-                                      onNext: currentIdx >= 0 && currentIdx < accessible.length - 1 ? () => _go(accessible, 1) : null,
+                                      onPrev: currentIdx > 0
+                                          ? () => _go(accessible, -1)
+                                          : (currentPage > 1 ? () => _onPageChanged(currentPage - 1) : null),
+                                      onNext: currentIdx >= 0 && currentIdx < accessible.length - 1
+                                          ? () => _go(accessible, 1)
+                                          : (currentPage < totalPages ? () => _onPageChanged(currentPage + 1) : null),
                                     ),
                             ),
                           ],
@@ -1565,16 +1673,21 @@ class _QuestionsTabState extends State<QuestionsTab> {
                               lang: _lang,
                               user: user,
                               studiedIds: _studiedIds,
+                              currentPage: currentPage,
+                              totalPages: totalPages,
+                              totalCount: totalCount,
+                              isLoading: isPageLoading,
                               onSelect: (q) => setState(() => _selected = q),
                               onToggleStudied: (id) => setState(() {
                                 _studiedIds.contains(id) ? _studiedIds.remove(id) : _studiedIds.add(id);
                               }),
+                              onPageChanged: _onPageChanged,
                             )
                           : _StudyReader(
                               key: ValueKey(_selected!.id),
                               question: _selected!,
-                              questionNumber: currentIdx >= 0 ? currentIdx + 1 : 1,
-                              totalQuestions: accessible.length,
+                              questionNumber: overallIdx,
+                              totalQuestions: totalCount,
                               lang: _lang,
                               fontSize: _fontSize,
                               isStudied: _studiedIds.contains(_selected!.id),
@@ -1584,8 +1697,12 @@ class _QuestionsTabState extends State<QuestionsTab> {
                                 _studiedIds.contains(id) ? _studiedIds.remove(id) : _studiedIds.add(id);
                               }),
                               onBack: _exitMobileReader,
-                              onPrev: currentIdx > 0 ? () => _go(accessible, -1) : null,
-                              onNext: currentIdx >= 0 && currentIdx < accessible.length - 1 ? () => _go(accessible, 1) : null,
+                              onPrev: currentIdx > 0
+                                  ? () => _go(accessible, -1)
+                                  : (currentPage > 1 ? () => _onPageChanged(currentPage - 1) : null),
+                              onNext: currentIdx >= 0 && currentIdx < accessible.length - 1
+                                  ? () => _go(accessible, 1)
+                                  : (currentPage < totalPages ? () => _onPageChanged(currentPage + 1) : null),
                             ),
         ),
       ],
@@ -1865,6 +1982,10 @@ class _QBankToolbar extends StatelessWidget {
   final bool isWide;
   final bool isListCollapsed;
   final bool isFullFocusMode;
+  final PaperType selectedPaper;
+  final String subCategory;
+  final ValueChanged<PaperType> onPaperChanged;
+  final ValueChanged<String> onSubCategoryChanged;
   final VoidCallback onToggleFullFocus;
   final ValueChanged<String> onLangChanged;
   final VoidCallback onFontDec;
@@ -1874,9 +1995,6 @@ class _QBankToolbar extends StatelessWidget {
   final VoidCallback? onPrev;
   final VoidCallback? onNext;
   final VoidCallback onToggleList;
-  final PaperType? paperFilter;
-  final QuestionType? typeFilter;
-  final void Function(PaperType? paper, QuestionType? type) onFilterChanged;
 
   const _QBankToolbar({
     required this.searchCtrl,
@@ -1888,6 +2006,10 @@ class _QBankToolbar extends StatelessWidget {
     required this.isWide,
     required this.isListCollapsed,
     required this.isFullFocusMode,
+    required this.selectedPaper,
+    required this.subCategory,
+    required this.onPaperChanged,
+    required this.onSubCategoryChanged,
     required this.onToggleFullFocus,
     required this.onLangChanged,
     required this.onFontDec,
@@ -1897,9 +2019,6 @@ class _QBankToolbar extends StatelessWidget {
     required this.onPrev,
     required this.onNext,
     required this.onToggleList,
-    required this.paperFilter,
-    required this.typeFilter,
-    required this.onFilterChanged,
   });
 
   @override
@@ -2122,7 +2241,7 @@ class _QBankToolbar extends StatelessWidget {
                     ],
                   ),
           ),
-          // Row 2: Filter chips
+          // Row 2: Filter chips - Paper I & Paper II with contextual sub-options
           Padding(
             padding: EdgeInsets.fromLTRB(isMobile ? 10 : 14, 7, isMobile ? 10 : 14, isMobile ? 8 : 10),
             child: SingleChildScrollView(
@@ -2130,46 +2249,47 @@ class _QBankToolbar extends StatelessWidget {
               child: Row(
                 children: [
                   _Chip(
-                    label: 'All',
-                    active: paperFilter == null && typeFilter == null,
-                    onTap: () => onFilterChanged(null, null),
-                  ),
-                  const SizedBox(width: 6),
-                  _Chip(
                     label: 'Paper I',
-                    active: paperFilter == PaperType.paper1,
-                    onTap: () => onFilterChanged(
-                      paperFilter == PaperType.paper1 ? null : PaperType.paper1,
-                      typeFilter,
-                    ),
+                    icon: Icons.menu_book_rounded,
+                    active: selectedPaper == PaperType.paper1,
+                    onTap: () => onPaperChanged(PaperType.paper1),
                   ),
-                  const SizedBox(width: 6),
+                  const SizedBox(width: 8),
                   _Chip(
                     label: 'Paper II',
-                    active: paperFilter == PaperType.paper2,
-                    onTap: () => onFilterChanged(
-                      paperFilter == PaperType.paper2 ? null : PaperType.paper2,
-                      typeFilter,
-                    ),
+                    icon: Icons.terminal_rounded,
+                    active: selectedPaper == PaperType.paper2,
+                    onTap: () => onPaperChanged(PaperType.paper2),
                   ),
-                  const SizedBox(width: 6),
-                  _Chip(
-                    label: 'Subjective',
-                    active: typeFilter == QuestionType.subjective,
-                    onTap: () => onFilterChanged(
-                      paperFilter,
-                      typeFilter == QuestionType.subjective ? null : QuestionType.subjective,
+                  const SizedBox(width: 12),
+                  Container(height: 18, width: 1, color: AppTheme.divider),
+                  const SizedBox(width: 12),
+
+                  if (selectedPaper == PaperType.paper1) ...[
+                    _Chip(
+                      label: 'IT MCQs',
+                      icon: Icons.check_circle_outline_rounded,
+                      active: subCategory == 'it_mcq',
+                      badge: '567',
+                      onTap: () => onSubCategoryChanged('it_mcq'),
                     ),
-                  ),
-                  const SizedBox(width: 6),
-                  _Chip(
-                    label: 'MCQ',
-                    active: typeFilter == QuestionType.mcq,
-                    onTap: () => onFilterChanged(
-                      paperFilter,
-                      typeFilter == QuestionType.mcq ? null : QuestionType.mcq,
+                    const SizedBox(width: 8),
+                    _Chip(
+                      label: 'Banking Subjective',
+                      icon: Icons.account_balance_rounded,
+                      active: subCategory == 'banking_subjective',
+                      badge: '306',
+                      onTap: () => onSubCategoryChanged('banking_subjective'),
                     ),
-                  ),
+                  ] else ...[
+                    _Chip(
+                      label: 'IT Subjective Questions',
+                      icon: Icons.code_rounded,
+                      active: true,
+                      badge: '868',
+                      onTap: () => onSubCategoryChanged('it_subjective'),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -2367,43 +2487,91 @@ class _Chip extends StatelessWidget {
   final String label;
   final bool active;
   final VoidCallback onTap;
-  const _Chip({required this.label, required this.active, required this.onTap});
+  final IconData? icon;
+  final String? badge;
+
+  const _Chip({
+    required this.label,
+    required this.active,
+    required this.onTap,
+    this.icon,
+    this.badge,
+  });
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(5),
+      borderRadius: BorderRadius.circular(6),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 140),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
         decoration: BoxDecoration(
           color: active ? AppTheme.iconRedLight : Colors.white,
-          borderRadius: BorderRadius.circular(5),
-          border: Border.all(color: active ? AppTheme.iconRed.withOpacity(0.4) : AppTheme.divider),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: active ? FontWeight.w700 : FontWeight.w500,
-            color: active ? AppTheme.iconRedDark : AppTheme.textPrimary,
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(
+            color: active ? AppTheme.iconRed.withOpacity(0.5) : AppTheme.divider,
+            width: active ? 1.2 : 1,
           ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (icon != null) ...[
+              Icon(
+                icon,
+                size: 14,
+                color: active ? AppTheme.iconRedDark : AppTheme.textMuted,
+              ),
+              const SizedBox(width: 5),
+            ],
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: active ? FontWeight.w800 : FontWeight.w500,
+                color: active ? AppTheme.iconRedDark : AppTheme.textPrimary,
+              ),
+            ),
+            if (badge != null) ...[
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                decoration: BoxDecoration(
+                  color: active ? AppTheme.iconRed : const Color(0xFFE4E4E7),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  badge!,
+                  style: TextStyle(
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w800,
+                    color: active ? Colors.white : AppTheme.textMuted,
+                  ),
+                ),
+              ),
+            ],
+          ],
         ),
       ),
     );
   }
 }
 
-// ── Question Index (Left Panel) ─────────────────────────────────
+// ── Question Index (Left Panel with Pagination) ─────────────────
 class _QuestionIndex extends StatelessWidget {
   final List<Question> questions;
   final String? selectedId;
   final String lang;
   final AppUser user;
   final Set<String> studiedIds;
+  final int currentPage;
+  final int totalPages;
+  final int totalCount;
+  final bool isLoading;
   final ValueChanged<Question> onSelect;
   final ValueChanged<String> onToggleStudied;
+  final ValueChanged<int> onPageChanged;
 
   const _QuestionIndex({
     required this.questions,
@@ -2411,126 +2579,203 @@ class _QuestionIndex extends StatelessWidget {
     required this.lang,
     required this.user,
     required this.studiedIds,
+    required this.currentPage,
+    required this.totalPages,
+    required this.totalCount,
+    required this.isLoading,
     required this.onSelect,
     required this.onToggleStudied,
+    required this.onPageChanged,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
       color: const Color(0xFFFAFAFA),
-      child: ListView.builder(
-        itemCount: questions.length,
-        itemBuilder: (ctx, i) {
-          final q = questions[i];
-          final active = q.id == selectedId;
-          final studied = studiedIds.contains(q.id);
-          final isMcq = q.type == QuestionType.mcq;
-          final locked = q.isPremium && !user.isPremium;
-
-          return InkWell(
-            onTap: () => onSelect(q),
-            child: Container(
-              decoration: BoxDecoration(
-                color: active ? Colors.white : Colors.transparent,
-                border: Border(
-                  left: BorderSide(
-                    color: active ? AppTheme.iconRed : Colors.transparent,
-                    width: 3,
-                  ),
-                  bottom: const BorderSide(color: AppTheme.divider, width: 0.5),
+      child: Column(
+        children: [
+          // Top Summary Pill
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+            decoration: const BoxDecoration(
+              color: Color(0xFFF4F4F5),
+              border: Border(bottom: BorderSide(color: AppTheme.divider, width: 0.5)),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  totalCount == 0
+                      ? '0 Questions'
+                      : 'Showing ${(currentPage - 1) * 10 + 1}-${((currentPage - 1) * 10 + questions.length)} of $totalCount',
+                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.textMuted),
                 ),
-              ),
-              padding: const EdgeInsets.fromLTRB(14, 11, 12, 11),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Number badge
-                  SizedBox(
-                    width: 36,
-                    child: Column(
+                if (isLoading)
+                  const SizedBox(
+                    width: 12,
+                    height: 12,
+                    child: CircularProgressIndicator(strokeWidth: 1.5, color: AppTheme.iconRed),
+                  ),
+              ],
+            ),
+          ),
+          // Questions List (10 questions on this page)
+          Expanded(
+            child: ListView.builder(
+              itemCount: questions.length,
+              itemBuilder: (ctx, i) {
+                final q = questions[i];
+                final active = q.id == selectedId;
+                final studied = studiedIds.contains(q.id);
+                final isMcq = q.type == QuestionType.mcq;
+                final locked = q.isPremium && !user.isPremium;
+                final qNum = (currentPage - 1) * 10 + i + 1;
+
+                return InkWell(
+                  onTap: () => onSelect(q),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: active ? Colors.white : Colors.transparent,
+                      border: Border(
+                        left: BorderSide(
+                          color: active ? AppTheme.iconRed : Colors.transparent,
+                          width: 3,
+                        ),
+                        bottom: const BorderSide(color: AppTheme.divider, width: 0.5),
+                      ),
+                    ),
+                    padding: const EdgeInsets.fromLTRB(14, 11, 12, 11),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Container(
-                          width: 32,
-                          padding: const EdgeInsets.symmetric(vertical: 3),
-                          decoration: BoxDecoration(
-                            color: active
-                                ? AppTheme.iconRed
-                                : (isMcq ? const Color(0xFFEEEEEE) : AppTheme.iconRedLight),
-                            borderRadius: BorderRadius.circular(5),
-                          ),
+                        // Number badge
+                        SizedBox(
+                          width: 36,
                           child: Column(
-                            mainAxisSize: MainAxisSize.min,
                             children: [
-                              Text(
-                                '${i + 1}',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w800,
-                                  color: active ? Colors.white : (isMcq ? AppTheme.textMuted : AppTheme.iconRedDark),
+                              Container(
+                                width: 32,
+                                padding: const EdgeInsets.symmetric(vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: active
+                                      ? AppTheme.iconRed
+                                      : (isMcq ? const Color(0xFFEEEEEE) : AppTheme.iconRedLight),
+                                  borderRadius: BorderRadius.circular(5),
                                 ),
-                              ),
-                              Text(
-                                isMcq ? 'MCQ' : '${q.marks}M',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.w700,
-                                  color: active ? Colors.white.withOpacity(0.85) : (isMcq ? AppTheme.textMuted : AppTheme.iconRed),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      '$qNum',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w800,
+                                        color: active ? Colors.white : (isMcq ? AppTheme.textMuted : AppTheme.iconRedDark),
+                                      ),
+                                    ),
+                                    Text(
+                                      isMcq ? 'MCQ' : '${q.marks}M',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.w700,
+                                        color: active ? Colors.white.withOpacity(0.85) : (isMcq ? AppTheme.textMuted : AppTheme.iconRed),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ],
                           ),
                         ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          lang == 'english' ? q.questionEnglish : q.questionNepali,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 12.5,
-                            height: 1.4,
-                            fontWeight: active ? FontWeight.w700 : FontWeight.w500,
-                            color: active ? AppTheme.textPrimary : const Color(0xFF3F3F46),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                lang == 'english' ? q.questionEnglish : q.questionNepali,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 12.5,
+                                  height: 1.4,
+                                  fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+                                  color: active ? AppTheme.textPrimary : const Color(0xFF3F3F46),
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'P${q.paper == PaperType.paper1 ? "1" : "2"} · U${q.unitNumber}${q.yearsAsked.isNotEmpty ? " · ${q.yearsAsked.first}" : ""}',
+                                style: const TextStyle(fontSize: 10.5, color: AppTheme.textMuted),
+                              ),
+                            ],
                           ),
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'P${q.paper == PaperType.paper1 ? "1" : "2"} · U${q.unitNumber}${q.yearsAsked.isNotEmpty ? " · ${q.yearsAsked.first}" : ""}',
-                          style: const TextStyle(fontSize: 10.5, color: AppTheme.textMuted),
+                        const SizedBox(width: 4),
+                        Column(
+                          children: [
+                            if (locked)
+                              const Icon(Icons.lock_outline_rounded, size: 13, color: AppTheme.textMuted),
+                            const SizedBox(height: 2),
+                            GestureDetector(
+                              onTap: () => onToggleStudied(q.id),
+                              child: Icon(
+                                studied ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+                                size: 16,
+                                color: studied ? AppTheme.iconRed : const Color(0xFFD4D4D8),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(width: 4),
-                  Column(
-                    children: [
-                      if (locked)
-                        const Icon(Icons.lock_outline_rounded, size: 13, color: AppTheme.textMuted),
-                      const SizedBox(height: 2),
-                      GestureDetector(
-                        onTap: () => onToggleStudied(q.id),
-                        child: Icon(
-                          studied ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
-                          size: 16,
-                          color: studied ? AppTheme.iconRed : const Color(0xFFD4D4D8),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+                );
+              },
             ),
-          );
-        },
+          ),
+          // Bottom Pagination Bar (10 Questions at a time)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              border: Border(top: BorderSide(color: AppTheme.divider, width: 0.8)),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.arrow_back_ios_rounded, size: 13),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                  tooltip: 'Previous 10 Questions',
+                  onPressed: currentPage > 1 && !isLoading ? () => onPageChanged(currentPage - 1) : null,
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF4F4F5),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: AppTheme.divider),
+                  ),
+                  child: Text(
+                    'Page $currentPage of ${totalPages < 1 ? 1 : totalPages}',
+                    style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800, color: AppTheme.textPrimary),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.arrow_forward_ios_rounded, size: 13),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                  tooltip: 'Next 10 Questions',
+                  onPressed: currentPage < totalPages && !isLoading ? () => onPageChanged(currentPage + 1) : null,
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -2950,7 +3195,9 @@ class _LinedCopySheet extends StatelessWidget {
                                             if (!locked && question.type != QuestionType.mcq)
                                               InkWell(
                                                 onTap: () {
-                                                  final cleanCopy = activeAnswer.replaceAll('**', '');
+                                                  final cleanCopy = activeAnswer
+                                                      .replaceAll('*', '')
+                                                      .replaceAll(RegExp(r'^#+\s*', multiLine: true), '');
                                                   Clipboard.setData(
                                                     ClipboardData(text: '$questionText\n\n$cleanCopy'),
                                                   );
@@ -3320,6 +3567,318 @@ class _LinedNotebookPainter extends CustomPainter {
 }
 
 // ── Line-Locked Answer Body for Physical Lining Copy ──────────────
+// ── Line-Locked Answer Body for Physical Lining Copy ──────────────
+class _DiagramCodeWidget extends StatelessWidget {
+  final String code;
+  final double fontSize;
+  final double lineHeight;
+
+  const _DiagramCodeWidget({
+    required this.code,
+    required this.fontSize,
+    required this.lineHeight,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final diagramFontSize = fontSize * 0.85;
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        border: Border.all(color: const Color(0xFFCBD5E1), width: 1.0),
+      ),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10.0),
+          child: SelectableText(
+            code.trim(),
+            style: TextStyle(
+              fontFamily: 'monospace',
+              fontSize: diagramFontSize,
+              height: lineHeight / diagramFontSize,
+              color: const Color(0xFF0F172A),
+              fontWeight: FontWeight.w600,
+            ),
+            strutStyle: StrutStyle(
+              fontSize: diagramFontSize,
+              height: lineHeight / diagramFontSize,
+              forceStrutHeight: true,
+              leading: 0,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MarkdownTableWidget extends StatelessWidget {
+  final List<String> lines;
+  final double fontSize;
+  final double lineHeight;
+  final double textHeightRatio;
+
+  const _MarkdownTableWidget({
+    required this.lines,
+    required this.fontSize,
+    required this.lineHeight,
+    required this.textHeightRatio,
+  });
+
+  List<String> _parseRowCells(String row) {
+    var trimmed = row.trim();
+    if (trimmed.startsWith('|')) trimmed = trimmed.substring(1);
+    if (trimmed.endsWith('|')) trimmed = trimmed.substring(0, trimmed.length - 1);
+    return trimmed.split('|').map((c) => c.trim()).toList();
+  }
+
+  Widget _buildCellText(
+    String text, {
+    required bool isHeader,
+    required TextStyle cellStyle,
+    required StrutStyle cellStrut,
+  }) {
+    final spans = <TextSpan>[];
+    final regex = RegExp(r'(\*\*\*([^*]+?)\*\*\*|\*\*([^*]+?)\*\*|\*([^*]+?)\*)');
+    int lastEnd = 0;
+
+    for (final match in regex.allMatches(text)) {
+      if (match.start > lastEnd) {
+        final plain = text.substring(lastEnd, match.start).replaceAll('*', '');
+        if (plain.isNotEmpty) {
+          spans.add(TextSpan(text: plain));
+        }
+      }
+      final boldItalic = match.group(2);
+      final boldText = match.group(3);
+      final singleStar = match.group(4);
+
+      if (boldItalic != null && boldItalic.isNotEmpty) {
+        spans.add(TextSpan(
+          text: boldItalic,
+          style: cellStyle.copyWith(fontWeight: FontWeight.w800, fontStyle: FontStyle.italic),
+        ));
+      } else if (boldText != null && boldText.isNotEmpty) {
+        spans.add(TextSpan(
+          text: boldText,
+          style: cellStyle.copyWith(
+            fontWeight: FontWeight.w800,
+            color: isHeader ? AppTheme.iconRedDark : AppTheme.iconRedDark,
+          ),
+        ));
+      } else if (singleStar != null && singleStar.isNotEmpty) {
+        spans.add(TextSpan(
+          text: singleStar,
+          style: cellStyle.copyWith(fontStyle: FontStyle.italic, fontWeight: FontWeight.w700),
+        ));
+      }
+      lastEnd = match.end;
+    }
+
+    if (lastEnd < text.length) {
+      final tail = text.substring(lastEnd).replaceAll('*', '');
+      if (tail.isNotEmpty) {
+        spans.add(TextSpan(text: tail));
+      }
+    }
+
+    if (spans.isEmpty) {
+      return SelectableText(
+        text.replaceAll('*', ''),
+        style: cellStyle,
+        strutStyle: cellStrut,
+      );
+    }
+
+    return SelectableText.rich(
+      TextSpan(style: cellStyle, children: spans),
+      strutStyle: cellStrut,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (lines.isEmpty) return const SizedBox.shrink();
+
+    // Find separator line index (the one containing '---')
+    int sepIdx = -1;
+    for (int i = 0; i < lines.length; i++) {
+      if (lines[i].contains('---')) {
+        sepIdx = i;
+        break;
+      }
+    }
+
+    List<String> headerLines;
+    List<String> bodyLines;
+
+    if (sepIdx > 0) {
+      headerLines = lines.sublist(0, sepIdx);
+      bodyLines = lines.sublist(sepIdx + 1);
+    } else if (lines.length > 1) {
+      headerLines = [lines.first];
+      bodyLines = lines.sublist(1);
+    } else {
+      headerLines = [lines.first];
+      bodyLines = [];
+    }
+
+    final headerRows = headerLines.map(_parseRowCells).toList();
+    final bodyRows = bodyLines
+        .where((l) => !l.contains('---') && l.trim().isNotEmpty)
+        .map(_parseRowCells)
+        .toList();
+
+    int maxCols = 0;
+    for (final r in headerRows) {
+      if (r.length > maxCols) maxCols = r.length;
+    }
+    for (final r in bodyRows) {
+      if (r.length > maxCols) maxCols = r.length;
+    }
+
+    if (maxCols == 0) return const SizedBox.shrink();
+
+    for (final r in headerRows) {
+      while (r.length < maxCols) {
+        r.add('');
+      }
+    }
+    for (final r in bodyRows) {
+      while (r.length < maxCols) {
+        r.add('');
+      }
+    }
+
+    // Exact line-height locked styles so text baselines sit directly on the physical ruled notebook lines
+    final cellFontSize = fontSize * 0.94;
+    final cellStyleHeader = TextStyle(
+      fontSize: cellFontSize,
+      height: lineHeight / cellFontSize,
+      color: AppTheme.iconRedDark,
+      fontWeight: FontWeight.w800,
+      letterSpacing: -0.1,
+    );
+    final cellStyleBody = TextStyle(
+      fontSize: cellFontSize,
+      height: lineHeight / cellFontSize,
+      color: AppTheme.textPrimary,
+      fontWeight: FontWeight.w500,
+      letterSpacing: -0.1,
+    );
+    final cellStrut = StrutStyle(
+      fontSize: cellFontSize,
+      height: lineHeight / cellFontSize,
+      forceStrutHeight: true,
+      leading: 0,
+    );
+
+    // Dynamic proportional column widths so columns fit 100% of the notebook page and never overflow offscreen
+    final Map<int, TableColumnWidth> colWidths = {};
+    if (maxCols == 2) {
+      colWidths[0] = const FlexColumnWidth(1.0);
+      colWidths[1] = const FlexColumnWidth(1.6);
+    } else if (maxCols == 3) {
+      colWidths[0] = const FlexColumnWidth(1.0);
+      colWidths[1] = const FlexColumnWidth(1.45);
+      colWidths[2] = const FlexColumnWidth(1.45);
+    } else if (maxCols == 4) {
+      colWidths[0] = const FlexColumnWidth(0.9);
+      colWidths[1] = const FlexColumnWidth(1.05);
+      colWidths[2] = const FlexColumnWidth(1.1);
+      colWidths[3] = const FlexColumnWidth(1.5);
+    } else {
+      for (int c = 0; c < maxCols; c++) {
+        colWidths[c] = const FlexColumnWidth(1.0);
+      }
+    }
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final availableWidth = constraints.maxWidth;
+        // On very small mobile screens (< 360px), allow horizontal scrolling with comfortable minimum column width
+        final minTableWidth = maxCols * 115.0;
+        final needsScroll = availableWidth < minTableWidth;
+        final tableWidth = needsScroll ? minTableWidth : availableWidth;
+
+        Widget tableWidget = Container(
+          width: tableWidth,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            border: Border(
+              top: const BorderSide(color: AppTheme.iconRed, width: 1.5),
+              bottom: const BorderSide(color: AppTheme.iconRedDark, width: 1.8),
+              left: BorderSide(color: AppTheme.iconRed.withOpacity(0.45), width: 1.2),
+              right: BorderSide(color: AppTheme.iconRed.withOpacity(0.45), width: 1.2),
+            ),
+          ),
+          child: Table(
+            columnWidths: colWidths,
+            defaultVerticalAlignment: TableCellVerticalAlignment.top,
+            border: TableBorder(
+              horizontalInside: const BorderSide(
+                color: Color(0xFFD4D4D8), // Exact matching notebook line color
+                width: 1.0,
+              ),
+              verticalInside: BorderSide(
+                color: AppTheme.iconRed.withOpacity(0.25),
+                width: 1.0,
+              ),
+            ),
+            children: [
+              for (final hRow in headerRows)
+                TableRow(
+                  decoration: BoxDecoration(
+                    color: AppTheme.iconRed.withOpacity(0.06),
+                  ),
+                  children: hRow.map((cell) => TableCell(
+                    verticalAlignment: TableCellVerticalAlignment.top,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 10.0),
+                      child: _buildCellText(
+                        cell,
+                        isHeader: true,
+                        cellStyle: cellStyleHeader,
+                        cellStrut: cellStrut,
+                      ),
+                    ),
+                  )).toList(),
+                ),
+              for (final bRow in bodyRows)
+                TableRow(
+                  children: bRow.map((cell) => TableCell(
+                    verticalAlignment: TableCellVerticalAlignment.top,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 10.0),
+                      child: _buildCellText(
+                        cell,
+                        isHeader: false,
+                        cellStyle: cellStyleBody,
+                        cellStrut: cellStrut,
+                      ),
+                    ),
+                  )).toList(),
+                ),
+            ],
+          ),
+        );
+
+        if (needsScroll) {
+          return SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            child: tableWidget,
+          );
+        }
+        return tableWidget;
+      },
+    );
+  }
+}
+
 class _LinedAnswerBody extends StatelessWidget {
   final String content;
   final double fontSize;
@@ -3333,43 +3892,164 @@ class _LinedAnswerBody extends StatelessWidget {
     required this.textHeightRatio,
   });
 
+  bool _isTableLine(String line) {
+    final t = line.trim();
+    if (!t.startsWith('|')) return false;
+    final lastPipe = t.lastIndexOf('|');
+    return lastPipe > 0;
+  }
+
+  bool _hasTableStructure(List<String> lines) {
+    if (lines.length < 2) return false;
+    return lines.any((l) => l.contains('---'));
+  }
+
   Widget _linedRichText(
     String raw, {
     required TextStyle baseStyle,
     required StrutStyle strutStyle,
   }) {
+    final cleanRaw = raw.replaceFirst(RegExp(r'^#+\s*'), '');
     final spans = <TextSpan>[];
-    final regex = RegExp(r'\*\*(.+?)\*\*');
+    // Regex matches ***bold_italic***, **bold**, and *bold/italic*
+    final regex = RegExp(r'(\*\*\*([^*]+?)\*\*\*|\*\*([^*]+?)\*\*|\*([^*]+?)\*)');
     int lastEnd = 0;
-    for (final match in regex.allMatches(raw)) {
+
+    for (final match in regex.allMatches(cleanRaw)) {
       if (match.start > lastEnd) {
-        spans.add(TextSpan(text: raw.substring(lastEnd, match.start)));
+        final plain = cleanRaw.substring(lastEnd, match.start).replaceAll('*', '');
+        if (plain.isNotEmpty) {
+          spans.add(TextSpan(text: plain));
+        }
       }
-      spans.add(
-        TextSpan(
-          text: match.group(1),
-          style: baseStyle.copyWith(
-            fontWeight: FontWeight.w800,
-            color: AppTheme.textPrimary,
+
+      final boldItalic = match.group(2);
+      final boldText = match.group(3);
+      final singleStarText = match.group(4);
+
+      if (boldItalic != null && boldItalic.isNotEmpty) {
+        spans.add(
+          TextSpan(
+            text: boldItalic,
+            style: baseStyle.copyWith(
+              fontWeight: FontWeight.w800,
+              fontStyle: FontStyle.italic,
+              color: AppTheme.textPrimary,
+            ),
           ),
-        ),
-      );
+        );
+      } else if (boldText != null && boldText.isNotEmpty) {
+        final isLabel = boldText.trim().endsWith(':');
+        spans.add(
+          TextSpan(
+            text: boldText,
+            style: baseStyle.copyWith(
+              fontWeight: FontWeight.w800,
+              color: isLabel ? AppTheme.iconRedDark : AppTheme.textPrimary,
+            ),
+          ),
+        );
+      } else if (singleStarText != null && singleStarText.isNotEmpty) {
+        // Labels like *Mechanism:*, *Pros:*, *Cons:* are rendered bold
+        final isLabel = singleStarText.trim().endsWith(':');
+        spans.add(
+          TextSpan(
+            text: singleStarText,
+            style: baseStyle.copyWith(
+              fontWeight: isLabel ? FontWeight.w800 : FontWeight.w700,
+              fontStyle: isLabel ? FontStyle.normal : FontStyle.italic,
+              color: isLabel ? AppTheme.iconRedDark : AppTheme.textPrimary,
+            ),
+          ),
+        );
+      }
       lastEnd = match.end;
     }
-    if (lastEnd < raw.length) {
-      spans.add(TextSpan(text: raw.substring(lastEnd).replaceAll('**', '')));
+
+    if (lastEnd < cleanRaw.length) {
+      final tail = cleanRaw.substring(lastEnd).replaceAll('*', '');
+      if (tail.isNotEmpty) {
+        spans.add(TextSpan(text: tail));
+      }
     }
+
     if (spans.isEmpty) {
       return SelectableText(
-        raw.replaceAll('**', ''),
+        cleanRaw.replaceAll('*', ''),
         style: baseStyle,
         strutStyle: strutStyle,
       );
     }
+
     return SelectableText.rich(
       TextSpan(style: baseStyle, children: spans),
       strutStyle: strutStyle,
     );
+  }
+
+  void _renderSingleLine(
+    String t,
+    TextStyle baseStyle,
+    StrutStyle strut,
+    List<Widget> children,
+  ) {
+    // Strip leading markdown hashes (#, ##, ###, ####)
+    final isMarkdownHeading = t.startsWith('#');
+    final withoutHashes = t.replaceFirst(RegExp(r'^#+\s*'), '').trim();
+    final cleanForCheck = withoutHashes.replaceAll('*', '').trim();
+
+    final isFullBoldLine = (withoutHashes.startsWith('**') && withoutHashes.endsWith('**')) ||
+        (withoutHashes.startsWith('*') && withoutHashes.endsWith('*') && !withoutHashes.contains('•') && cleanForCheck.length < 80);
+
+    final isHeading = isMarkdownHeading ||
+        isFullBoldLine ||
+        (cleanForCheck.endsWith(':') &&
+            cleanForCheck.length < 80 &&
+            !t.startsWith('•') &&
+            !t.startsWith('-') &&
+            !t.startsWith('* ')) ||
+        RegExp(r'^[१२३४५६७८९1-9][.।]').hasMatch(cleanForCheck) ||
+        cleanForCheck.startsWith('Introduction') ||
+        cleanForCheck.startsWith('Conclusion') ||
+        cleanForCheck.startsWith('Way Forward') ||
+        cleanForCheck.startsWith('परिचय') ||
+        cleanForCheck.startsWith('निष्कर्ष');
+
+    final isBullet = t.startsWith('•') ||
+        t.startsWith('-') ||
+        (t.startsWith('*') && !t.startsWith('**'));
+
+    if (isHeading) {
+      children.add(
+        SelectableText(
+          cleanForCheck,
+          style: baseStyle.copyWith(
+            fontWeight: FontWeight.w800,
+            color: AppTheme.iconRedDark,
+            decoration: TextDecoration.underline,
+            decorationColor: AppTheme.iconRed.withOpacity(0.55),
+          ),
+          strutStyle: strut,
+        ),
+      );
+    } else if (isBullet) {
+      final bulletContent = t.replaceFirst(RegExp(r'^[•\-\*]\s*'), '');
+      children.add(
+        _linedRichText(
+          '•  $bulletContent',
+          baseStyle: baseStyle,
+          strutStyle: strut,
+        ),
+      );
+    } else {
+      children.add(
+        _linedRichText(
+          t,
+          baseStyle: baseStyle,
+          strutStyle: strut,
+        ),
+      );
+    }
   }
 
   @override
@@ -3401,59 +4081,70 @@ class _LinedAnswerBody extends StatelessWidget {
           .where((l) => l.trim().isNotEmpty)
           .toList();
 
-      for (final line in lines) {
+      int lIdx = 0;
+      while (lIdx < lines.length) {
+        final line = lines[lIdx];
         final t = line.trim();
-        final cleanForCheck = t.replaceAll('**', '').trim();
-        final isFullBoldLine = t.startsWith('**') &&
-            t.endsWith('**') &&
-            cleanForCheck.length < 90;
-        final isHeading = isFullBoldLine ||
-            (cleanForCheck.endsWith(':') &&
-                cleanForCheck.length < 80 &&
-                !t.startsWith('•') &&
-                !t.startsWith('-') &&
-                !t.startsWith('* ')) ||
-            RegExp(r'^[१२३४५६७८९1-9][.।]').hasMatch(cleanForCheck) ||
-            cleanForCheck.startsWith('Introduction') ||
-            cleanForCheck.startsWith('Conclusion') ||
-            cleanForCheck.startsWith('Way Forward') ||
-            cleanForCheck.startsWith('परिचय') ||
-            cleanForCheck.startsWith('निष्कर्ष');
-        final isBullet = t.startsWith('•') ||
-            t.startsWith('-') ||
-            (t.startsWith('*') && !t.startsWith('**'));
 
-        if (isHeading) {
-          children.add(
-            SelectableText(
-              cleanForCheck,
-              style: baseStyle.copyWith(
-                fontWeight: FontWeight.w800,
-                color: AppTheme.iconRedDark,
-                decoration: TextDecoration.underline,
-                decorationColor: AppTheme.iconRed.withOpacity(0.55),
-              ),
-              strutStyle: strut,
-            ),
-          );
-        } else if (isBullet) {
-          final bulletContent = t.replaceFirst(RegExp(r'^[•\-\*]\s*'), '');
-          children.add(
-            _linedRichText(
-              '•  $bulletContent',
-              baseStyle: baseStyle,
-              strutStyle: strut,
-            ),
-          );
-        } else {
-          children.add(
-            _linedRichText(
-              t,
-              baseStyle: baseStyle,
-              strutStyle: strut,
-            ),
-          );
+        if (t.isEmpty) {
+          lIdx++;
+          continue;
         }
+
+        // 1. Code / Diagram block
+        if (t.startsWith('```')) {
+          final codeLines = <String>[];
+          if (t.length > 3 && t.endsWith('```')) {
+            codeLines.add(t.substring(3, t.length - 3).trim());
+            lIdx++;
+          } else {
+            lIdx++;
+            while (lIdx < lines.length && !lines[lIdx].trim().startsWith('```')) {
+              codeLines.add(lines[lIdx]);
+              lIdx++;
+            }
+            if (lIdx < lines.length && lines[lIdx].trim().startsWith('```')) {
+              lIdx++; // consume closing backticks
+            }
+          }
+          children.add(
+            _DiagramCodeWidget(
+              code: codeLines.join('\n'),
+              fontSize: fontSize,
+              lineHeight: lineHeight,
+            ),
+          );
+          continue;
+        }
+
+        // 2. Markdown Table block
+        if (_isTableLine(t)) {
+          final tableLines = <String>[];
+          while (lIdx < lines.length && _isTableLine(lines[lIdx].trim())) {
+            tableLines.add(lines[lIdx].trim());
+            lIdx++;
+          }
+          if (_hasTableStructure(tableLines)) {
+            children.add(
+              _MarkdownTableWidget(
+                lines: tableLines,
+                fontSize: fontSize,
+                lineHeight: lineHeight,
+                textHeightRatio: textHeightRatio,
+              ),
+            );
+            continue;
+          } else {
+            for (final tblLine in tableLines) {
+              _renderSingleLine(tblLine, baseStyle, strut, children);
+            }
+            continue;
+          }
+        }
+
+        // 3. Regular Line: Heading, Bullet, or Paragraph
+        _renderSingleLine(t, baseStyle, strut, children);
+        lIdx++;
       }
 
       // Leave 1 exact blank ruled line between answer sections
@@ -3493,26 +4184,70 @@ class _MCQViewState extends State<_MCQView> {
 
   Widget _richExplanation(String raw, {required TextStyle baseStyle}) {
     final spans = <TextSpan>[];
-    final regex = RegExp(r'\*\*(.+?)\*\*');
+    final regex = RegExp(r'(\*\*\*([^*]+?)\*\*\*|\*\*([^*]+?)\*\*|\*([^*]+?)\*)');
     int lastEnd = 0;
+
     for (final match in regex.allMatches(raw)) {
       if (match.start > lastEnd) {
-        spans.add(TextSpan(text: raw.substring(lastEnd, match.start)));
+        final plain = raw.substring(lastEnd, match.start).replaceAll('*', '');
+        if (plain.isNotEmpty) {
+          spans.add(TextSpan(text: plain));
+        }
       }
-      spans.add(
-        TextSpan(
-          text: match.group(1),
-          style: baseStyle.copyWith(fontWeight: FontWeight.w800, color: AppTheme.textPrimary),
-        ),
-      );
+
+      final boldItalic = match.group(2);
+      final boldText = match.group(3);
+      final singleStarText = match.group(4);
+
+      if (boldItalic != null && boldItalic.isNotEmpty) {
+        spans.add(
+          TextSpan(
+            text: boldItalic,
+            style: baseStyle.copyWith(
+              fontWeight: FontWeight.w800,
+              fontStyle: FontStyle.italic,
+              color: AppTheme.textPrimary,
+            ),
+          ),
+        );
+      } else if (boldText != null && boldText.isNotEmpty) {
+        final isLabel = boldText.trim().endsWith(':');
+        spans.add(
+          TextSpan(
+            text: boldText,
+            style: baseStyle.copyWith(
+              fontWeight: FontWeight.w800,
+              color: isLabel ? AppTheme.iconRedDark : AppTheme.textPrimary,
+            ),
+          ),
+        );
+      } else if (singleStarText != null && singleStarText.isNotEmpty) {
+        final isLabel = singleStarText.trim().endsWith(':');
+        spans.add(
+          TextSpan(
+            text: singleStarText,
+            style: baseStyle.copyWith(
+              fontWeight: isLabel ? FontWeight.w800 : FontWeight.w700,
+              fontStyle: isLabel ? FontStyle.normal : FontStyle.italic,
+              color: isLabel ? AppTheme.iconRedDark : AppTheme.textPrimary,
+            ),
+          ),
+        );
+      }
       lastEnd = match.end;
     }
+
     if (lastEnd < raw.length) {
-      spans.add(TextSpan(text: raw.substring(lastEnd).replaceAll('**', '')));
+      final tail = raw.substring(lastEnd).replaceAll('*', '');
+      if (tail.isNotEmpty) {
+        spans.add(TextSpan(text: tail));
+      }
     }
+
     if (spans.isEmpty) {
-      return SelectableText(raw.replaceAll('**', ''), style: baseStyle);
+      return SelectableText(raw.replaceAll('*', ''), style: baseStyle);
     }
+
     return SelectableText.rich(TextSpan(style: baseStyle, children: spans));
   }
 

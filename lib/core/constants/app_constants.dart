@@ -10,6 +10,9 @@ class AppConstants {
     if (origin.contains('onrender.com')) {
       return '$origin/api';
     }
+    if (origin.contains('localhost') || origin.contains('127.0.0.1')) {
+      return 'http://127.0.0.1:5000/api';
+    }
     return 'https://loksewa-prep-app.onrender.com/api';
   }
 

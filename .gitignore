@@ -47,4 +47,8 @@ app.*.map.json
 **/.env
 .env
 backend/.env
+__pycache__/
+*.pyc
+backend/scripts/*.json
+backend/scripts/**/*.json
 

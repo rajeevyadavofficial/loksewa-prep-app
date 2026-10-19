@@ -205,7 +205,7 @@ class AuthProvider extends ChangeNotifier {
             name: u['name'] ?? 'Admin',
             email: u['email'] ?? '',
             plan: _plan(u['plan'] ?? 'premium'),
-            planExpiresAt: _parseExpiry(u['planExpiresAt']),
+            planExpiresAt: null,
             isAdmin: true,
             enrolledExams: List<String>.from(u['enrolledExams'] ?? []),
           );
@@ -246,7 +246,7 @@ class AuthProvider extends ChangeNotifier {
           name: u['name'] ?? 'User',
           email: u['email'] ?? email,
           plan: _plan(u['plan'] ?? 'free'),
-          planExpiresAt: _parseExpiry(u['planExpiresAt']),
+          planExpiresAt: isUserAdmin ? null : _parseExpiry(u['planExpiresAt']),
           isAdmin: isUserAdmin,
           enrolledExams: List<String>.from(u['enrolledExams'] ?? []),
         );
@@ -359,7 +359,7 @@ class AuthProvider extends ChangeNotifier {
         'name': _adminUser!.name,
         'email': _adminUser!.email,
         'plan': _adminUser!.plan.name,
-        'planExpiresAt': _adminUser!.planExpiresAt?.toIso8601String(),
+        'planExpiresAt': null,
         'isAdmin': true,
         'enrolledExams': _adminUser!.enrolledExams,
       });
@@ -625,11 +625,109 @@ class QuestionProvider extends ChangeNotifier {
     return _settings;
   }
 
+  // ── Pagination State (10 questions at a time) ──────────────────────
+  List<Question> _pagedQuestions = [];
+  int _pagedTotal = 0;
+  int _pagedPage = 1;
+  int _pagedTotalPages = 1;
+  bool _pagedLoading = false;
+
+  List<Question> get pagedQuestions => _pagedQuestions;
+  int get pagedTotal => _pagedTotal;
+  int get pagedPage => _pagedPage;
+  int get pagedTotalPages => _pagedTotalPages;
+  bool get pagedLoading => _pagedLoading;
+
+  Future<void> fetchPagedQuestions({
+    required String examId,
+    required PaperType paper,
+    QuestionType? type,
+    SectionType? section,
+    String? query,
+    int page = 1,
+    int limit = 10,
+  }) async {
+    _pagedLoading = true;
+    notifyListeners();
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString(AppConstants.prefAuthToken) ?? '';
+      final headers = <String, String>{'Content-Type': 'application/json'};
+      if (token.isNotEmpty) headers['Authorization'] = 'Bearer $token';
+
+      final pStr = paper == PaperType.paper1 ? 'paper1' : 'paper2';
+      final tStr = type == QuestionType.mcq ? 'mcq' : (type == QuestionType.subjective ? 'subjective' : '');
+      final sStr = section == SectionType.sectionA ? 'sectionA' : (section == SectionType.sectionB ? 'sectionB' : '');
+
+      final queryParams = <String, String>{
+        'exam_id': examId,
+        'paper': pStr,
+        'page': '$page',
+        'limit': '$limit',
+      };
+      if (tStr.isNotEmpty) queryParams['type'] = tStr;
+      if (sStr.isNotEmpty) queryParams['section'] = sStr;
+      if (query != null && query.trim().isNotEmpty) queryParams['search'] = query.trim();
+
+      final uri = Uri.parse('${AppConstants.apiBaseUrl}/questions').replace(queryParameters: queryParams);
+      final res = await http.get(uri, headers: headers).timeout(const Duration(seconds: 12));
+
+      if (res.statusCode == 200) {
+        final Map<String, dynamic> body = jsonDecode(res.body);
+        final List<dynamic> list = body['questions'] ?? [];
+        _pagedQuestions = list.map((e) => Question.fromJson(e as Map<String, dynamic>)).toList();
+        _pagedTotal = body['total'] is int ? body['total'] : (int.tryParse('${body['total']}') ?? _pagedQuestions.length);
+        _pagedPage = body['page'] is int ? body['page'] : page;
+        _pagedTotalPages = body['totalPages'] is int ? body['totalPages'] : ((_pagedTotal / limit).ceil());
+        if (_pagedTotalPages < 1) _pagedTotalPages = 1;
+        _pagedLoading = false;
+        notifyListeners();
+        return;
+      }
+    } catch (e) {
+      debugPrint('fetchPagedQuestions backend fallback: $e');
+    }
+
+    // Fallback: If offline or API fails, slice from local _all array
+    if (_all.isEmpty) {
+      try {
+        final jsonStr = await rootBundle.loadString('assets/data/questions.json');
+        final List<dynamic> decoded = jsonDecode(jsonStr);
+        _all = decoded.map((e) => Question.fromJson(e as Map<String, dynamic>)).toList();
+      } catch (_) {}
+    }
+
+    final filtered = _all.where((q) {
+      if (examId != 'all' && q.examId != examId) return false;
+      if (q.paper != paper) return false;
+      if (type != null && q.type != type) return false;
+      if (section != null && q.section != section) return false;
+      if (query != null && query.trim().isNotEmpty) {
+        final s = query.trim().toLowerCase();
+        if (!q.questionNepali.toLowerCase().contains(s) &&
+            !q.questionEnglish.toLowerCase().contains(s) &&
+            !q.unitTitle.toLowerCase().contains(s)) return false;
+      }
+      return true;
+    }).toList();
+
+    _pagedTotal = filtered.length;
+    _pagedTotalPages = (_pagedTotal / limit).ceil();
+    if (_pagedTotalPages < 1) _pagedTotalPages = 1;
+    final clampedPage = page.clamp(1, _pagedTotalPages);
+    _pagedPage = clampedPage;
+    final start = (clampedPage - 1) * limit;
+    _pagedQuestions = filtered.skip(start).take(limit).toList();
+    _pagedLoading = false;
+    notifyListeners();
+  }
+
   Future<void> loadAll({bool forceRefresh = false}) async {
     // Always ensure settings are fetched & cached independently
     fetchSettingsFromBackend();
 
-    if (_all.isNotEmpty && _exams.isNotEmpty && !forceRefresh) return;
+    if (_exams.isNotEmpty && _all.isNotEmpty && !forceRefresh) return;
     _loading = true;
     notifyListeners();
 
@@ -641,41 +739,26 @@ class QuestionProvider extends ChangeNotifier {
         headers['Authorization'] = 'Bearer $token';
       }
 
-      // 1. Primary: Fetch Exams + Questions from Node.js + MongoDB Atlas API
-      final examsFuture = http
+      // Fetch exams list (lightweight, ~2KB)
+      final examRes = await http
           .get(Uri.parse('${AppConstants.apiBaseUrl}/exams'), headers: headers)
-          .timeout(const Duration(seconds: 10));
-      final questionsFuture = http
-          .get(Uri.parse('${AppConstants.apiBaseUrl}/questions'), headers: headers)
-          .timeout(const Duration(seconds: 10));
-
-      final results = await Future.wait([examsFuture, questionsFuture]);
-      final examRes = results[0];
-      final qRes = results[1];
+          .timeout(const Duration(seconds: 15));
 
       if (examRes.statusCode == 200) {
         final Map<String, dynamic> eBody = jsonDecode(examRes.body);
         final List<dynamic> eList = eBody['exams'] ?? [];
         _exams = eList.map((e) => ExamCourse.fromJson(e as Map<String, dynamic>)).toList();
       }
-
-      if (qRes.statusCode == 200) {
-        final Map<String, dynamic> body = jsonDecode(qRes.body);
-        final List<dynamic> list = body['questions'] ?? [];
-        _all = list.map((e) => Question.fromJson(e as Map<String, dynamic>)).toList();
-        _loadedFromBackend = true;
-      } else {
-        throw Exception('API status ${qRes.statusCode}');
-      }
     } catch (_) {
-      // 2. Fallback: Load from bundled JSON assets if backend is offline
-      _loadedFromBackend = false;
       try {
         final examStr = await rootBundle.loadString('assets/data/exams.json');
         final List<dynamic> eDecoded = jsonDecode(examStr);
         _exams = eDecoded.map((e) => ExamCourse.fromJson(e as Map<String, dynamic>)).toList();
       } catch (_) {}
+    }
 
+    // Always load local bundled questions into _all for offline quiz/practice/fallback
+    if (_all.isEmpty || forceRefresh) {
       try {
         final jsonStr = await rootBundle.loadString('assets/data/questions.json');
         final List<dynamic> decoded = jsonDecode(jsonStr);
@@ -744,6 +827,24 @@ class QuestionProvider extends ChangeNotifier {
     return false;
   }
 
+  Future<bool> updateExamInMongo(String examId, Map<String, dynamic> examData, String token) async {
+    try {
+      final res = await http.post(
+        Uri.parse('${AppConstants.apiBaseUrl}/exams'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(examData),
+      );
+      if (res.statusCode == 200 || res.statusCode == 201) {
+        await loadAll(forceRefresh: true);
+        return true;
+      }
+    } catch (_) {}
+    return false;
+  }
+
   Future<bool> addQuestionToMongo(Map<String, dynamic> qData, String token) async {
     try {
       final res = await http.post(
@@ -755,6 +856,24 @@ class QuestionProvider extends ChangeNotifier {
         body: jsonEncode(qData),
       );
       if (res.statusCode == 201) {
+        await loadAll(forceRefresh: true);
+        return true;
+      }
+    } catch (_) {}
+    return false;
+  }
+
+  Future<bool> updateQuestionInMongo(String questionId, Map<String, dynamic> qData, String token) async {
+    try {
+      final res = await http.put(
+        Uri.parse('${AppConstants.apiBaseUrl}/questions/$questionId'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(qData),
+      );
+      if (res.statusCode == 200) {
         await loadAll(forceRefresh: true);
         return true;
       }

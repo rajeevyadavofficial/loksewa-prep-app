@@ -6,13 +6,14 @@ const { signToken, requireAuth } = require('../middleware/auth');
 const router = express.Router();
 
 function sanitizeUser(u) {
+  const isAdmin = !!u.isAdmin;
   return {
     uid: u._id,
     name: u.name,
     email: u.email,
-    plan: u.plan || 'free',
-    planExpiresAt: u.planExpiresAt || null,
-    isAdmin: !!u.isAdmin,
+    plan: isAdmin ? 'premium' : (u.plan || 'free'),
+    planExpiresAt: isAdmin ? null : (u.planExpiresAt || null),
+    isAdmin,
     bookmarkedQuestions: u.bookmarkedQuestions || [],
     enrolledExams: u.enrolledExams || [],
   };

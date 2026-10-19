@@ -396,7 +396,18 @@ const DB = {
     return true;
   },
 
-  // QUESTIONS
+  async getQuestionsCount(filters = {}) {
+    if (isMongoConnected) {
+      const query = {};
+      if (filters.exam_id) query.exam_id = filters.exam_id;
+      return await Question.countDocuments(query);
+    }
+    if (filters.exam_id) {
+      return (localStore.questions || []).filter((q) => (q.exam_id || 'rbb_it_5') === filters.exam_id).length;
+    }
+    return (localStore.questions || []).length;
+  },
+
   async getAllQuestions(filters = {}) {
     let list;
     if (isMongoConnected) {
@@ -418,6 +429,72 @@ const DB = {
       });
     }
     return list;
+  },
+
+  async getQuestionsPaginated(filters = {}, { page = 1, limit = 10 } = {}) {
+    page = Math.max(1, parseInt(page) || 1);
+    limit = parseInt(limit) || 10;
+    const skip = (page - 1) * limit;
+
+    if (isMongoConnected) {
+      const query = {};
+      if (filters.exam_id && filters.exam_id !== 'all') query.exam_id = filters.exam_id;
+      if (filters.paper) query.paper = filters.paper;
+      if (filters.section) query.section = filters.section;
+      if (filters.unit_number) query.unit_number = Number(filters.unit_number);
+      if (filters.type) query.type = filters.type;
+      if (filters.search && filters.search.trim()) {
+        const s = filters.search.trim();
+        query.$or = [
+          { question_nepali: { $regex: s, $options: 'i' } },
+          { question_english: { $regex: s, $options: 'i' } },
+          { unit_title: { $regex: s, $options: 'i' } },
+        ];
+      }
+
+      const [total, questions] = await Promise.all([
+        Question.countDocuments(query),
+        Question.find(query)
+          .sort({ unit_number: 1, id: 1 })
+          .skip(skip)
+          .limit(limit)
+          .lean(),
+      ]);
+
+      return {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit) || 1,
+        questions,
+      };
+    } else {
+      const filtered = localStore.questions.filter((q) => {
+        if (filters.exam_id && filters.exam_id !== 'all' && (q.exam_id || 'rbb_it_5') !== filters.exam_id) return false;
+        if (filters.paper && q.paper !== filters.paper) return false;
+        if (filters.section && q.section !== filters.section) return false;
+        if (filters.unit_number && q.unit_number !== Number(filters.unit_number)) return false;
+        if (filters.type && q.type !== filters.type) return false;
+        if (filters.search && filters.search.trim()) {
+          const s = filters.search.trim().toLowerCase();
+          const matchNepali = (q.question_nepali || '').toLowerCase().includes(s);
+          const matchEnglish = (q.question_english || '').toLowerCase().includes(s);
+          const matchUnit = (q.unit_title || '').toLowerCase().includes(s);
+          if (!matchNepali && !matchEnglish && !matchUnit) return false;
+        }
+        return true;
+      });
+
+      const total = filtered.length;
+      const questions = filtered.slice(skip, skip + limit);
+      return {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit) || 1,
+        questions,
+      };
+    }
   },
 
   async createQuestion(qData) {
@@ -506,6 +583,18 @@ const DB = {
       updatedUser = await this.updateUserPlan(p.userId, p.plan, options);
     }
     return { payment: p, user: updatedUser };
+  },
+
+  async deletePayment(paymentId) {
+    if (isMongoConnected) {
+      const res = await Payment.findByIdAndDelete(paymentId);
+      return !!res;
+    }
+    const idx = localStore.payments.findIndex((item) => String(item._id) === String(paymentId));
+    if (idx === -1) return false;
+    localStore.payments.splice(idx, 1);
+    saveLocalStore();
+    return true;
   },
 
   // SETTINGS (Payment QR, WhatsApp QR, Contacts, Bank Details)

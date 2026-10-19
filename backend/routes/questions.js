@@ -23,24 +23,45 @@ function applyPaywallToQuestion(q, user) {
   };
 }
 
-// GET /api/questions
+// GET /api/questions (Supports server-side pagination with limit=10 by default)
 router.get('/', optionalAuth, async (req, res) => {
   try {
-    const { exam_id, paper, section, unit_number, type } = req.query;
-    let rawQuestions = await DB.getAllQuestions({ exam_id, paper, section, unit_number, type });
-    // If non-admin candidate has enrolled exams, restrict to only their enrolled exams
-    if (
-      req.user &&
-      !req.user.isAdmin &&
-      Array.isArray(req.user.enrolledExams) &&
-      req.user.enrolledExams.length > 0
-    ) {
-      const enrolledSet = new Set(req.user.enrolledExams);
-      rawQuestions = rawQuestions.filter((q) => enrolledSet.has(q.exam_id || 'rbb_it_5'));
+    const { exam_id, paper, section, unit_number, type, page, limit, search, all } = req.query;
+
+    const isAll = all === 'true' || limit === 'all';
+    const numLimit = isAll ? 0 : (parseInt(limit) || 10);
+    const numPage = Math.max(1, parseInt(page) || 1);
+
+    if (isAll) {
+      let rawQuestions = await DB.getAllQuestions({ exam_id, paper, section, unit_number, type });
+      if (
+        req.user &&
+        !req.user.isAdmin &&
+        Array.isArray(req.user.enrolledExams) &&
+        req.user.enrolledExams.length > 0
+      ) {
+        const enrolledSet = new Set(req.user.enrolledExams);
+        rawQuestions = rawQuestions.filter((q) => enrolledSet.has(q.exam_id || 'rbb_it_5'));
+      }
+      const protectedQuestions = rawQuestions.map((q) => applyPaywallToQuestion(q, req.user));
+      return res.json({
+        total: protectedQuestions.length,
+        userPlan: req.user?.plan || 'free',
+        questions: protectedQuestions,
+      });
     }
-    const protectedQuestions = rawQuestions.map((q) => applyPaywallToQuestion(q, req.user));
+
+    const filters = { exam_id, paper, section, unit_number, type, search };
+    const pagedResult = await DB.getQuestionsPaginated(filters, { page: numPage, limit: numLimit });
+
+    // Apply paywall protection
+    const protectedQuestions = pagedResult.questions.map((q) => applyPaywallToQuestion(q, req.user));
+
     return res.json({
-      total: protectedQuestions.length,
+      total: pagedResult.total,
+      page: pagedResult.page,
+      limit: pagedResult.limit,
+      totalPages: pagedResult.totalPages,
       userPlan: req.user?.plan || 'free',
       questions: protectedQuestions,
     });

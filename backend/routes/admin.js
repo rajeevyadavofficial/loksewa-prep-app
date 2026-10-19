@@ -7,13 +7,19 @@ const router = express.Router();
 // GET /api/admin/stats
 router.get('/stats', requireAuth, requireAdmin, async (req, res) => {
   try {
-    const [exams, users, questions, payments, donations] = await Promise.all([
-      DB.getAllExams(),
-      DB.getAllUsers(),
-      DB.getAllQuestions(),
-      DB.getAllPayments(),
-      DB.getAllDonations(),
-    ]);
+    const t0 = Date.now();
+    const exams = await DB.getAllExams();
+    const t1 = Date.now();
+    const users = await DB.getAllUsers();
+    const t2 = Date.now();
+    const totalQuestions = await DB.getQuestionsCount();
+    const t3 = Date.now();
+    const payments = await DB.getAllPayments();
+    const t4 = Date.now();
+    const donations = await DB.getAllDonations();
+    const t5 = Date.now();
+
+    console.log(`⏱️ [STATS PROFILER] exams: ${t1-t0}ms | users: ${t2-t1}ms | questionsCount: ${t3-t2}ms | payments: ${t4-t3}ms | donations: ${t5-t4}ms | total: ${t5-t0}ms`);
 
     const freeCount = users.filter((u) => u.plan === 'free').length;
     const basicCount = users.filter((u) => u.plan === 'basic').length;
@@ -31,11 +37,11 @@ router.get('/stats', requireAuth, requireAdmin, async (req, res) => {
       freeCount,
       basicCount,
       premiumCount,
-      totalQuestions: questions.length,
+      totalQuestions,
       totalRevenue,
       pendingCount: pendingPayments.length,
       pendingPayments,
-      recentPayments: payments.slice(0, 20),
+      recentPayments: payments.slice(0, 100),
       pendingDonationsCount: pendingDonations.length,
       pendingDonations,
       recentDonations: donations.slice(0, 30),
@@ -43,8 +49,8 @@ router.get('/stats', requireAuth, requireAdmin, async (req, res) => {
         uid: u._id,
         name: u.name,
         email: u.email,
-        plan: u.plan,
-        planExpiresAt: u.planExpiresAt || null,
+        plan: u.isAdmin ? 'premium' : (u.plan || 'free'),
+        planExpiresAt: u.isAdmin ? null : (u.planExpiresAt || null),
         isAdmin: !!u.isAdmin,
         createdAt: u.createdAt,
       })),
@@ -129,6 +135,20 @@ router.put('/payments/:id/verify', requireAuth, requireAdmin, async (req, res) =
   } catch (err) {
     console.error('Admin verify payment error:', err);
     return res.status(500).json({ error: 'Failed to verify payment' });
+  }
+});
+
+// DELETE /api/admin/payments/:id (Admin Only — Delete transaction record / remove fake transactions)
+router.delete('/payments/:id', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const deleted = await DB.deletePayment(req.params.id);
+    if (!deleted) {
+      return res.status(404).json({ error: 'Payment transaction record not found' });
+    }
+    return res.json({ message: 'Transaction record deleted successfully' });
+  } catch (err) {
+    console.error('Admin delete payment error:', err);
+    return res.status(500).json({ error: 'Failed to delete payment record' });
   }
 });
 
