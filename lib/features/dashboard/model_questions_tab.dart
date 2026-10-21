@@ -196,11 +196,12 @@ class _AnswerBody extends StatelessWidget {
     final lines = text.trim().split('\n');
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: lines.map((line) {
         final t = line.trim();
         if (t.isEmpty) return const SizedBox(height: 8);
 
+        // Heading: ### or ## or #
         if (t.startsWith('### ') || t.startsWith('## ') || t.startsWith('# ')) {
           final h = t.replaceAll(RegExp(r'^#+\s*'), '');
           return Padding(
@@ -211,42 +212,33 @@ class _AnswerBody extends StatelessWidget {
                 fontFamily: 'serif',
                 fontSize: baseFontSize + 1.5,
                 fontWeight: FontWeight.w800,
-                color: const Color(0xFF1E293B),
+                color: const Color(0xFF0F172A),
               ),
             ),
           );
         }
 
+        // Bullet line: - or *
         if (t.startsWith('- ') || t.startsWith('* ')) {
           final body = t.substring(2).trim();
           return Padding(
             padding: const EdgeInsets.only(top: 3, left: 8),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('• ', style: TextStyle(fontFamily: 'serif', fontSize: baseFontSize, fontWeight: FontWeight.w800, color: const Color(0xFFDC2626))),
-                Expanded(child: _richLine(body, baseFontSize)),
-              ],
-            ),
+            child: _richLine(body, baseFontSize, prefix: '•  ', prefixColor: const Color(0xFFDC2626)),
           );
         }
 
+        // Numbered list: 1. or 1)
         final numMatch = RegExp(r'^(\d+[\.\)])\s*(.*)$').firstMatch(t);
         if (numMatch != null) {
           final numPrefix = numMatch.group(1)!;
           final body = numMatch.group(2)!;
           return Padding(
             padding: const EdgeInsets.only(top: 4, left: 8),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('$numPrefix ', style: TextStyle(fontFamily: 'serif', fontSize: baseFontSize, fontWeight: FontWeight.w800, color: const Color(0xFF1E293B))),
-                Expanded(child: _richLine(body, baseFontSize)),
-              ],
-            ),
+            child: _richLine(body, baseFontSize, prefix: '$numPrefix  ', prefixColor: const Color(0xFF1E293B)),
           );
         }
 
+        // Regular paragraph or bold sub-heading
         return Padding(
           padding: const EdgeInsets.only(top: 4),
           child: _richLine(t, baseFontSize),
@@ -255,8 +247,23 @@ class _AnswerBody extends StatelessWidget {
     );
   }
 
-  Widget _richLine(String raw, double fontSize) {
+  Widget _richLine(String raw, double fontSize, {String? prefix, Color? prefixColor}) {
     final spans = <TextSpan>[];
+
+    if (prefix != null && prefix.isNotEmpty) {
+      spans.add(
+        TextSpan(
+          text: prefix,
+          style: TextStyle(
+            fontFamily: 'serif',
+            fontSize: fontSize,
+            fontWeight: FontWeight.w800,
+            color: prefixColor ?? const Color(0xFF1E293B),
+          ),
+        ),
+      );
+    }
+
     final regex = RegExp(r'(\*\*\*([^\*]+?)\*\*\*|\*\*([^\*]+?)\*\*|\*([^\*]+?)\*)');
     int lastEnd = 0;
     final base = TextStyle(
@@ -819,23 +826,29 @@ class _QuestionRow extends StatelessWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Row(
-                        children: [
-                          const Icon(Icons.edit_note, size: 16, color: Color(0xFFDC2626)),
-                          const SizedBox(width: 6),
-                          Text(
-                            'नमूना उत्तर (Model Answer Script)',
-                            style: TextStyle(
-                              fontFamily: 'serif',
-                              fontSize: isMobile ? 12.5 : 13.5,
-                              fontWeight: FontWeight.w800,
-                              color: const Color(0xFF991B1B),
+                      Expanded(
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.edit_note, size: 18, color: Color(0xFFDC2626)),
+                            const SizedBox(width: 6),
+                            Flexible(
+                              child: Text(
+                                'नमूना उत्तर (Model Answer Script)',
+                                style: TextStyle(
+                                  fontFamily: 'serif',
+                                  fontSize: isMobile ? 12.5 : 13.5,
+                                  fontWeight: FontWeight.w800,
+                                  color: const Color(0xFF991B1B),
+                                ),
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
+                      const SizedBox(width: 8),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(
                           color: const Color(0xFFFEE2E2),
                           borderRadius: BorderRadius.circular(4),
