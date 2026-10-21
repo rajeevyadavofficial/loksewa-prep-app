@@ -11,6 +11,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/constants/app_constants.dart';
 import '../../data/models/models.dart';
 import '../../data/repositories/providers.dart';
+import 'model_questions_tab.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -116,6 +117,11 @@ class _DashboardPageState extends State<DashboardPage> {
                             selectedIcon: const Icon(Icons.volunteer_activism, size: 20),
                             label: isSmallMobile ? 'Earn' : 'Donate',
                           ),
+                          NavigationDestination(
+                            icon: const Icon(Icons.article_outlined, size: 20),
+                            selectedIcon: const Icon(Icons.article, size: 20),
+                            label: isSmallMobile ? 'Model' : 'Model Q',
+                          ),
                         ],
                       ),
                     ),
@@ -148,6 +154,7 @@ class _DashboardPageState extends State<DashboardPage> {
               MockTestTab(onGoToExams: () => _setTab(0)),
               SyllabusTab(onGoToExams: () => _setTab(0)),
               DonateQuestionsTab(onGoToExams: () => _setTab(0)),
+              ModelQuestionsTab(onGoToExams: () => _setTab(0)),
             ],
           ),
         ),
@@ -176,6 +183,7 @@ class _SideNav extends StatelessWidget {
     (Icons.timer_outlined, Icons.timer_rounded, 'Timed Mock Test'),
     (Icons.description_outlined, Icons.description_rounded, 'Exam Syllabus'),
     (Icons.volunteer_activism_outlined, Icons.volunteer_activism_rounded, 'Donate & Earn (रू 5)'),
+    (Icons.article_outlined, Icons.article_rounded, 'Model Questions'),
   ];
 
   @override
