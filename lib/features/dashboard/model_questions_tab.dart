@@ -56,7 +56,6 @@ class _ModelQuestionsTabState extends State<ModelQuestionsTab>
       children: [
         // Top Toolbar
         Container(
-          color: Colors.white,
           padding: EdgeInsets.symmetric(
             horizontal: isMobile ? 12 : 24,
             vertical: isMobile ? 8 : 12,
