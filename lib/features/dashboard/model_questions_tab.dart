@@ -1,9 +1,12 @@
+// ignore: avoid_web_libraries_in_flutter
+import 'dart:html' as html;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// MODEL QUESTION PAPERS — RBB Senior Assistant (IT) Level 5
-// Format strictly matches official Lok Sewa Aayog exam paper format
+// MODEL QUESTION PAPERS — Authentic Lok Sewa Aayog Question Paper Format
+// Pixel-accurate reproduction of official PSC examination question papers
 // ─────────────────────────────────────────────────────────────────────────────
 
 class ModelQuestionsTab extends StatefulWidget {
@@ -36,6 +39,14 @@ class _ModelQuestionsTabState extends State<ModelQuestionsTab>
     super.dispose();
   }
 
+  void _printPaper() {
+    if (kIsWeb) {
+      try {
+        html.window.print();
+      } catch (_) {}
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final w = MediaQuery.of(context).size.width;
@@ -43,12 +54,16 @@ class _ModelQuestionsTabState extends State<ModelQuestionsTab>
 
     return Column(
       children: [
-        // Header bar
+        // Top Toolbar
         Container(
           color: Colors.white,
           padding: EdgeInsets.symmetric(
-            horizontal: isMobile ? 14 : 28,
-            vertical: isMobile ? 10 : 14,
+            horizontal: isMobile ? 12 : 24,
+            vertical: isMobile ? 8 : 12,
+          ),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0), width: 1)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -56,81 +71,89 @@ class _ModelQuestionsTabState extends State<ModelQuestionsTab>
               Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(8),
+                    padding: const EdgeInsets.all(7),
                     decoration: BoxDecoration(
                       color: AppTheme.iconRedLight,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: AppTheme.iconRed.withOpacity(0.3)),
+                      borderRadius: BorderRadius.circular(6),
                     ),
-                    child: const Icon(Icons.article_outlined, color: AppTheme.iconRed, size: 20),
+                    child: const Icon(Icons.description, color: AppTheme.iconRed, size: 18),
                   ),
-                  const SizedBox(width: 12),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Model Question Papers',
-                        style: TextStyle(
-                          fontSize: isMobile ? 17 : 20,
-                          fontWeight: FontWeight.w800,
-                          color: AppTheme.textPrimary,
-                          letterSpacing: -0.4,
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'लोक सेवा आयोग — नमूना प्रश्नपत्र (Model Question Papers)',
+                          style: TextStyle(
+                            fontSize: isMobile ? 13.5 : 15.5,
+                            fontWeight: FontWeight.w800,
+                            color: const Color(0xFF0F172A),
+                          ),
                         ),
-                      ),
-                      Text(
-                        'RBB Senior Assistant (IT) — Level 5 | Lok Sewa Format',
-                        style: TextStyle(
-                          fontSize: isMobile ? 11 : 12.5,
-                          color: AppTheme.textMuted,
-                          fontWeight: FontWeight.w500,
+                        Text(
+                          'Official Lok Sewa format • Tap \'Reveal Answer\' to view model solutions',
+                          style: TextStyle(
+                            fontSize: isMobile ? 11 : 12,
+                            color: const Color(0xFF64748B),
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
+                  if (kIsWeb)
+                    OutlinedButton.icon(
+                      onPressed: _printPaper,
+                      icon: const Icon(Icons.print_outlined, size: 16),
+                      label: Text(isMobile ? 'Print' : 'Print Paper (प्रिन्ट)'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFF334155),
+                        side: const BorderSide(color: Color(0xFFCBD5E1)),
+                        padding: EdgeInsets.symmetric(horizontal: isMobile ? 8 : 14, vertical: 8),
+                        textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                      ),
+                    ),
                 ],
               ),
-              const SizedBox(height: 14),
-              // Paper selector tabs
+              const SizedBox(height: 10),
+              // Tab bar
               Container(
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF4F4F5),
-                  borderRadius: BorderRadius.circular(10),
+                  color: const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                padding: const EdgeInsets.all(4),
+                padding: const EdgeInsets.all(3),
                 child: TabBar(
                   controller: _tabController,
                   isScrollable: true,
                   tabAlignment: TabAlignment.start,
                   indicator: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(7),
-                    border: Border.all(color: AppTheme.iconRed.withOpacity(0.25)),
+                    borderRadius: BorderRadius.circular(6),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 6,
-                        offset: const Offset(0, 2),
+                        color: Colors.black.withOpacity(0.06),
+                        blurRadius: 4,
+                        offset: const Offset(0, 1),
                       ),
                     ],
                   ),
                   labelColor: AppTheme.iconRedDark,
-                  unselectedLabelColor: AppTheme.textMuted,
-                  labelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
-                  unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
+                  unselectedLabelColor: const Color(0xFF64748B),
+                  labelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12.5),
+                  unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 12.5),
                   indicatorSize: TabBarIndicatorSize.tab,
                   dividerColor: Colors.transparent,
                   tabs: _modelPapers.asMap().entries.map((e) {
+                    final isSel = _currentPaper == e.key;
                     return Tab(
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(
-                              e.value.icon,
-                              size: 15,
-                              color: _currentPaper == e.key ? AppTheme.iconRed : AppTheme.textMuted,
-                            ),
+                            Icon(e.value.icon, size: 14, color: isSel ? AppTheme.iconRed : const Color(0xFF64748B)),
                             const SizedBox(width: 6),
                             Text(e.value.tabLabel),
                           ],
@@ -143,12 +166,15 @@ class _ModelQuestionsTabState extends State<ModelQuestionsTab>
             ],
           ),
         ),
-        const Divider(height: 1, color: AppTheme.divider),
-        // Paper content
+
+        // Paper View container on realistic neutral desk background
         Expanded(
-          child: TabBarView(
-            controller: _tabController,
-            children: _modelPapers.map((paper) => _PaperView(paper: paper)).toList(),
+          child: Container(
+            color: const Color(0xFFE5E7EB), // Neutral desk surface
+            child: TabBarView(
+              controller: _tabController,
+              children: _modelPapers.map((paper) => _PaperView(paper: paper)).toList(),
+            ),
           ),
         ),
       ],
@@ -156,793 +182,72 @@ class _ModelQuestionsTabState extends State<ModelQuestionsTab>
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// DATA MODEL
-// ─────────────────────────────────────────────────────────────────────────────
 
-class ModelPaper {
-  final String tabLabel;
-  final String paperNumber;     // e.g. "Paper I"
-  final String subject;         // Nepali subject title
-  final String subjectEng;
-  final String setNumber;       // "Set A", "Set B", etc.
-  final int fullMarks;
-  final int passMarks;
-  final String timeDuration;
-  final IconData icon;
-  final List<ModelSection> sections;
 
-  const ModelPaper({
-    required this.tabLabel,
-    required this.paperNumber,
-    required this.subject,
-    required this.subjectEng,
-    required this.setNumber,
-    required this.fullMarks,
-    required this.passMarks,
-    required this.timeDuration,
-    required this.icon,
-    required this.sections,
-  });
-}
-
-class ModelSection {
-  final String title;          // "समूह 'क' (Group A)"
-  final String subtitle;       // "Banking & Organizational Management"
-  final int totalMarks;
-  final List<ModelQuestion> questions;
-
-  const ModelSection({
-    required this.title,
-    required this.subtitle,
-    required this.totalMarks,
-    required this.questions,
-  });
-}
-
-class ModelQuestion {
-  final int number;
-  final String questionText;
-  final String? questionTextNepali;
-  final int marks;
-  final String marksBreakdown;   // e.g. "4+6=10" or "5"
-  final String answer;           // Full model answer
-  final bool isPremium;
-
-  const ModelQuestion({
-    required this.number,
-    required this.questionText,
-    this.questionTextNepali,
-    required this.marks,
-    required this.marksBreakdown,
-    required this.answer,
-    this.isPremium = false,
-  });
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// PAPER VIEW — renders a single model paper with official Lok Sewa format
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _PaperView extends StatefulWidget {
-  final ModelPaper paper;
-  const _PaperView({required this.paper});
-
-  @override
-  State<_PaperView> createState() => _PaperViewState();
-}
-
-class _PaperViewState extends State<_PaperView> {
-  // Track which (sectionIndex, questionIndex) is currently open
-  int? _openSectionIdx;
-  int? _openQuestionIdx;
-
-  void _toggleAnswer(int secIdx, int qIdx) {
-    setState(() {
-      if (_openSectionIdx == secIdx && _openQuestionIdx == qIdx) {
-        // Collapse if same question clicked
-        _openSectionIdx = null;
-        _openQuestionIdx = null;
-      } else {
-        _openSectionIdx = secIdx;
-        _openQuestionIdx = qIdx;
-      }
-    });
-  }
+class _AnswerBody extends StatelessWidget {
+  final String text;
+  const _AnswerBody({required this.text});
 
   @override
   Widget build(BuildContext context) {
     final w = MediaQuery.of(context).size.width;
     final isMobile = w < 768;
-    final paper = widget.paper;
+    final baseFontSize = isMobile ? 12.5 : 13.5;
 
-    return SingleChildScrollView(
-      padding: EdgeInsets.symmetric(
-        horizontal: isMobile ? 12 : 32,
-        vertical: isMobile ? 14 : 24,
-      ),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 900),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // ── OFFICIAL QUESTION PAPER CARD ──
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  border: Border.all(color: const Color(0xFF2D2D2D), width: 1.5),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.08),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // ── OFFICIAL HEADER ──
-                    _buildOfficialHeader(paper, isMobile),
-
-                    // ── INSTRUCTIONS ──
-                    _buildInstructions(paper, isMobile),
-
-                    // ── SECTIONS & QUESTIONS ──
-                    ...paper.sections.asMap().entries.map((secEntry) {
-                      final secIdx = secEntry.key;
-                      final section = secEntry.value;
-                      return _buildSection(
-                        section: section,
-                        secIdx: secIdx,
-                        isMobile: isMobile,
-                      );
-                    }),
-
-                    // ── FOOTER ──
-                    _buildFooter(paper, isMobile),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 24),
-
-              // ── TIP BOX ──
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: AppTheme.iconRedLight,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppTheme.iconRed.withOpacity(0.3)),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Icon(Icons.tips_and_updates_outlined, color: AppTheme.iconRed, size: 18),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        'Tip: Attempt all questions without looking at the answers first. Then click "Reveal Answer" to compare your response with the model answer.',
-                        style: TextStyle(
-                          fontSize: isMobile ? 12.5 : 13,
-                          color: AppTheme.iconRedDark,
-                          height: 1.5,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 32),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildOfficialHeader(ModelPaper paper, bool isMobile) {
-    return Container(
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: Color(0xFF2D2D2D), width: 1.5)),
-      ),
-      child: Column(
-        children: [
-          // Top row: Nepal Govt + logo area
-          Container(
-            color: const Color(0xFFFAFAFA),
-            padding: EdgeInsets.symmetric(
-              horizontal: isMobile ? 12 : 24,
-              vertical: isMobile ? 10 : 14,
-            ),
-            child: Column(
-              children: [
-                // Organization name
-                Text(
-                  'नेपाल सरकार',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: isMobile ? 14 : 16,
-                    fontWeight: FontWeight.w800,
-                    color: const Color(0xFF1A1A1A),
-                    letterSpacing: 0.5,
-                  ),
-                ),
-                Text(
-                  'Government of Nepal',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: isMobile ? 10 : 11.5,
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.textMuted,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'लोक सेवा आयोग',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: isMobile ? 16 : 19,
-                    fontWeight: FontWeight.w900,
-                    color: AppTheme.iconRedDark,
-                    letterSpacing: 1.0,
-                  ),
-                ),
-                Text(
-                  'Public Service Commission (PSC)',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: isMobile ? 10 : 11.5,
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.textMuted,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                // Thin red divider
-                Container(height: 2, color: AppTheme.iconRed),
-                const SizedBox(height: 8),
-                // Exam title
-                Text(
-                  'खुला तथा समावेशी प्रतियोगितात्मक लिखित परीक्षा',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: isMobile ? 12 : 13.5,
-                    fontWeight: FontWeight.w700,
-                    color: const Color(0xFF1A1A1A),
-                  ),
-                ),
-                Text(
-                  'Open & Inclusive Competitive Written Examination',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: isMobile ? 10 : 11,
-                    color: AppTheme.textMuted,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  'राष्ट्रिय बाणिज्य बैंक लिमिटेड — सिनियर असिस्टेन्ट (IT) — तह ५',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: isMobile ? 12 : 13,
-                    fontWeight: FontWeight.w800,
-                    color: AppTheme.iconRedDark,
-                  ),
-                ),
-                Text(
-                  'Rastriya Banijya Bank Ltd. — Senior Assistant (IT) — Level 5',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: isMobile ? 10 : 11,
-                    color: AppTheme.textMuted,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // Meta bar: Paper, Subject, Marks, Time, Set
-          Container(
-            padding: EdgeInsets.symmetric(horizontal: isMobile ? 12 : 24, vertical: 10),
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              border: Border(
-                top: BorderSide(color: Color(0xFFD4D4D8)),
-                bottom: BorderSide(color: Color(0xFFD4D4D8)),
-              ),
-            ),
-            child: isMobile
-                ? Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _metaRow('पत्र / Paper', paper.paperNumber),
-                      const SizedBox(height: 4),
-                      _metaRow('विषय / Subject', '${paper.subject} / ${paper.subjectEng}'),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Expanded(child: _metaRow('पूर्णाङ्क / Full Marks', '${paper.fullMarks}')),
-                          Expanded(child: _metaRow('उत्तीर्णाङ्क / Pass', '${paper.passMarks}')),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Expanded(child: _metaRow('समय / Time', paper.timeDuration)),
-                          Expanded(child: _metaRow('सेट / Set', paper.setNumber)),
-                        ],
-                      ),
-                    ],
-                  )
-                : Row(
-                    children: [
-                      Expanded(flex: 2, child: _metaRow('पत्र / Paper', paper.paperNumber)),
-                      Expanded(flex: 4, child: _metaRow('विषय / Subject', '${paper.subject} / ${paper.subjectEng}')),
-                      Expanded(flex: 2, child: _metaRow('पूर्णाङ्क / Full Marks', '${paper.fullMarks}')),
-                      Expanded(flex: 2, child: _metaRow('उत्तीर्णाङ्क / Pass', '${paper.passMarks}')),
-                      Expanded(flex: 2, child: _metaRow('समय / Time', paper.timeDuration)),
-                      Expanded(flex: 1, child: _metaRow('Set', paper.setNumber)),
-                    ],
-                  ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _metaRow(String label, String value) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: const TextStyle(fontSize: 10, color: AppTheme.textMuted, fontWeight: FontWeight.w500)),
-        Text(value, style: const TextStyle(fontSize: 12.5, color: AppTheme.textPrimary, fontWeight: FontWeight.w700)),
-      ],
-    );
-  }
-
-  Widget _buildInstructions(ModelPaper paper, bool isMobile) {
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: isMobile ? 14 : 24, vertical: 10),
-      color: const Color(0xFFFEFCE8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'द्रष्टव्य (Instructions):',
-            style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12.5, color: Color(0xFF78350F)),
-          ),
-          const SizedBox(height: 4),
-          _instrLine('सबै प्रश्नहरूका उत्तर दिनु अनिवार्य छ।  (All questions are compulsory.)'),
-          _instrLine('उत्तरपुस्तिकाको समूह "क" को उत्तर "क" समूह लेख्ने उत्तरपुस्तिकामा र "ख" समूहको उत्तर "ख" समूह लेख्ने उत्तरपुस्तिकामा छुट्टाछुट्टै लेख्नुपर्नेछ।'),
-          _instrLine('दायाँ छेउका अङ्कहरूले प्रश्नको पूर्णाङ्क जनाउँछन्।  (Figures on the right margin indicate full marks.)'),
-          _instrLine('उत्तर सकेसम्म आफ्नै शब्दमा लेख्नुपर्नेछ।  (Answers must be written in one\'s own words as far as practicable.)'),
-        ],
-      ),
-    );
-  }
-
-  Widget _instrLine(String text) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 3),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('•  ', style: TextStyle(fontSize: 11, color: Color(0xFF92400E), fontWeight: FontWeight.w700)),
-          Expanded(
-            child: Text(text, style: const TextStyle(fontSize: 11, color: Color(0xFF78350F), height: 1.45)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSection({
-    required ModelSection section,
-    required int secIdx,
-    required bool isMobile,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        // Section header banner
-        Container(
-          padding: EdgeInsets.symmetric(horizontal: isMobile ? 14 : 24, vertical: 10),
-          decoration: BoxDecoration(
-            color: AppTheme.iconRed.withOpacity(0.07),
-            border: const Border(
-              top: BorderSide(color: Color(0xFF2D2D2D), width: 1.0),
-              bottom: BorderSide(color: Color(0xFFD4D4D8), width: 0.8),
-            ),
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      section.title,
-                      style: TextStyle(
-                        fontSize: isMobile ? 14 : 15.5,
-                        fontWeight: FontWeight.w900,
-                        color: AppTheme.iconRedDark,
-                        letterSpacing: 0.3,
-                      ),
-                    ),
-                    Text(
-                      section.subtitle,
-                      style: TextStyle(
-                        fontSize: isMobile ? 11 : 12,
-                        color: AppTheme.textMuted,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppTheme.iconRedDark,
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  '${section.totalMarks} Marks',
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 12),
-                ),
-              ),
-            ],
-          ),
-        ),
-
-        // Questions
-        ...section.questions.asMap().entries.map((qEntry) {
-          final qIdx = qEntry.key;
-          final q = qEntry.value;
-          final isOpen = _openSectionIdx == secIdx && _openQuestionIdx == qIdx;
-
-          return _QuestionCard(
-            question: q,
-            isAnswerOpen: isOpen,
-            isMobile: isMobile,
-            onToggleAnswer: () => _toggleAnswer(secIdx, qIdx),
-          );
-        }),
-      ],
-    );
-  }
-
-  Widget _buildFooter(ModelPaper paper, bool isMobile) {
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: isMobile ? 14 : 24, vertical: 12),
-      decoration: const BoxDecoration(
-        color: Color(0xFFFAFAFA),
-        border: Border(top: BorderSide(color: Color(0xFF2D2D2D), width: 1.5)),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            '— समाप्त / End of ${paper.paperNumber} (${paper.setNumber}) —',
-            style: const TextStyle(fontSize: 12, color: AppTheme.textMuted, fontStyle: FontStyle.italic, fontWeight: FontWeight.w600),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              border: Border.all(color: AppTheme.iconRed.withOpacity(0.4)),
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: Text(
-              'LoksewaHero — ${paper.setNumber}',
-              style: const TextStyle(fontSize: 11, color: AppTheme.iconRedDark, fontWeight: FontWeight.w700),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// SINGLE QUESTION CARD with reveal answer accordion
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _QuestionCard extends StatelessWidget {
-  final ModelQuestion question;
-  final bool isAnswerOpen;
-  final bool isMobile;
-  final VoidCallback onToggleAnswer;
-
-  const _QuestionCard({
-    required this.question,
-    required this.isAnswerOpen,
-    required this.isMobile,
-    required this.onToggleAnswer,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: Color(0xFFE4E4E7), width: 0.8)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Question row
-          Padding(
-            padding: EdgeInsets.symmetric(
-              horizontal: isMobile ? 14 : 24,
-              vertical: isMobile ? 12 : 14,
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Question number badge
-                Container(
-                  width: 28,
-                  height: 28,
-                  margin: const EdgeInsets.only(top: 1, right: 12),
-                  decoration: BoxDecoration(
-                    color: AppTheme.iconRed,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Center(
-                    child: Text(
-                      '${question.number}',
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 13),
-                    ),
-                  ),
-                ),
-                // Question text
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        question.questionText,
-                        style: TextStyle(
-                          fontSize: isMobile ? 13.5 : 14.5,
-                          fontWeight: FontWeight.w600,
-                          color: AppTheme.textPrimary,
-                          height: 1.55,
-                          letterSpacing: -0.1,
-                        ),
-                      ),
-                      if (question.questionTextNepali != null) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          question.questionTextNepali!,
-                          style: TextStyle(
-                            fontSize: isMobile ? 12.5 : 13.5,
-                            fontWeight: FontWeight.w500,
-                            color: AppTheme.textMuted,
-                            height: 1.5,
-                            fontStyle: FontStyle.italic,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-                // Marks badge
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: AppTheme.iconRed.withOpacity(0.5)),
-                        borderRadius: BorderRadius.circular(6),
-                        color: Colors.white,
-                      ),
-                      child: Text(
-                        '[${question.marksBreakdown}]',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w800,
-                          color: AppTheme.iconRedDark,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      '${question.marks} marks',
-                      style: const TextStyle(fontSize: 10, color: AppTheme.textMuted),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-
-          // Reveal Answer button
-          Padding(
-            padding: EdgeInsets.only(
-              left: isMobile ? 54 : 64,
-              right: isMobile ? 14 : 24,
-              bottom: isAnswerOpen ? 0 : 12,
-            ),
-            child: InkWell(
-              onTap: onToggleAnswer,
-              borderRadius: BorderRadius.circular(7),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                decoration: BoxDecoration(
-                  color: isAnswerOpen ? AppTheme.iconRedDark : AppTheme.iconRedLight,
-                  borderRadius: BorderRadius.circular(7),
-                  border: Border.all(
-                    color: isAnswerOpen ? AppTheme.iconRedDark : AppTheme.iconRed.withOpacity(0.4),
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      isAnswerOpen ? Icons.keyboard_arrow_up_rounded : Icons.visibility_outlined,
-                      size: 15,
-                      color: isAnswerOpen ? Colors.white : AppTheme.iconRed,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      isAnswerOpen ? 'Hide Answer' : 'Reveal Answer',
-                      style: TextStyle(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w700,
-                        color: isAnswerOpen ? Colors.white : AppTheme.iconRed,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-
-          // Answer panel (animated)
-          AnimatedCrossFade(
-            duration: const Duration(milliseconds: 280),
-            crossFadeState: isAnswerOpen ? CrossFadeState.showSecond : CrossFadeState.showFirst,
-            firstChild: const SizedBox(height: 12, width: double.infinity),
-            secondChild: _buildAnswerPanel(isMobile),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAnswerPanel(bool isMobile) {
-    if (!isAnswerOpen) return const SizedBox.shrink();
-
-    return Container(
-      margin: EdgeInsets.only(
-        left: isMobile ? 14 : 24,
-        right: isMobile ? 14 : 24,
-        top: 8,
-        bottom: 14,
-      ),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF0FDF4),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFF86EFAC), width: 1.2),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Answer header
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-            decoration: BoxDecoration(
-              color: const Color(0xFFDCFCE7),
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
-              border: Border(bottom: BorderSide(color: const Color(0xFF86EFAC).withOpacity(0.8))),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.check_circle_rounded, color: Color(0xFF16A34A), size: 16),
-                const SizedBox(width: 8),
-                const Text(
-                  'Model Answer',
-                  style: TextStyle(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF166534),
-                  ),
-                ),
-                const Spacer(),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF16A34A),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    '[${question.marksBreakdown}]',
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 11),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          // Answer body
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: isMobile ? 12 : 16, vertical: 12),
-            child: _AnswerBody(text: question.answer, isMobile: isMobile),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Answer body renderer — handles bullet, heading, numbered lists
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _AnswerBody extends StatelessWidget {
-  final String text;
-  final bool isMobile;
-
-  const _AnswerBody({required this.text, required this.isMobile});
-
-  @override
-  Widget build(BuildContext context) {
-    final baseFontSize = isMobile ? 13.0 : 13.5;
-    final lines = text.split('\n').where((l) => l.trim().isNotEmpty).toList();
+    final lines = text.trim().split('\n');
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: lines.map((line) {
         final t = line.trim();
+        if (t.isEmpty) return const SizedBox(height: 8);
 
-        // Heading: starts with # or ends with : and is short
-        if (t.startsWith('#') || (t.endsWith(':') && t.length < 80 && !t.startsWith('•') && !t.startsWith('-'))) {
-          final clean = t.replaceFirst(RegExp(r'^#+\s*'), '');
+        if (t.startsWith('### ') || t.startsWith('## ') || t.startsWith('# ')) {
+          final h = t.replaceAll(RegExp(r'^#+\s*'), '');
           return Padding(
-            padding: const EdgeInsets.only(top: 8, bottom: 2),
+            padding: const EdgeInsets.only(top: 10, bottom: 4),
             child: Text(
-              clean,
+              h,
               style: TextStyle(
-                fontSize: baseFontSize,
+                fontFamily: 'serif',
+                fontSize: baseFontSize + 1.5,
                 fontWeight: FontWeight.w800,
-                color: const Color(0xFF166534),
-                decoration: TextDecoration.underline,
-                decorationColor: const Color(0xFF16A34A).withOpacity(0.5),
+                color: const Color(0xFF1E293B),
               ),
             ),
           );
         }
 
-        // Bullet
-        if (t.startsWith('•') || t.startsWith('-') || t.startsWith('*')) {
-          final content = t.replaceFirst(RegExp(r'^[•\-\*]\s*'), '');
+        if (t.startsWith('- ') || t.startsWith('* ')) {
+          final body = t.substring(2).trim();
           return Padding(
-            padding: const EdgeInsets.only(top: 3),
+            padding: const EdgeInsets.only(top: 3, left: 8),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('•  ', style: TextStyle(color: Color(0xFF16A34A), fontWeight: FontWeight.w800, fontSize: 13)),
-                Expanded(
-                  child: _richLine(content, baseFontSize),
-                ),
+                Text('• ', style: TextStyle(fontFamily: 'serif', fontSize: baseFontSize, fontWeight: FontWeight.w800, color: const Color(0xFFDC2626))),
+                Expanded(child: _richLine(body, baseFontSize)),
               ],
             ),
           );
         }
 
-        // Numbered list
-        if (RegExp(r'^\d+[.)]\s').hasMatch(t)) {
+        final numMatch = RegExp(r'^(\d+[\.\)])\s*(.*)$').firstMatch(t);
+        if (numMatch != null) {
+          final numPrefix = numMatch.group(1)!;
+          final body = numMatch.group(2)!;
           return Padding(
-            padding: const EdgeInsets.only(top: 4),
-            child: _richLine(t, baseFontSize),
+            padding: const EdgeInsets.only(top: 4, left: 8),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('$numPrefix ', style: TextStyle(fontFamily: 'serif', fontSize: baseFontSize, fontWeight: FontWeight.w800, color: const Color(0xFF1E293B))),
+                Expanded(child: _richLine(body, baseFontSize)),
+              ],
+            ),
           );
         }
 
-        // Regular paragraph
         return Padding(
           padding: const EdgeInsets.only(top: 4),
           child: _richLine(t, baseFontSize),
@@ -953,9 +258,15 @@ class _AnswerBody extends StatelessWidget {
 
   Widget _richLine(String raw, double fontSize) {
     final spans = <TextSpan>[];
-    final regex = RegExp(r'(\*\*\*([^*]+?)\*\*\*|\*\*([^*]+?)\*\*|\*([^*]+?)\*)');
+    final regex = RegExp(r'(\*\*\*([^\*]+?)\*\*\*|\*\*([^\*]+?)\*\*|\*([^\*]+?)\*)');
     int lastEnd = 0;
-    final base = TextStyle(fontSize: fontSize, color: const Color(0xFF14532D), height: 1.55, fontWeight: FontWeight.w500);
+    final base = TextStyle(
+      fontFamily: 'serif',
+      fontSize: fontSize,
+      color: const Color(0xFF1E293B),
+      height: 1.55,
+      fontWeight: FontWeight.w500,
+    );
 
     for (final match in regex.allMatches(raw)) {
       if (match.start > lastEnd) {
@@ -966,7 +277,7 @@ class _AnswerBody extends StatelessWidget {
       if (b3 != null && b3.isNotEmpty) {
         spans.add(TextSpan(text: b3, style: base.copyWith(fontWeight: FontWeight.w800, fontStyle: FontStyle.italic)));
       } else if (b2 != null && b2.isNotEmpty) {
-        spans.add(TextSpan(text: b2, style: base.copyWith(fontWeight: FontWeight.w800, color: const Color(0xFF166534))));
+        spans.add(TextSpan(text: b2, style: base.copyWith(fontWeight: FontWeight.w800, color: const Color(0xFF0F172A))));
       } else if (b1 != null && b1.isNotEmpty) {
         spans.add(TextSpan(text: b1, style: base.copyWith(fontStyle: FontStyle.italic, fontWeight: FontWeight.w600)));
       }
@@ -983,18 +294,1192 @@ class _AnswerBody extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// MODEL PAPER DATA — RBB Senior Assistant IT Level 5
-// Strict Lok Sewa official format:
-//  Paper I  — Banking, Accounting & Management (100 Marks)
-//    Group A — Banking & Organizational Management (50 Marks)
-//    Group B — Information Technology (50 Marks)
-//  Paper II — Information Technology & Management (100 Marks)
-//    Group A — Computer Networks, OS, DBMS, Web (50 Marks)
-//    Group B — Cybersecurity, IT Policies, NRB Guidelines (50 Marks)
-// ─────────────────────────────────────────────────────────────────────────────
+class ModelPaper {
+  final String tabLabel;
+  final String commissionName;
+  final String serviceName;
+  final String examType;
+  final String examDate;
+  final String timeString;
+  final String fullMarksString;
+  final String paperTitle;
+  final String subjectTitle;
+  final String instructionsText;
+  final IconData icon;
+  final List<ModelSection> sections;
+  final String? paperNumber;
+  final String? subject;
+  final String? subjectEng;
+  final String? setNumber;
+  final int? fullMarks;
+  final int? passMarks;
+  final String? timeDuration;
+
+  const ModelPaper({
+    required this.tabLabel,
+    this.commissionName = 'लोक सेवा आयोग',
+    this.serviceName = 'राष्ट्रिय वाणिज्य बैंक लिमिटेड / प्रशासन सेवा, तह ५, वरिष्ठ सहायक पदको',
+    this.examType = 'प्रतियोगितात्मक लिखित परीक्षा',
+    this.examDate = '२०८१/०२/१५',
+    this.timeString = 'समय:- ३ घण्टा',
+    this.fullMarksString = 'पूर्णाङ्क:- १००',
+    this.paperTitle = 'पत्र:- प्रथम',
+    this.subjectTitle = 'विषय:- बैंकिङ, लेखा तथा व्यवस्थापन',
+    this.instructionsText = 'निम्न प्रश्नहरुको उत्तर Section अनुसार छुट्टाछुट्टै उत्तरपुस्तिकामा लेख्नुपर्नेछ, अन्यथा उत्तरपुस्तिका रद्द हुनेछ ।',
+    required this.icon,
+    required this.sections,
+    this.paperNumber,
+    this.subject,
+    this.subjectEng,
+    this.setNumber,
+    this.fullMarks,
+    this.passMarks,
+    this.timeDuration,
+  });
+}
+
+class ModelSection {
+  final String title;
+  final String? subtitle;
+  final int totalMarks;
+  final List<ModelQuestion> questions;
+
+  const ModelSection({
+    required this.title,
+    this.subtitle,
+    required this.totalMarks,
+    required this.questions,
+  });
+}
+
+class ModelQuestion {
+  final int number;
+  final String? subLabel;
+  final String questionText;
+  final String? questionTextNepali;
+  final int? marks;
+  final String marksBreakdown;
+  final String answer;
+  final bool isPremium;
+
+  const ModelQuestion({
+    required this.number,
+    this.subLabel,
+    required this.questionText,
+    this.questionTextNepali,
+    this.marks,
+    required this.marksBreakdown,
+    required this.answer,
+    this.isPremium = false,
+  });
+}
+
+
+
+class _PaperView extends StatefulWidget {
+  final ModelPaper paper;
+  const _PaperView({required this.paper});
+
+  @override
+  State<_PaperView> createState() => _PaperViewState();
+}
+
+class _PaperViewState extends State<_PaperView> {
+  int? _openSectionIdx;
+  int? _openQuestionIdx;
+
+  void _toggleAnswer(int secIdx, int qIdx) {
+    setState(() {
+      if (_openSectionIdx == secIdx && _openQuestionIdx == qIdx) {
+        _openSectionIdx = null;
+        _openQuestionIdx = null;
+      } else {
+        _openSectionIdx = secIdx;
+        _openQuestionIdx = qIdx;
+      }
+    });
+  }
+
+  void _collapseAll() {
+    setState(() {
+      _openSectionIdx = null;
+      _openQuestionIdx = null;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final w = MediaQuery.of(context).size.width;
+    final isMobile = w < 768;
+    final paper = widget.paper;
+
+    return SingleChildScrollView(
+      padding: EdgeInsets.symmetric(
+        horizontal: isMobile ? 8 : 24,
+        vertical: isMobile ? 12 : 24,
+      ),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 840),
+          child: Column(
+            children: [
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  border: Border.all(color: const Color(0xFFCCCCCC), width: 1.0),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.12),
+                      blurRadius: 18,
+                      spreadRadius: 2,
+                      offset: const Offset(0, 4),
+                    ),
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.04),
+                      blurRadius: 4,
+                      offset: const Offset(0, 1),
+                    ),
+                  ],
+                ),
+                padding: EdgeInsets.symmetric(
+                  horizontal: isMobile ? 16 : 46,
+                  vertical: isMobile ? 22 : 40,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Center(
+                      child: Text(
+                        paper.commissionName,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontFamily: 'serif',
+                          fontSize: isMobile ? 20 : 23,
+                          fontWeight: FontWeight.w900,
+                          color: Colors.black,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Center(
+                      child: Text(
+                        paper.serviceName,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontFamily: 'serif',
+                          fontSize: isMobile ? 12 : 13.5,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.black,
+                          height: 1.35,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Center(
+                      child: Text(
+                        paper.examType,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontFamily: 'serif',
+                          fontSize: isMobile ? 13 : 15,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.black,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Center(
+                      child: Text(
+                        paper.examDate,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontFamily: 'serif',
+                          fontSize: isMobile ? 12 : 13.5,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.black,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          paper.timeDuration != null ? 'समय:- ${paper.timeDuration!}' : paper.timeString,
+                          style: TextStyle(
+                            fontFamily: 'serif',
+                            fontSize: isMobile ? 13 : 14.5,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.black,
+                          ),
+                        ),
+                        Text(
+                          paper.fullMarks != null ? 'पूर्णाङ्क:- ${paper.fullMarks}' : paper.fullMarksString,
+                          style: TextStyle(
+                            fontFamily: 'serif',
+                            fontSize: isMobile ? 13 : 14.5,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.black,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Center(
+                      child: Text(
+                        paper.paperNumber != null ? 'पत्र:- ${paper.paperNumber!}' : paper.paperTitle,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontFamily: 'serif',
+                          fontSize: isMobile ? 13.5 : 15,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.black,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Center(
+                      child: Text(
+                        paper.subject != null ? 'विषय:- ${paper.subject!}' : paper.subjectTitle,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontFamily: 'serif',
+                          fontSize: isMobile ? 13.5 : 15,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.black,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Center(
+                      child: Text(
+                        paper.instructionsText,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontFamily: 'serif',
+                          fontSize: isMobile ? 11.5 : 13,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.black,
+                          decoration: TextDecoration.underline,
+                          decorationThickness: 1.3,
+                          height: 1.45,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    ...paper.sections.asMap().entries.map((secEntry) {
+                      final secIdx = secEntry.key;
+                      final section = secEntry.value;
+
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.only(top: 18, bottom: 12),
+                            child: Row(
+                              children: [
+                                const SizedBox(width: 70),
+                                Expanded(
+                                  child: Center(
+                                    child: Text(
+                                      section.title,
+                                      style: TextStyle(
+                                        fontFamily: 'serif',
+                                        fontSize: isMobile ? 14 : 16,
+                                        fontWeight: FontWeight.w900,
+                                        color: Colors.black,
+                                        decoration: TextDecoration.underline,
+                                        decorationThickness: 1.6,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                SizedBox(
+                                  width: 70,
+                                  child: Text(
+                                    '${section.totalMarks}-Marks',
+                                    textAlign: TextAlign.right,
+                                    style: TextStyle(
+                                      fontFamily: 'serif',
+                                      fontSize: isMobile ? 12 : 13.5,
+                                      fontWeight: FontWeight.w800,
+                                      color: Colors.black,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          ...section.questions.asMap().entries.map((qEntry) {
+                            final qIdx = qEntry.key;
+                            final q = qEntry.value;
+                            final isOpen = _openSectionIdx == secIdx && _openQuestionIdx == qIdx;
+
+                            final bool isContinuation = qEntry.key > 0 &&
+                                section.questions[qEntry.key - 1].number == q.number;
+
+                            return _QuestionRow(
+                              question: q,
+                              showNumber: !isContinuation,
+                              isAnswerOpen: isOpen,
+                              isMobile: isMobile,
+                              onToggleAnswer: () => _toggleAnswer(secIdx, qIdx),
+                            );
+                          }),
+                        ],
+                      );
+                    }),
+                    const SizedBox(height: 24),
+                    Center(
+                      child: Text(
+                        '— समाप्त (The End) —',
+                        style: TextStyle(
+                          fontFamily: 'serif',
+                          fontSize: isMobile ? 12 : 13,
+                          fontWeight: FontWeight.w700,
+                          color: const Color(0xFF4B5563),
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              if (_openSectionIdx != null)
+                TextButton.icon(
+                  onPressed: _collapseAll,
+                  icon: const Icon(Icons.unfold_less, size: 16),
+                  label: const Text('Collapse Open Answer (उत्तर बन्द गर्नुहोस्)'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: const Color(0xFF4B5563),
+                  ),
+                ),
+              const SizedBox(height: 24),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _QuestionRow extends StatelessWidget {
+  final ModelQuestion question;
+  final bool showNumber;
+  final bool isAnswerOpen;
+  final bool isMobile;
+  final VoidCallback onToggleAnswer;
+
+  const _QuestionRow({
+    required this.question,
+    required this.showNumber,
+    required this.isAnswerOpen,
+    required this.isMobile,
+    required this.onToggleAnswer,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final sub = question.subLabel;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(
+                width: isMobile ? 20 : 26,
+                child: Text(
+                  showNumber ? '${question.number}.' : '',
+                  style: TextStyle(
+                    fontFamily: 'serif',
+                    fontSize: isMobile ? 13.5 : 14.5,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.black,
+                  ),
+                ),
+              ),
+              if (sub != null && sub.isNotEmpty) ...[
+                SizedBox(
+                  width: isMobile ? 18 : 22,
+                  child: Text(
+                    sub,
+                    style: TextStyle(
+                      fontFamily: 'serif',
+                      fontSize: isMobile ? 13.5 : 14.5,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.black,
+                    ),
+                  ),
+                ),
+              ],
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      question.questionText,
+                      style: TextStyle(
+                        fontFamily: 'serif',
+                        fontSize: isMobile ? 13.5 : 14.5,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black,
+                        height: 1.45,
+                      ),
+                    ),
+                    if (question.questionTextNepali != null) ...[
+                      const SizedBox(height: 3),
+                      Text(
+                        question.questionTextNepali!,
+                        style: TextStyle(
+                          fontFamily: 'serif',
+                          fontSize: isMobile ? 12.5 : 13.5,
+                          fontWeight: FontWeight.w500,
+                          color: const Color(0xFF262626),
+                          height: 1.4,
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 5),
+                    InkWell(
+                      onTap: onToggleAnswer,
+                      borderRadius: BorderRadius.circular(4),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              isAnswerOpen ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                              size: 13,
+                              color: isAnswerOpen ? AppTheme.iconRedDark : const Color(0xFF1D4ED8),
+                            ),
+                            const SizedBox(width: 5),
+                            Text(
+                              isAnswerOpen
+                                  ? 'Hide Answer (बन्द गर्नुहोस्)'
+                                  : 'Reveal Answer (उत्तर हेर्नुहोस्)',
+                              style: TextStyle(
+                                fontFamily: 'serif',
+                                fontSize: isMobile ? 11.5 : 12,
+                                fontWeight: FontWeight.w700,
+                                color: isAnswerOpen ? AppTheme.iconRedDark : const Color(0xFF1D4ED8),
+                                decoration: TextDecoration.underline,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                question.marksBreakdown,
+                style: TextStyle(
+                  fontFamily: 'serif',
+                  fontSize: isMobile ? 13.5 : 14.5,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.black,
+                ),
+              ),
+            ],
+          ),
+          AnimatedCrossFade(
+            duration: const Duration(milliseconds: 220),
+            crossFadeState: isAnswerOpen ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+            firstChild: const SizedBox.shrink(),
+            secondChild: Container(
+              margin: EdgeInsets.only(
+                top: 8,
+                left: isMobile ? 16 : 48,
+                right: 0,
+                bottom: 8,
+              ),
+              decoration: const BoxDecoration(
+                color: Color(0xFFFAF9F6),
+                border: Border(
+                  left: BorderSide(color: Color(0xFFDC2626), width: 3.0),
+                  top: BorderSide(color: Color(0xFFE2E8F0), width: 1.0),
+                  bottom: BorderSide(color: Color(0xFFE2E8F0), width: 1.0),
+                  right: BorderSide(color: Color(0xFFE2E8F0), width: 1.0),
+                ),
+                borderRadius: BorderRadius.only(
+                  topRight: Radius.circular(6),
+                  bottomRight: Radius.circular(6),
+                ),
+              ),
+              padding: EdgeInsets.all(isMobile ? 12 : 18),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.edit_note, size: 16, color: Color(0xFFDC2626)),
+                          const SizedBox(width: 6),
+                          Text(
+                            'नमूना उत्तर (Model Answer Script)',
+                            style: TextStyle(
+                              fontFamily: 'serif',
+                              fontSize: isMobile ? 12.5 : 13.5,
+                              fontWeight: FontWeight.w800,
+                              color: const Color(0xFF991B1B),
+                            ),
+                          ),
+                        ],
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFEE2E2),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          'अङ्क: ${question.marksBreakdown}',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF991B1B),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const Divider(height: 16, color: Color(0xFFE2E8F0)),
+                  _AnswerBody(text: question.answer),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 
 const List<ModelPaper> _modelPapers = [
+  // ══════════════════════════════════════════════════════════════════════
+  //  LOK SEWA AAYOG ORIGINAL (Computer Engineer - 2072/12/6)
+  //  Exact reproduction of official Lok Sewa examination paper
+  // ══════════════════════════════════════════════════════════════════════
+  ModelPaper(
+    tabLabel: 'Lok Sewa 2072 (CE Original)',
+    commissionName: 'लोक सेवा आयोग',
+    serviceName: 'नेपाल विविध सेवा, राजपत्राङ्कित तृतीय श्रेणी, कम्प्यूटर इन्जिनियर (प्राविधिक) पदको',
+    examType: 'प्रतियोगितात्मक लिखित परीक्षा',
+    examDate: '२०७२/१२/६',
+    timeString: 'समय:- ३ घण्टा',
+    fullMarksString: 'पूर्णाङ्क:- १००',
+    paperTitle: 'पत्र:- द्वितीय',
+    subjectTitle: 'विषय:- कम्प्यूटर इन्जिनियरिङ्ग सम्बन्धी',
+    instructionsText: 'निम्न प्रश्नहरुको उत्तर Section अनुसार छुट्टाछुट्टै उत्तरपुस्तिकामा लेख्नुपर्नेछ, अन्यथा उत्तरपुस्तिका रद्द हुनेछ ।',
+    paperNumber: 'द्वितीय',
+    subject: 'कम्प्यूटर इन्जिनियरिङ्ग सम्बन्धी',
+    subjectEng: 'Computer Engineering',
+    setNumber: 'Original 2072',
+    fullMarks: 100,
+    passMarks: 40,
+    timeDuration: '३ घण्टा (3 Hours)',
+    icon: Icons.history_edu,
+    sections: [
+      ModelSection(
+        title: 'Section – A',
+        subtitle: 'Computer Systems & Communication',
+        totalMarks: 24,
+        questions: [
+          ModelQuestion(
+            number: 1,
+            subLabel: 'a)',
+            questionText: 'Differentiate between Network layer and Transport layer.',
+            questionTextNepali: 'नेटवर्क लेयर (Network Layer) र ट्रान्सपोर्ट लेयर (Transport Layer) बीचको भिन्नता स्पष्ट पार्नुहोस्।',
+            marks: 5,
+            marksBreakdown: '5',
+            answer: """### 1. Network Layer vs. Transport Layer (OSI Model)
+
+Both Network and Transport layers play crucial roles in end-to-end communication across networks, but operate at fundamentally different scopes:
+
+| Parameter | Network Layer (Layer 3) | Transport Layer (Layer 4) |
+|---|---|---|
+| **Primary Responsibility** | Host-to-Host (node-to-node) packet delivery across networks | Process-to-Process (application-to-application) end-to-end message delivery |
+| **Data Unit (PDU)** | Packet / Datagram | Segment (TCP) / Datagram (UDP) |
+| **Addressing** | Logical IP addressing (IPv4, IPv6) — 32-bit or 128-bit | Port addressing (Port numbers 0–65535, e.g., HTTP:80, HTTPS:443) |
+| **Key Protocols** | IP (IPv4/IPv6), ICMP, ARP, OSPF, BGP, RIP | TCP, UDP, SCTP |
+| **Hardware Devices** | Routers, Layer 3 Switches | Gateways, Firewalls, Operating System TCP/IP Stack |
+| **Connection Quality** | Connectionless (IP is best-effort; no reliability guarantee) | Connection-oriented (TCP reliable, acknowledgments) or Connectionless (UDP fast) |
+| **Flow & Congestion Control** | Handles subnet traffic congestion (choke packets, RED) | End-to-end sliding window flow control and TCP Reno/Tahoe congestion control |
+| **Error Handling** | Detects IP header errors only (Header Checksum) | Full payload integrity check, sequence numbering, retransmission of lost segments |
+
+**Summary for Exam:**
+- **Network Layer** answers: "How do I route this packet across multiple intermediate routers from device A to device B?"
+- **Transport Layer** answers: "Which specific running application on device B should receive this message, and is it delivered error-free in proper sequence?" """,
+          ),
+          ModelQuestion(
+            number: 1,
+            subLabel: 'b)',
+            questionText: 'Explain the associative mapping and set associative mapping.',
+            questionTextNepali: 'एसोसिएटिभ म्यापिङ (Associative Mapping) र सेट एसोसिएटिभ म्यापिङ (Set Associative Mapping) व्याख्या गर्नुहोस्।',
+            marks: 5,
+            marksBreakdown: '5',
+            answer: """### Cache Memory Mapping Techniques
+
+Cache mapping determines how a main memory block is mapped to a cache line to optimize hit ratio and minimize memory access latency:
+
+**1. Fully Associative Mapping:**
+- **Mechanism:** A main memory block can be loaded into **any** free line/slot of cache memory.
+- **Address Format:** Memory address is split into only two fields: [ Tag | Word/Byte Offset ].
+- **Lookup:** The CPU compares the Tag of the requested address simultaneously (in parallel) with all cache line tags using associative content-addressable memory (CAM).
+- **Advantages:**
+  - Complete flexibility; **zero conflict misses**.
+  - Highest cache hit ratio.
+- **Disadvantages:**
+  - High hardware complexity and cost (parallel comparator circuits for every cache line).
+  - High power consumption and slower search in large caches.
+
+**2. Set Associative Mapping (e.g., k-Way Set Associative):**
+- **Mechanism:** A compromise between Direct Mapping and Fully Associative Mapping. The cache is divided into S sets, and each set contains k cache lines (known as k-way set associative, commonly 2-way, 4-way, or 8-way).
+- **Placement Rule:** A main memory block with block number B maps to set index:
+  Set Index = B mod S
+  Within that assigned set, the block can be placed in **any** of the k lines.
+- **Address Format:** [ Tag | Set Index | Word Offset ].
+- **Advantages:**
+  - Significantly reduces conflict misses compared to Direct Mapping.
+  - Hardware cost and comparator count are limited to only k comparators per lookup (not the entire cache).
+  - Modern CPU L1/L2/L3 caches predominantly use 4-way or 8-way set associative mapping due to its optimal balance between speed, cost, and hit ratio.""",
+          ),
+          ModelQuestion(
+            number: 1,
+            subLabel: 'c)',
+            questionText: "Given the two binary number X = 1010100 and Y = 1000011, perform the subtraction (a) x-y  (b) y-x using 1's complements.",
+            questionTextNepali: "दिइएका दुई बाइनरी संख्याहरू X = 1010100 र Y = 1000011 का लागि 1's कम्प्लिमेन्ट विधि प्रयोग गरी घटाउ गर्नुहोस्: (a) x-y  (b) y-x।",
+            marks: 4,
+            marksBreakdown: '4',
+            answer: """### Subtraction using 1's Complement Method
+
+Given 7-bit binary numbers:
+- X = 1010100 (84 in decimal)
+- Y = 1000011 (67 in decimal)
+
+---
+
+### (a) Compute X - Y:
+1. **Find 1's complement of Y:**
+   - Invert all bits of Y (1000011):
+   - 1's complement of Y = 0111100.
+
+2. **Add X and 1's complement of Y:**
+       1 0 1 0 1 0 0   (X)
+     + 0 1 1 1 1 0 0   (1's comp of Y)
+     ---------------
+     (1) 0 0 1 0 0 0 0
+
+3. **Handle End-Around Carry:**
+   - Since an end carry (1) is generated, the result is **positive**.
+   - Add the end-around carry to the least significant bit (LSB):
+       0 0 1 0 0 0 0
+     +             1
+     ---------------
+       0 0 1 0 0 0 1
+
+4. **Final Result:**
+   X - Y = +0010001 (Decimal: +17).
+   Verification: 84 - 67 = +17 (Correct).
+
+---
+
+### (b) Compute Y - X:
+1. **Find 1's complement of X:**
+   - Invert all bits of X (1010100):
+   - 1's complement of X = 0101011.
+
+2. **Add Y and 1's complement of X:**
+       1 0 0 0 0 1 1   (Y)
+     + 0 1 0 1 0 1 1   (1's comp of X)
+     ---------------
+       1 1 0 1 1 1 0   (No carry generated)
+
+3. **Handle Result when No Carry:**
+   - Since **no end carry** is generated, the result is **negative**.
+   - Take the 1's complement of the sum and place a negative sign in front:
+   - 1's complement of 1101110 = 0010001.
+
+4. **Final Result:**
+   Y - X = -(0010001) (Decimal: -17).
+   Verification: 67 - 84 = -17 (Correct).""",
+          ),
+          ModelQuestion(
+            number: 2,
+            subLabel: 'a)',
+            questionText: 'Differentiate between large signal amplifier and small signal amplifier.',
+            questionTextNepali: 'लार्ज सिग्नल एम्प्लिफायर (Power Amplifier) र स्मल सिग्नल एम्प्लिफायर (Voltage Amplifier) बीचको भिन्नता प्रष्ट पार्नुहोस्।',
+            marks: 5,
+            marksBreakdown: '5',
+            answer: """### Large Signal Amplifier vs. Small Signal Amplifier
+
+In electronic circuit design and telecommunications, amplifiers are classified by signal amplitude and power handling capability:
+
+| Parameter | Small Signal Amplifier (Voltage Amplifier) | Large Signal Amplifier (Power Amplifier) |
+|---|---|---|
+| **Input Signal Level** | Very small (a few microvolts to millivolts) | Large amplitude (volts range, drives output devices) |
+| **Primary Function** | Voltage amplification with minimum noise | Power delivery to heavy loads (loudspeaker, antenna, transmission line) |
+| **Operating Region** | Q-point operates strictly within linear region; signal swings slightly around Q-point | Output swings across large portion of load line (cutoff to saturation) |
+| **Distortion** | Negligible harmonic distortion (linear operation) | Susceptible to non-linear harmonic distortion |
+| **Collector Current** | Small (a few milliamperes) | High current handling (amperes) |
+| **Transistor Construction** | Small size, low heat dissipation, small junction area | Power transistors (e.g., 2N3055, TIP31), large junction, equipped with Heat Sinks |
+| **Circuit Classes** | Mostly Class A (for highest fidelity and linearity) | Class A, Class B, Class AB push-pull, Class C (RF transmitters) |
+| **Collector Efficiency** | Low priority (efficiency under 35%) | High priority (efficiency 75% to 90% in Class B/C to minimize heat waste) |
+| **Typical Placement** | Front-end input stages (pre-amplifiers, microphone inputs, RF receiver front-end) | Final output stage driving speaker/antenna/relay |""",
+          ),
+          ModelQuestion(
+            number: 2,
+            subLabel: 'b)',
+            questionText: 'Explain the performance evaluation of analog and digital communication system.',
+            questionTextNepali: 'एनालग (Analog) र डिजिटल (Digital) सञ्चार प्रणालीहरूको कार्यसम्पादन मूल्याङ्कन (Performance Evaluation) बारे व्याख्या गर्नुहोस्।',
+            marks: 5,
+            marksBreakdown: '5',
+            answer: """### Performance Evaluation of Communication Systems
+
+Performance evaluation metrics determine the fidelity, transmission quality, and efficiency of analog versus digital communication systems:
+
+**1. Analog Communication System Evaluation Metrics:**
+- **Signal-to-Noise Ratio (SNR):** The ratio of signal power to noise power (S/N) measured in decibels (dB). Higher SNR indicates clearer audio/video.
+- **Bandwidth Efficiency:** Analog modulation (AM, FM, PM) bandwidth is governed by Carson's Rule. FM requires high bandwidth but offers superior noise immunity compared to AM.
+- **Harmonic Distortion & THD:** Total Harmonic Distortion measures spurious frequency harmonics produced by amplifier non-linearities.
+- **Dynamic Range:** The difference between the maximum undistorted signal level and minimum detectable signal above noise floor.
+- **Vulnerability to Noise Accumulation:** In long-distance analog transmission, repeater amplifiers amplify both the signal and accumulated noise, causing irreversible quality degradation.
+
+**2. Digital Communication System Evaluation Metrics:**
+- **Bit Error Rate (BER):** The primary benchmark:
+  BER = (Number of Erroneous Bits Received) / (Total Number of Transmitted Bits)
+  Target BER in banking networks and fiber cables is typically <= 10^-9 to 10^-12.
+- **Energy per Bit to Noise Density Ratio (Eb/N0):** Normalized SNR per bit that dictates BER for modulations like QPSK, 16-QAM, or BPSK.
+- **Data Throughput & Spectral Efficiency:** Measured in bits per second per Hertz (bps/Hz), indicating data rate delivered within limited spectrum bandwidth.
+- **Latency, Jitter, and Packet Loss:** Latency (RTT) and variance in packet arrival time (jitter) critical for real-time applications (VoIP, banking transaction processing).
+- **Regenerative Repeater Advantage:** Unlike analog systems, digital repeaters decode, re-clock, and regenerate clean, noise-free pulses at each hop, completely eliminating noise accumulation over infinite distances.""",
+          ),
+        ],
+      ),
+      ModelSection(
+        title: 'Section – B',
+        subtitle: 'Software Engineering & Data Structures',
+        totalMarks: 26,
+        questions: [
+          ModelQuestion(
+            number: 3,
+            subLabel: 'a)',
+            questionText: 'Explain the following concepts of object oriented programming in detail with an example: i) Data abstraction  ii) Inheritance  iii) Polymorphism  iv) Objects',
+            questionTextNepali: 'अब्जेक्ट ओरिएन्टेड प्रोग्रामिङ (OOP) का निम्न अवधारणाहरू उदाहरणसहित व्याख्या गर्नुहोस्: i) Data abstraction  ii) Inheritance  iii) Polymorphism  iv) Objects',
+            marks: 5,
+            marksBreakdown: '5',
+            answer: """### Object-Oriented Programming (OOP) Core Concepts
+
+Object-Oriented Programming models software around real-world data entities:
+
+**1. Objects:**
+- An **Object** is a runtime instance of a Class consisting of **State** (attributes/data members) and **Behavior** (methods/member functions).
+- *Example:* In a Core Banking System, `Account acc101 = new Account("Ram", 50000);` is an object with balance state and deposit/withdraw behaviors.
+
+**2. Data Abstraction:**
+- Representing essential features of an entity while hiding internal implementation complexities and background details from the outside world.
+- Achieved via **Abstract Classes** and **Interfaces**.
+- *Example:* When a customer uses an ATM, they select `WithdrawMoney()`. They only interact with the interface; internal database locking, cryptographic verification, and ledger updates are completely abstracted away.
+
+**3. Inheritance:**
+- The mechanism where a new class (derived/child class) inherits attributes and methods from an existing class (base/parent class), promoting **code reusability** and hierarchical classification.
+- *Example:* Base class `Account` with `deposit()`, and derived class `SavingsAccount` that adds `calculateInterest()`.
+
+**4. Polymorphism:**
+- Ability of a message, function, or operator to be processed in multiple forms.
+- **Compile-time Polymorphism:** Method Overloading (e.g., `transfer(accId, amt)` vs `transfer(phone, amt)`).
+- **Runtime Polymorphism:** Method Overriding via virtual functions (e.g., `Payment.process()` overridden by `Fonepay.process()`).""",
+          ),
+          ModelQuestion(
+            number: 3,
+            subLabel: 'b)',
+            questionText: 'Explain, why linear data structure is necessary? Give suitable example.',
+            questionTextNepali: 'लिनियर डेटा स्ट्रक्चर (Linear Data Structure) किन आवश्यक छ? उपयुक्त उदाहरणसहित प्रष्ट पार्नुहोस्।',
+            marks: 5,
+            marksBreakdown: '5',
+            answer: """### Necessity of Linear Data Structures
+
+A **Linear Data Structure** is a structure where data elements are sequentially linked one after another, such that each element has a unique predecessor and successor. Examples include **Arrays, Linked Lists, Stacks, and Queues**.
+
+**Why Linear Data Structures are Necessary:**
+
+1. **Direct Representation of Sequential Real-World Problems:**
+   - Real-world operations are naturally ordered: print jobs sent to a printer, customer lines at a bank counter, undo operations in an editor.
+   - Example: **Queue (FIFO - First-In-First-Out)** ensures fair processing of interbank RTGS payment requests in strict arrival order.
+
+2. **Predictable Memory Layout & Cache Locality:**
+   - Arrays allocate contiguous blocks of physical memory. This maximizes **spatial CPU cache locality**, resulting in O(1) random access time by index.
+
+3. **Dynamic Memory Allocation (Linked Lists):**
+   - When memory size cannot be determined beforehand, Linked Lists allow dynamic node insertion and deletion in O(1) without contiguous block constraints or expensive memory reallocations.
+
+4. **Program Execution & Recursion Management (Stack):**
+   - The CPU relies fundamentally on the Call Stack (LIFO - Last-In-First-Out) to manage function activation frames, return addresses, local variables, and recursive subroutine execution.
+
+5. **Building Blocks for Complex Data Structures:**
+   - Hash tables use arrays of linked lists (separate chaining). Graphs use adjacency lists (arrays of linked lists). Without linear data structures, complex non-linear structures cannot be implemented.""",
+          ),
+          ModelQuestion(
+            number: 4,
+            questionText: 'What are the important parameters while designing a software for a particular use?',
+            questionTextNepali: 'कुनै विशेष प्रयोजनका लागि सफ्टवेयर डिजाइन गर्दा ध्यान दिनुपर्ने मुख्य मापदण्ड तथा तत्वहरू (Parameters) के-के हुन्? व्याख्या गर्नुहोस्।',
+            marks: 6,
+            marksBreakdown: '6',
+            answer: """### Key Parameters in Software Design
+
+Designing software for enterprise and public mission-critical systems (e.g., Banking, PSC Examination Management, Government E-Governance) requires rigorous adherence to the following parameters:
+
+**1. Functional Completeness & Requirement Alignment:**
+- Clear mapping to stakeholder specifications (SRS - Software Requirement Specification). The software must fulfill all core business rules without functional gaps.
+
+**2. Reliability, Availability & Fault Tolerance:**
+- Mean Time Between Failures (MTBF) and high availability (99.99% uptime).
+- Graceful degradation: If a payment gateway is temporarily unreachable, the system queues transactions safely rather than crashing.
+
+**3. Performance & Response Time:**
+- Low latency, high throughput under peak concurrent loads (e.g., thousands of simultaneous Lok Sewa applicants submitting application forms).
+- Efficient database indexing, query optimization, and memory management.
+
+**4. Security & Data Confidentiality:**
+- End-to-end encryption (TLS/HTTPS, AES-256 for data at rest).
+- Role-Based Access Control (RBAC), Least Privilege principle, and protection against OWASP Top 10 vulnerabilities (SQL Injection, XSS, CSRF).
+- Complete Audit Trail logging for administrative and financial accountability.
+
+**5. Scalability & Extensibility (Modular Architecture):**
+- Horizontal Scalability: Ability to scale across distributed cloud/server nodes.
+- Maintainability: High cohesion, loose coupling, clean RESTful APIs, and adherence to SOLID design principles.
+
+**6. Usability & User Experience (UI/UX):**
+- Intuitive navigation, accessibility standards, multi-language support (English and Nepali Unicode), and mobile responsiveness.
+
+**7. Portability & Compliance:**
+- Cross-platform compatibility across browsers and operating systems.
+- Compliance with regulatory frameworks (e.g., Nepal NRB IT Guidelines, Electronic Transaction Act 2063).""",
+          ),
+          ModelQuestion(
+            number: 5,
+            subLabel: 'a)',
+            questionText: 'Differentiate between Hash based indexing and Tree based indexing.',
+            questionTextNepali: 'ह्यास-आधारित इन्डेक्सिङ (Hash-based Indexing) र ट्री-आधारित इन्डेक्सिङ (B/B+ Tree Indexing) बीचको भिन्नता स्पष्ट पार्नुहोस्।',
+            marks: 5,
+            marksBreakdown: '5',
+            answer: """### Hash-based Indexing vs. Tree-based Indexing (B-Tree/B+ Tree)
+
+In Database Management Systems (DBMS), indexes optimize record retrieval speed:
+
+| Feature | Hash-based Indexing | Tree-based Indexing (B+ Tree) |
+|---|---|---|
+| **Underlying Data Structure** | Hash Table with Hash Function and Buckets | Self-balancing multi-way search tree (B+ Tree) |
+| **Point Queries (WHERE id = 105)** | Extremely fast: average O(1) search time | O(log_B N) search time (proportional to tree height) |
+| **Range Queries (WHERE age BETWEEN 25 AND 35)** | Inefficient / Unsupported: Hashing scatters ordered keys randomly | Highly efficient: B+ Tree leaves are linked sequentially via pointers |
+| **Ordering of Keys** | Keys are stored in arbitrary/random order | Keys are always maintained in sorted order |
+| **Partial Key Match** | Not supported; requires the exact full key | Supported via prefix search in B-Tree index |
+| **Memory & Storage Overhead** | Requires bucket directory; collision handling overhead | Compact block utilization (typically 67% to 80% node fill factor) |
+| **Preferred Real-World Engine** | In-memory key-value caches (Redis, Memcached) | Default index in relational databases (MySQL InnoDB, PostgreSQL, Oracle) |
+
+**Conclusion:** Hash indexing excels at exact match lookups (O(1)), whereas B+ Tree indexing is the industry standard for general database tables due to superior support for range queries, sorting, and inequalities (<, >, BETWEEN).""",
+          ),
+          ModelQuestion(
+            number: 5,
+            subLabel: 'b)',
+            questionText: 'Explain Round Robin scheduling.',
+            questionTextNepali: 'राउन्ड रोबिन (Round Robin) सिड्युलिङ एल्गोरिदम के हो? यसको कार्यप्रणाली, फाइदा र बेफाइदा व्याख्या गर्नुहोस्।',
+            marks: 5,
+            marksBreakdown: '5',
+            answer: """### Round Robin (RR) CPU Scheduling
+
+**Round Robin** is a preemptive CPU scheduling algorithm specifically designed for time-sharing and multi-tasking operating systems.
+
+**1. Working Mechanism:**
+- The OS maintains a circular Ready Queue of active processes.
+- A fixed small unit of CPU time, called a **Time Quantum** or **Time Slice** (typically 10ms to 100ms), is allocated to each process in FIFO order.
+- The CPU scheduler executes the first process in the queue:
+  - If the process completes its burst within the quantum, it releases the CPU voluntarily.
+  - If its burst exceeds the quantum, a timer interrupt fires; the OS preempts the process, performs a **Context Switch**, moves the process to the tail of the Ready Queue, and allocates CPU to the next process.
+
+**2. Impact of Time Quantum:**
+- **If quantum is extremely large:** RR degenerates into **FCFS (First-Come, First-Served)**, causing long waiting times (Convoy Effect).
+- **If quantum is extremely small:** Context switching overhead dominates CPU cycles, severely degrading overall system throughput.
+- **Rule of Thumb:** About 80% of CPU bursts should be shorter than the time quantum.
+
+**3. Advantages:**
+- **Fairness:** Every process gets an equal share of CPU without starvation.
+- **Low Response Time:** Ideal for interactive user sessions where fast response is critical.
+
+**4. Disadvantages:**
+- Higher average turnaround time compared to SJF (Shortest Job First).
+- Context switching overhead reduces effective CPU utilization.""",
+          ),
+        ],
+      ),
+      ModelSection(
+        title: 'Section – C',
+        subtitle: 'Database Systems & Information Security',
+        totalMarks: 25,
+        questions: [
+          ModelQuestion(
+            number: 6,
+            subLabel: 'a)',
+            questionText: 'Explain ACID properties of database transaction with suitable examples.',
+            questionTextNepali: 'डेटाबेस ट्रान्जेक्सनका ACID गुणहरू (ACID Properties) उदाहरणसहित व्याख्या गर्नुहोस्।',
+            marks: 5,
+            marksBreakdown: '5',
+            answer: """### ACID Properties in Database Transactions
+
+A **Transaction** is a logical unit of database processing that includes one or more database operations (Read/Write). To maintain database integrity, transactions must guarantee the four ACID properties:
+
+**1. Atomicity ("All or Nothing"):**
+- Either all operations of the transaction execute successfully, or the entire transaction is aborted and rolled back to its initial state.
+- *Example:* Bank Transfer of Rs. 10,000 from Account A to Account B:
+  - Step 1: Debit Rs. 10,000 from A.
+  - Step 2: Credit Rs. 10,000 to B.
+  - If power fails after Step 1, Atomicity ensures the Rs. 10,000 is **rolled back** to Account A so money is never lost in transit.
+
+**2. Consistency:**
+- The transaction must transform the database from one valid consistent state to another valid state, satisfying all integrity constraints (e.g., balance >= 0, primary key uniqueness).
+- *Example:* The total sum of balances in Account A + Account B must remain identical before and after the transfer.
+
+**3. Isolation:**
+- Multiple concurrently executing transactions must execute independently without interfering with one another. Intermediate, uncommitted changes of one transaction remain invisible to others.
+- Implemented via Concurrency Control Protocols (Two-Phase Locking 2PL, MVCC).
+
+**4. Durability:**
+- Once a transaction commits, its modifications are permanently recorded in non-volatile storage (disk), surviving even subsequent system crashes or power outages.
+- Implemented via Write-Ahead Logging (WAL) and database recovery managers.""",
+          ),
+          ModelQuestion(
+            number: 6,
+            subLabel: 'b)',
+            questionText: 'What is Deadlock in operating system? Explain the four necessary conditions for deadlock occurrence and how deadlock can be prevented.',
+            questionTextNepali: 'अपरेटिङ सिस्टममा डेडलक (Deadlock) भनेको के हो? डेडलक उत्पन्न हुन आवश्यक चार सर्तहरू र यसलाई रोकथाम गर्ने उपायहरू व्याख्या गर्नुहोस्।',
+            marks: 5,
+            marksBreakdown: '5',
+            answer: """### Deadlock in Operating Systems
+
+A **Deadlock** is a state where a set of processes are permanently blocked because each process holds a resource and waits for another resource held by another process in the same set, creating an unbreakable circular wait.
+
+**Four Necessary Coffman Conditions for Deadlock:**
+1. **Mutual Exclusion:** At least one resource must be held in a non-shareable mode (only one process can use it at a time).
+2. **Hold and Wait:** A process must be holding at least one resource and waiting to acquire additional resources held by other processes.
+3. **No Preemption:** Resources cannot be forcibly taken away from a process; they can only be released voluntarily after the process completes its task.
+4. **Circular Wait:** A closed chain of processes exists: P0 waits for resource held by P1, P1 waits for P2, and Pn waits for P0.
+
+**Deadlock Prevention Strategies:**
+Deadlock is prevented by eliminating at least **one** of the four Coffman conditions:
+- **Prevent Mutual Exclusion:** Make resources shareable wherever feasible (e.g., read-only files, spooling print jobs).
+- **Prevent Hold and Wait:** Require processes to request and acquire all needed resources at once before execution begins, or release current resources before requesting new ones.
+- **Prevent No Preemption:** If a process holding resources requests a resource that cannot be immediately allocated, all its currently held resources are preempted.
+- **Prevent Circular Wait:** Impose a strict global numerical ordering on all resources. Processes can only request resources in strictly increasing numerical order.""",
+          ),
+          ModelQuestion(
+            number: 7,
+            subLabel: 'a)',
+            questionText: 'What is SQL Injection attack? How can developers prevent SQL injection in web applications?',
+            questionTextNepali: 'एसक्यूएल इन्जेक्सन (SQL Injection) आक्रमण के हो? वेब एप्लिकेसनहरूमा यसलाई कसरी रोक्न सकिन्छ?',
+            marks: 5,
+            marksBreakdown: '5',
+            answer: """### SQL Injection (SQLi) & Defense Mechanisms
+
+**SQL Injection (SQLi)** is a critical web application vulnerability where an attacker manipulates dynamic SQL queries by injecting malicious SQL statements into user input fields (e.g., login forms, search boxes, URL parameters).
+
+**1. Attack Mechanism:**
+Suppose a vulnerable authentication query concatenates raw input:
+`SELECT * FROM users WHERE username = '` + userInput + `' AND password = '` + passInput + `';`
+If an attacker inputs `admin' --` into the username field, the query becomes:
+`SELECT * FROM users WHERE username = 'admin' --' AND password = '';`
+The `--` comments out the password verification, logging the attacker in as administrator without a valid password!
+
+**2. Prevention Techniques:**
+1. **Parameterized Queries / Prepared Statements (Primary Defense):**
+   - Pre-compiles the SQL query structure separately from data. User input is treated strictly as literal data, never as executable code.
+2. **Object-Relational Mapping (ORM):**
+   - Frameworks like Hibernate, Prisma, or Entity Framework use parameterized queries under the hood.
+3. **Input Validation & Allow-listing:**
+   - Validate input format, length, and character set against expected types (e.g., regex for alphanumeric usernames).
+4. **Principle of Least Privilege:**
+   - The web app database user account should only have minimal permissions (SELECT, INSERT, UPDATE), without administrative rights (DROP TABLE, ALTER).""",
+          ),
+          ModelQuestion(
+            number: 7,
+            subLabel: 'b)',
+            questionText: 'Differentiate between Symmetric and Asymmetric Cryptography with RSA algorithm overview.',
+            questionTextNepali: 'सिमेट्रिक (Symmetric) र एसिमेट्रिक (Asymmetric) क्रिप्टोग्राफी बीचको भिन्नता र RSA एल्गोरिदमको संक्षिप्त रूपरेखा प्रस्तुत गर्नुहोस्।',
+            marks: 5,
+            marksBreakdown: '5',
+            answer: """### Symmetric vs. Asymmetric Cryptography & RSA
+
+| Feature | Symmetric Cryptography | Asymmetric Cryptography (Public-Key) |
+|---|---|---|
+| **Keys Used** | Single secret key shared by sender & receiver for both encryption and decryption | Key Pair: **Public Key** (encryption) and **Private Key** (decryption) |
+| **Speed** | Extremely fast (hardware-accelerated) | Computationally heavy and slow (100–1000x slower) |
+| **Key Distribution** | Difficult: securely sharing the single secret key over untrusted channels is hard | Easy: Public key can be broadcast freely to the world |
+| **Common Algorithms** | AES (128/256-bit), DES, 3DES | RSA, ECC (Elliptic Curve), Diffie-Hellman |
+| **Primary Use Cases** | Bulk data encryption (files, database storage, TLS session payload) | Digital signatures, key exchange, identity authentication |
+
+**RSA Algorithm Overview:**
+RSA (Rivest-Shamir-Adleman) relies on the mathematical difficulty of factoring the product of two large prime numbers:
+1. Choose two large prime numbers p and q.
+2. Compute modulus n = p * q and Euler's totient phi(n) = (p-1)*(q-1).
+3. Select public exponent e such that 1 < e < phi(n) and gcd(e, phi(n)) = 1.
+4. Calculate private exponent d such that d * e = 1 mod phi(n).
+5. **Encryption:** Ciphertext C = M^e mod n.
+6. **Decryption:** Plaintext M = C^d mod n.""",
+          ),
+          ModelQuestion(
+            number: 7,
+            subLabel: 'c)',
+            questionText: 'Explain the architecture of 3-tier Web Application.',
+            questionTextNepali: 'थ्री-टियर (3-Tier) वेब एप्लिकेसन आर्किटेक्चरको संरचना र फाइदाहरू व्याख्या गर्नुहोस्।',
+            marks: 5,
+            marksBreakdown: '5',
+            answer: """### 3-Tier Web Application Architecture
+
+The 3-tier architecture separates application logic into three distinct physical and logical layers:
+
+**1. Presentation Tier (Client / Front-End):**
+- **Function:** Handles user interface (UI) and user interactions.
+- **Technologies:** HTML5, CSS3, JavaScript/TypeScript, Flutter Web, React, Angular.
+- **Role:** Displays information to end-users and transmits user inputs/requests to the Application Tier via HTTPS REST APIs or GraphQL.
+
+**2. Application / Business Logic Tier (Middle Tier):**
+- **Function:** The core processing brain of the system. Implements business rules, validation, session management, workflow logic, and access control.
+- **Technologies:** Node.js Express, Java Spring Boot, Python Django/FastAPI, .NET Core.
+- **Role:** Processes requests from the presentation tier, queries the database tier, performs calculations, and returns structured responses (JSON).
+
+**3. Data Tier (Back-End Database):**
+- **Function:** Manages persistent data storage, retrieval, transactions, and integrity.
+- **Technologies:** PostgreSQL, Oracle DB, MySQL, MongoDB.
+- **Role:** Stores structured records securely; accessible only by the Application Tier (never directly from the front-end browser).
+
+**Key Advantages:**
+- **Enhanced Security:** Client browsers cannot directly access the database. Firewalls protect backend data layers.
+- **Independent Scalability:** If web traffic spikes, additional Application servers can be spun up without changing the database.
+- **Maintainability:** Modifying the front-end UI does not impact backend business logic or database schemas.""",
+          ),
+        ],
+      ),
+      ModelSection(
+        title: 'Section – D',
+        subtitle: 'Networking, Cyber Law & Disaster Recovery',
+        totalMarks: 25,
+        questions: [
+          ModelQuestion(
+            number: 8,
+            subLabel: 'a)',
+            questionText: 'Explain Software Development Life Cycle (SDLC) models: Waterfall vs Agile Scrum.',
+            questionTextNepali: 'सफ्टवेयर विकास जीवनचक्र (SDLC): वाटरफल मोडल (Waterfall) र एजाइल स्क्रम (Agile Scrum) बीचको तुलनात्मक व्याख्या गर्नुहोस्।',
+            marks: 5,
+            marksBreakdown: '5',
+            answer: """### SDLC Models: Waterfall vs. Agile Scrum
+
+| Parameter | Waterfall Model | Agile Scrum Framework |
+|---|---|---|
+| **Methodology** | Linear-sequential phase-by-phase approach | Iterative, incremental sprint-based approach (1–4 week sprints) |
+| **Flexibility to Changes** | Rigid: Requirements frozen early; difficult and costly to change later | Highly flexible: Welcomes changing requirements even late in development |
+| **Customer Involvement** | Limited: Customer engaged primarily at the start (requirements) and end (acceptance) | Continuous: Product Owner actively prioritizes backlog every sprint |
+| **Delivery of Working Software** | Only at the very end of the project lifecycle | Working software increment delivered at the end of every sprint |
+| **Risk Management** | High risk: Faults in design or requirements discovered late during testing | Low risk: Continuous testing, sprint reviews, and retrospectives provide rapid feedback |
+| **Suitability** | Projects with stable, well-defined requirements | Modern digital products, banking web/mobile apps, fast-evolving business systems |""",
+          ),
+          ModelQuestion(
+            number: 8,
+            subLabel: 'b)',
+            questionText: 'Explain Distance Vector Routing vs Link State Routing algorithms.',
+            questionTextNepali: 'डिन्स्टेन्स भेक्टर (Distance Vector) र लिङ्क स्टेट (Link State) राउटिङ एल्गोरिदम बीचको भिन्नता प्रष्ट पार्नुहोस्।',
+            marks: 5,
+            marksBreakdown: '5',
+            answer: """### Distance Vector vs. Link State Routing Algorithms
+
+Interior Gateway Protocols (IGP) use two primary dynamic routing algorithms:
+
+| Parameter | Distance Vector Routing (e.g., RIP) | Link State Routing (e.g., OSPF, IS-IS) |
+|---|---|---|
+| **Core Algorithm** | Bellman-Ford Algorithm | Dijkstra's Shortest Path First (SPF) Algorithm |
+| **Network Topology Knowledge** | Router knows only **distance** (hop count) and **vector** (next-hop interface) to neighbors | Every router maintains a complete, identical map of the entire network topology |
+| **Information Shared** | Shares entire routing table, but only with directly connected immediate neighbors | Sends Link State Advertisements (LSAs) containing link status to all routers via Flooding |
+| **Convergence Speed** | Slow convergence; susceptible to routing loops and Count-to-Infinity problems | Fast convergence; loops avoided through complete topological knowledge |
+| **Resource Usage** | Low CPU and memory requirements | Higher CPU and RAM usage to compute Dijkstra SPF tree |
+| **Scalability** | Small networks (e.g., RIP limit = 15 hops) | Large enterprise and ISP networks (hierarchical areas in OSPF) |""",
+          ),
+          ModelQuestion(
+            number: 9,
+            subLabel: 'a)',
+            questionText: 'Differentiate between TCP (Transmission Control Protocol) and UDP (User Datagram Protocol) with suitable use cases.',
+            questionTextNepali: 'टिसीपी (TCP) र युडिपी (UDP) प्रोटोकल बीचको भिन्नता र यिनीहरूको प्रयोग क्षेत्र उल्लेख गर्नुहोस्।',
+            marks: 5,
+            marksBreakdown: '5',
+            answer: """### TCP vs. UDP Protocol Comparison
+
+| Parameter | TCP (Transmission Control Protocol) | UDP (User Datagram Protocol) |
+|---|---|---|
+| **Connection Type** | Connection-Oriented (Three-Way Handshake SYN, SYN-ACK, ACK) | Connectionless (No handshake, sends datagrams immediately) |
+| **Reliability** | Highly Reliable: Guarantees delivery, sequence numbering, retransmission of lost packets | Unreliable (Best-effort): Packets may be lost, duplicated, or arrive out of order |
+| **Header Size** | 20 to 60 bytes | Fixed 8 bytes (lightweight) |
+| **Flow & Congestion Control** | Supported (Sliding Window, Congestion Avoidance algorithms) | Not supported |
+| **Speed & Overhead** | Slower due to handshake, error-checking, and acknowledgment overhead | Extremely fast with minimal transmission latency |
+| **Use Cases** | Web Browsing (HTTP/HTTPS), Banking Transactions, Email (SMTP/IMAP), File Transfers (FTP/SFTP) | Video Streaming (YouTube, Netflix), Online Multiplayer Gaming, VoIP (WhatsApp Call), DNS queries, DHCP |""",
+          ),
+          ModelQuestion(
+            number: 9,
+            subLabel: 'b)',
+            questionText: 'What is Electronic Transaction Act 2063 (ETA 2063) of Nepal? Highlight its key provisions regarding cyber crimes and digital signatures.',
+            questionTextNepali: 'नेपालको विद्युतीय कारोबार ऐन, २०६३ (ETA 2063) के हो? यसका साइबर अपराध र डिजिटल हस्ताक्षर सम्बन्धी मुख्य व्यवस्थाहरू उल्लेख गर्नुहोस्।',
+            marks: 5,
+            marksBreakdown: '5',
+            answer: """### Electronic Transaction Act 2063 (ETA 2063)
+
+The **Electronic Transaction Act (विद्युतीय कारोबार ऐन, २०६३)** is the milestone cyber legislation enacted in Nepal (2063 BS / 2006 AD) to grant legal recognition to electronic records, authenticate digital signatures, and penalize cybercrimes.
+
+**1. Digital Signature Provisions:**
+- **Legal Validity:** Confers equal legal status to digital signatures and electronic records as handwritten signatures on paper documents.
+- **Controller of Certifying Authorities (CCA):** Establishes the office of CCA under the Ministry of Communication and Information Technology to license, regulate, and supervise Certifying Authorities (CAs) issuing digital signature certificates.
+- **Asymmetric Key Pair:** Mandates asymmetric cryptosystems (public key/private key) for generating and verifying legally binding digital signatures.
+
+**2. Key Cybercrime Penalties (Chapter 9):**
+- **Hacking / Unauthorized Computer Access (Section 44):** Penalty up to Rs. 200,000 fine and/or up to 3 years imprisonment.
+- **Damage to Computer Data / Virus Infiltration (Section 45):** Up to Rs. 200,000 fine and/or up to 3 years imprisonment plus compensation for actual loss.
+- **Publishing Illegal / Obscene Material Online (Section 47):** Publishing defamatory or obscene content online attracts up to Rs. 100,000 fine and/or up to 5 years imprisonment.
+- **Computer Fraud & Forgery (Section 52):** Altering electronic records to commit fraud carries up to Rs. 100,000 fine and/or up to 2 years imprisonment.
+- **IT Tribunal (Section 60):** Establishes an IT Appellate Tribunal consisting of legal and technical experts to adjudicate cybercrime cases.""",
+          ),
+          ModelQuestion(
+            number: 10,
+            questionText: 'Explain the disaster recovery (DR) and business continuity planning (BCP) requirements for enterprise IT systems as per NRB IT Guidelines.',
+            questionTextNepali: 'नेपाल राष्ट्र बैंकको IT Guidelines अनुसार इन्टरप्राइज आईटी प्रणालीहरूमा Disaster Recovery (DR) र Business Continuity Planning (BCP) का मापदण्डहरू व्याख्या गर्नुहोस्।',
+            marks: 5,
+            marksBreakdown: '5',
+            answer: """### Disaster Recovery (DR) & BCP as per NRB IT Guidelines
+
+Nepal Rastra Bank (NRB) IT Guidelines mandate robust Disaster Recovery (DR) and Business Continuity Planning (BCP) for Banks and Financial Institutions (BFIs) to ensure uninterrupted banking operations during natural disasters or cyber disruptions:
+
+**1. Primary Objectives:**
+- **RTO (Recovery Time Objective):** Maximum acceptable duration of downtime before systems must be restored (NRB expects near real-time or minimal RTO for Core Banking Systems).
+- **RPO (Recovery Point Objective):** Maximum acceptable age of data lost due to a disaster (typically zero or near-zero RPO via synchronous database replication).
+
+**2. Key NRB IT Guidelines Mandates:**
+- **Geographically Dispersed DR Site:** The DR site must be located in a different seismic zone at a sufficient physical distance from the Primary Data Center (PDC) to avoid concurrent loss from regional disasters (e.g., Kathmandu PDC with Pokhara or Butwal DR site).
+- **Near-Site (Local DR):** Implementation of an asynchronous/synchronous Near-Site for zero data loss replication.
+- **Periodic DR Drill:** BFIs must conduct mandatory **live DR drills** at least once or twice annually, switching full live banking traffic to the DR site to validate failover automation.
+- **Off-Site Backups & 3-2-1 Backup Rule:** 3 copies of critical banking data, on 2 different media types, with 1 copy stored in an independent secure off-site location.
+- **Board-Approved BCP Policy:** The Board of Directors must approve and periodically review the comprehensive BCP and Crisis Management document.""",
+          ),
+        ],
+      ),
+    ],
+  ),
+
+
   // ══════════════════════════════════════════════════════════════════════
   //  PAPER I — SET A
   // ══════════════════════════════════════════════════════════════════════
@@ -2574,4 +3059,5 @@ NRB uses a sophisticated supervisory data collection and analysis framework to m
       ),
     ],
   ),
+
 ];
