@@ -288,8 +288,8 @@ class _AnswerBody extends StatelessWidget {
       if (tail.isNotEmpty) spans.add(TextSpan(text: tail));
     }
 
-    if (spans.isEmpty) return SelectableText(raw.replaceAll('*', ''), style: base);
-    return SelectableText.rich(TextSpan(style: base, children: spans));
+    if (spans.isEmpty) return Text(raw.replaceAll('*', ''), style: base);
+    return Text.rich(TextSpan(style: base, children: spans));
   }
 }
 
@@ -412,8 +412,9 @@ class _PaperViewState extends State<_PaperView> {
     final isMobile = w < 768;
     final paper = widget.paper;
 
-    return SingleChildScrollView(
-      padding: EdgeInsets.symmetric(
+    return SelectionArea(
+      child: SingleChildScrollView(
+        padding: EdgeInsets.symmetric(
         horizontal: isMobile ? 8 : 24,
         vertical: isMobile ? 12 : 24,
       ),
@@ -660,6 +661,7 @@ class _PaperViewState extends State<_PaperView> {
           ),
         ),
       ),
+      ),
     );
   }
 }
@@ -789,11 +791,8 @@ class _QuestionRow extends StatelessWidget {
               ),
             ],
           ),
-          AnimatedCrossFade(
-            duration: const Duration(milliseconds: 220),
-            crossFadeState: isAnswerOpen ? CrossFadeState.showSecond : CrossFadeState.showFirst,
-            firstChild: const SizedBox.shrink(),
-            secondChild: Container(
+          if (isAnswerOpen)
+            Container(
               margin: EdgeInsets.only(
                 top: 8,
                 left: isMobile ? 16 : 48,
@@ -857,7 +856,6 @@ class _QuestionRow extends StatelessWidget {
                 ],
               ),
             ),
-          ),
         ],
       ),
     );
