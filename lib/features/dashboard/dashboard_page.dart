@@ -299,65 +299,70 @@ class _SideNav extends StatelessWidget {
                   ),
           ),
           const Divider(color: AppTheme.divider, height: 1),
-          const SizedBox(height: 12),
-          ...items.asMap().entries.map((entry) {
-            final idx = entry.key;
-            final item = entry.value;
-            final active = idx == selectedIndex;
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Column(
+                children: items.asMap().entries.map((entry) {
+                  final idx = entry.key;
+                  final item = entry.value;
+                  final active = idx == selectedIndex;
 
-            final navItem = InkWell(
-              borderRadius: BorderRadius.circular(8),
-              onTap: () => onTap(idx),
-              child: Container(
-                padding: EdgeInsets.symmetric(horizontal: isCollapsed ? 0 : 12, vertical: 11),
-                decoration: BoxDecoration(
-                  color: active ? AppTheme.iconRedLight : Colors.white,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: active ? AppTheme.iconRed.withOpacity(0.3) : Colors.transparent,
-                  ),
-                ),
-                child: isCollapsed
-                    ? Center(
-                        child: Icon(
-                          active ? item.$2 : item.$1,
-                          color: active ? AppTheme.iconRed : AppTheme.primaryColor,
-                          size: 21,
+                  final navItem = InkWell(
+                    borderRadius: BorderRadius.circular(8),
+                    onTap: () => onTap(idx),
+                    child: Container(
+                      padding: EdgeInsets.symmetric(horizontal: isCollapsed ? 0 : 12, vertical: 8.5),
+                      decoration: BoxDecoration(
+                        color: active ? AppTheme.iconRedLight : Colors.white,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: active ? AppTheme.iconRed.withOpacity(0.3) : Colors.transparent,
                         ),
-                      )
-                    : Row(
-                        children: [
-                          Icon(
-                            active ? item.$2 : item.$1,
-                            color: active ? AppTheme.iconRed : AppTheme.primaryColor,
-                            size: 20,
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              item.$3,
-                              style: TextStyle(
-                                color: active ? AppTheme.iconRedDark : AppTheme.textPrimary,
-                                fontWeight: active ? FontWeight.w700 : FontWeight.w500,
-                                fontSize: 13.5,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
                       ),
-              ),
-            );
+                      child: isCollapsed
+                          ? Center(
+                              child: Icon(
+                                active ? item.$2 : item.$1,
+                                color: active ? AppTheme.iconRed : AppTheme.primaryColor,
+                                size: 21,
+                              ),
+                            )
+                          : Row(
+                              children: [
+                                Icon(
+                                  active ? item.$2 : item.$1,
+                                  color: active ? AppTheme.iconRed : AppTheme.primaryColor,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    item.$3,
+                                    style: TextStyle(
+                                      color: active ? AppTheme.iconRedDark : AppTheme.textPrimary,
+                                      fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+                                      fontSize: 13.5,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                    ),
+                  );
 
-            return Padding(
-              padding: EdgeInsets.symmetric(horizontal: isCollapsed ? 12 : 12, vertical: 3),
-              child: isCollapsed ? Tooltip(message: item.$3, child: navItem) : navItem,
-            );
-          }),
-          const Spacer(),
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+                    child: isCollapsed ? Tooltip(message: item.$3, child: navItem) : navItem,
+                  );
+                }).toList(),
+              ),
+            ),
+          ),
           const Divider(color: AppTheme.divider, height: 1),
           Padding(
-            padding: EdgeInsets.all(isCollapsed ? 10 : 16),
+            padding: EdgeInsets.symmetric(horizontal: isCollapsed ? 10 : 14, vertical: 12),
             child: isCollapsed
                 ? Column(
                     children: [
@@ -429,7 +434,7 @@ class _SideNav extends StatelessWidget {
                           ),
                         ),
                       ],
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 10),
                       Row(
                         children: [
                           Container(
@@ -6383,7 +6388,7 @@ class _DonateQuestionsTabState extends State<DonateQuestionsTab> {
                           hintText: 'लोकसेवा परीक्षाको ढाँचामा बुँदागत नमुना उत्तर लेख्नुहोस् (वा माथि उत्तरको स्पष्ट फोटो अपलोड गर्नुहोस्)...',
                         ),
                       ),
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 10),
                       TextField(
                         controller: _ansEnCtrl,
                         maxLines: 5,
@@ -6418,7 +6423,7 @@ class _DonateQuestionsTabState extends State<DonateQuestionsTab> {
                           ],
                         ),
                       ],
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 10),
                       DropdownButtonFormField<int>(
                         value: _correctIdx,
                         decoration: const InputDecoration(labelText: 'Correct Option *'),
@@ -6430,7 +6435,7 @@ class _DonateQuestionsTabState extends State<DonateQuestionsTab> {
                         ],
                         onChanged: (v) => setState(() => _correctIdx = v!),
                       ),
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 10),
                       TextField(
                         controller: _expCtrl,
                         maxLines: 2,
