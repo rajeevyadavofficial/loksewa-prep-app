@@ -1427,7 +1427,7 @@ class QuestionsTab extends StatefulWidget {
 
 class _QuestionsTabState extends State<QuestionsTab> {
   Question? _selected;
-  String _lang = 'nepali';
+  String _lang = 'english';
   double _fontSize = 15.0;
   final Set<String> _studiedIds = {};
   final TextEditingController _searchCtrl = TextEditingController();
@@ -2094,8 +2094,8 @@ class _QBankToolbar extends StatelessWidget {
                           ),
                           const SizedBox(width: 8),
                           _SegToggle(
-                            options: const ['ने', 'EN'],
-                            values: const ['nepali', 'english'],
+                            options: const ['EN', 'ने'],
+                            values: const ['english', 'nepali'],
                             selected: lang,
                             onChanged: onLangChanged,
                           ),
@@ -2182,8 +2182,8 @@ class _QBankToolbar extends StatelessWidget {
                         children: [
                           // Lang toggle
                           _SegToggle(
-                            options: const ['नेपाली', 'English'],
-                            values: const ['nepali', 'english'],
+                            options: const ['English', 'नेपाली'],
+                            values: const ['english', 'nepali'],
                             selected: lang,
                             onChanged: onLangChanged,
                           ),
@@ -2711,7 +2711,9 @@ class _QuestionIndex extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                lang == 'english' ? q.questionEnglish : q.questionNepali,
+                                lang == 'english'
+                                    ? (q.questionEnglish.isNotEmpty ? q.questionEnglish : q.questionNepali)
+                                    : (q.questionNepali.isNotEmpty ? q.questionNepali : q.questionEnglish),
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
@@ -2978,11 +2980,11 @@ class _LinedCopySheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final questionText = lang == 'english'
-        ? question.questionEnglish
-        : question.questionNepali;
+        ? (question.questionEnglish.isNotEmpty ? question.questionEnglish : question.questionNepali)
+        : (question.questionNepali.isNotEmpty ? question.questionNepali : question.questionEnglish);
     final nepaliAnswer = question.answerNepali ?? 'उत्तर उपलब्ध छैन।';
-    final englishAnswer = question.answerEnglish ?? 'Answer not available.';
-    final activeAnswer = lang == 'english' ? englishAnswer : nepaliAnswer;
+    final rawEnglish = question.answerEnglish?.trim() ?? '';
+    final activeAnswer = lang == 'english' ? (rawEnglish.isNotEmpty && rawEnglish != 'Answer not available.' ? rawEnglish : nepaliAnswer) : nepaliAnswer;
 
     // Exact line-height locking so every text baseline rests on a physical ruled line
     final double lineHeight = (fontSize * (isMobile ? 2.08 : 2.15)).roundToDouble();
@@ -6505,7 +6507,7 @@ class _DonateQuestionsTabState extends State<DonateQuestionsTab> {
                   final status = (d['status'] ?? 'pending').toString();
                   final isApproved = status == 'approved';
                   final isRejected = status == 'rejected';
-                  final qTitle = (d['question_nepali'] ?? d['question_english'] ?? '').toString();
+                  final qTitle = ((d['question_english']?.toString().isNotEmpty == true) ? d['question_english'] : (d['question_nepali'] ?? '')).toString();
                   final examId = (d['exam_id'] ?? 'rbb_it_5').toString();
                   final qType = (d['type'] ?? 'subjective').toString().toUpperCase();
                   final marks = d['marks'] ?? 5;

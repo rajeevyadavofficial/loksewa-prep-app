@@ -24,7 +24,7 @@ class _StudyNotesTabState extends State<StudyNotesTab> {
   double _contentFontSize = 15.0;
   bool _showTocSidebar = true;
   String _activePaperTab = 'paper1'; // 'paper1' or 'paper2'
-  String _selectedLanguageMode = 'bilingual'; // 'bilingual', 'english', 'nepali'
+  String _selectedLanguageMode = 'english'; // 'english' (default), 'bilingual', 'nepali'
 
   @override
   void initState() {
@@ -136,7 +136,7 @@ class _StudyNotesTabState extends State<StudyNotesTab> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'राष्ट्रिय वाणिज्य बैंक लिमिटेड — वरिष्ठ सहायक (सूचना प्रविधि) तह ५',
+                        'RBB Senior Assistant (IT) Level 5 — Study Notes',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
@@ -147,7 +147,7 @@ class _StudyNotesTabState extends State<StudyNotesTab> {
                         ),
                       ),
                       Text(
-                        'पाठ्यक्रममा आधारित सम्पूर्ण अध्ययन सामग्री (Textbook Study Guide)',
+                        'Comprehensive Syllabus Notes • English & Nepali Bilingual Support',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
@@ -251,9 +251,9 @@ class _StudyNotesTabState extends State<StudyNotesTab> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'विषय-सूची (Table of Contents)',
-                style: TextStyle(
+              Text(
+                _selectedLanguageMode == 'nepali' ? 'विषय-सूची (Table of Contents)' : 'Table of Contents (विषय-सूची)',
+                style: const TextStyle(
                   fontSize: 14.5,
                   fontWeight: FontWeight.w900,
                   color: Colors.black,
@@ -267,7 +267,7 @@ class _StudyNotesTabState extends State<StudyNotesTab> {
                 children: [
                   Expanded(
                     child: _buildPaperTabPill(
-                      label: 'प्रथम पत्र\n(बैंकिङ्ग)',
+                      label: _selectedLanguageMode == 'nepali' ? 'प्रथम पत्र\n(बैंकिङ्ग)' : 'Paper 1\n(Banking)',
                       isSelected: _activePaperTab == 'paper1',
                       onTap: () {
                         setState(() => _activePaperTab = 'paper1');
@@ -282,7 +282,7 @@ class _StudyNotesTabState extends State<StudyNotesTab> {
                   const SizedBox(width: 6),
                   Expanded(
                     child: _buildPaperTabPill(
-                      label: 'द्वितीय पत्र\n(सूचना प्रविधि)',
+                      label: _selectedLanguageMode == 'nepali' ? 'द्वितीय पत्र\n(सूचना प्रविधि)' : 'Paper 2\n(IT / Tech)',
                       isSelected: _activePaperTab == 'paper2',
                       onTap: () {
                         setState(() => _activePaperTab = 'paper2');
@@ -586,8 +586,12 @@ class _StudyNotesTabState extends State<StudyNotesTab> {
                     children: [
                       Text(
                         note.paper == 'paper1'
-                            ? 'प्रथम पत्र — बैंकिङ्ग तथा व्यवस्थापन'
-                            : 'द्वितीय पत्र — सूचना प्रविधि तथा व्यवस्थापन',
+                            ? (_selectedLanguageMode == 'nepali'
+                                ? 'प्रथम पत्र — बैंकिङ्ग तथा व्यवस्थापन'
+                                : 'Paper 1 — Banking & Management')
+                            : (_selectedLanguageMode == 'nepali'
+                                ? 'द्वितीय पत्र — सूचना प्रविधि तथा व्यवस्थापन'
+                                : 'Paper 2 — Computer Information Technology'),
                         style: const TextStyle(
                           fontSize: 11.5,
                           fontWeight: FontWeight.w700,
@@ -596,7 +600,9 @@ class _StudyNotesTabState extends State<StudyNotesTab> {
                         ),
                       ),
                       Text(
-                        'एकाइ ${note.unitNumber}',
+                        _selectedLanguageMode == 'nepali'
+                            ? 'एकाइ ${note.unitNumber}'
+                            : 'Unit ${note.unitNumber}',
                         style: const TextStyle(
                           fontSize: 11.5,
                           fontWeight: FontWeight.w800,
@@ -607,22 +613,22 @@ class _StudyNotesTabState extends State<StudyNotesTab> {
                   ),
                   const Divider(color: Colors.black, thickness: 1.2, height: 16),
 
-                  // Language Mode Selector Bar (Bilingual, English, Nepali)
-                  Row(
+                  // Language Mode Selector Bar (English, Bilingual, Nepali)
+                  Wrap(
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 6,
+                    runSpacing: 6,
                     children: [
                       const Text(
-                        'भाषा माध्यम (Medium):',
+                        'Medium:',
                         style: TextStyle(
                           fontSize: 11.5,
                           fontWeight: FontWeight.w700,
                           color: Color(0xFF374151),
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      _buildLangModePill('bilingual', 'दुवै (Bilingual: Eng + Nep)'),
-                      const SizedBox(width: 6),
                       _buildLangModePill('english', 'English Only'),
-                      const SizedBox(width: 6),
+                      _buildLangModePill('bilingual', 'Bilingual (Eng + Nep)'),
                       _buildLangModePill('nepali', 'नेपाली मात्र'),
                     ],
                   ),
@@ -653,8 +659,8 @@ class _StudyNotesTabState extends State<StudyNotesTab> {
                     ),
                   ),
 
-                  // Nepali Title
-                  if (note.titleNepali.isNotEmpty) ...[
+                  // Nepali Title (shown in Bilingual or Nepali modes)
+                  if (_selectedLanguageMode != 'english' && note.titleNepali.isNotEmpty) ...[
                     const SizedBox(height: 4),
                     Text(
                       note.titleNepali,
@@ -686,9 +692,11 @@ class _StudyNotesTabState extends State<StudyNotesTab> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
-                            'विषय प्रवेश तथा सार-संक्षेप (Chapter Overview):',
-                            style: TextStyle(
+                          Text(
+                            _selectedLanguageMode == 'nepali'
+                                ? 'विषय प्रवेश तथा सार-संक्षेप (Chapter Overview):'
+                                : 'Chapter Overview & Core Summary:',
+                            style: const TextStyle(
                               fontSize: 12.5,
                               fontWeight: FontWeight.w900,
                               color: Colors.black,
@@ -732,9 +740,11 @@ class _StudyNotesTabState extends State<StudyNotesTab> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
-                            'परीक्षा दृष्टिकोणका मुख्य बुँदाहरू (Summary of Key Revision Points):',
-                            style: TextStyle(
+                          Text(
+                            _selectedLanguageMode == 'nepali'
+                                ? 'परीक्षा दृष्टिकोणका मुख्य बुँदाहरू (Summary of Key Revision Points):'
+                                : 'Summary of Key Examination Points:',
+                            style: const TextStyle(
                               fontSize: 13.5,
                               fontWeight: FontWeight.w900,
                               color: Colors.black,
@@ -783,9 +793,11 @@ class _StudyNotesTabState extends State<StudyNotesTab> {
                         OutlinedButton.icon(
                           onPressed: () => prov.setActiveNote(currentNotesList[currentIndex - 1]),
                           icon: const Icon(Icons.arrow_back, size: 15, color: Colors.black),
-                          label: const Text(
-                            '← अघिल्लो पाठ (Previous)',
-                            style: TextStyle(color: Colors.black, fontWeight: FontWeight.w700),
+                          label: Text(
+                            _selectedLanguageMode == 'nepali'
+                                ? '← अघिल्लो पाठ'
+                                : '← Previous Chapter',
+                            style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w700),
                           ),
                           style: OutlinedButton.styleFrom(
                             side: const BorderSide(color: Colors.black, width: 1.0),
@@ -799,9 +811,11 @@ class _StudyNotesTabState extends State<StudyNotesTab> {
                         ElevatedButton.icon(
                           onPressed: () => prov.setActiveNote(currentNotesList[currentIndex + 1]),
                           icon: const Icon(Icons.arrow_forward, size: 15, color: Colors.white),
-                          label: const Text(
-                            'अर्को पाठ (Next) →',
-                            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800),
+                          label: Text(
+                            _selectedLanguageMode == 'nepali'
+                                ? 'अर्को पाठ →'
+                                : 'Next Chapter →',
+                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800),
                           ),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.black,

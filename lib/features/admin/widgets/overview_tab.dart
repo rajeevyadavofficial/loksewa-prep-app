@@ -454,10 +454,10 @@ class AdminOverviewTab extends StatelessWidget {
     final donId = d['_id']?.toString() ?? '';
     final qPhoto = (d['question_photo_url'] ?? '').toString();
     final aPhoto = (d['answer_photo_url'] ?? '').toString();
-    final qText = d['question_nepali'] ?? d['question_english'] ?? '';
+    final qText = (d['question_english']?.toString().isNotEmpty == true) ? d['question_english'] : (d['question_nepali'] ?? '');
     final ansPreview = d['type'] == 'mcq'
         ? 'Options: ${(d['options'] as List<dynamic>? ?? []).join(" | ")}'
-        : (d['answer_nepali'] ?? d['answer_english'] ?? '');
+        : ((d['answer_english']?.toString().isNotEmpty == true) ? d['answer_english'] : (d['answer_nepali'] ?? ''));
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
