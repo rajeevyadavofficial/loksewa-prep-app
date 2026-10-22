@@ -8,6 +8,7 @@ const examRoutes = require('./routes/exams');
 const questionRoutes = require('./routes/questions');
 const adminRoutes = require('./routes/admin');
 const settingsRoutes = require('./routes/settings');
+const noteRoutes = require('./routes/notes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -44,6 +45,7 @@ app.use('/api/exams', examRoutes);
 app.use('/api/questions', questionRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/settings', settingsRoutes);
+app.use('/api/notes', noteRoutes);
 
 // Serve Flutter Web static build (if present in backend/public)
 const path = require('path');
@@ -84,6 +86,7 @@ async function startServer() {
     console.log(`   ├─ Exams API:      http://localhost:${PORT}/api/exams`);
     console.log(`   ├─ Questions API:  http://localhost:${PORT}/api/questions`);
     console.log(`   ├─ Auth API:       http://localhost:${PORT}/api/auth/login`);
+    console.log(`   ├─ Notes API:      http://localhost:${PORT}/api/notes`);
     console.log(`   └─ Admin API:      http://localhost:${PORT}/api/admin/stats\n`);
     startKeepAliveCron();
   });

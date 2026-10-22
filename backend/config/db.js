@@ -7,6 +7,7 @@ const mongoose = require('mongoose');
 const User = require('../models/User');
 const Exam = require('../models/Exam');
 const Question = require('../models/Question');
+const Note = require('../models/Note');
 const Payment = require('../models/Payment');
 const Settings = require('../models/Settings');
 const QuestionDonation = require('../models/QuestionDonation');
@@ -15,6 +16,7 @@ const DATA_DIR = path.join(__dirname, '..', 'data');
 const LOCAL_DB_FILE = path.join(DATA_DIR, 'mongodb_collections.json');
 const SEED_QUESTIONS_FILE = path.join(__dirname, '..', '..', 'assets', 'data', 'questions.json');
 const SEED_EXAMS_FILE = path.join(__dirname, '..', '..', 'assets', 'data', 'exams.json');
+const SEED_NOTES_FILE = path.join(DATA_DIR, 'notes.json');
 
 const DEFAULT_SETTINGS = {
   key: 'payment_config',
@@ -40,6 +42,7 @@ let localStore = {
   users: [],
   exams: [],
   questions: [],
+  notes: [],
   payments: [],
   donations: [],
   settings: { ...DEFAULT_SETTINGS },
@@ -95,7 +98,6 @@ async function syncSeedToMongo() {
       { upsert: true }
     );
   }
-  // Upsert all questions with exam_id
   const ops = questionsData.map((q) => ({
     updateOne: {
       filter: { id: q.id },
@@ -109,6 +111,28 @@ async function syncSeedToMongo() {
   for (const u of usersData) {
     const { _id, ...rest } = u;
     await User.findOneAndUpdate({ email: rest.email }, rest, { upsert: true });
+  }
+  await syncNotesToMongo();
+}
+
+async function syncNotesToMongo() {
+  if (fs.existsSync(SEED_NOTES_FILE)) {
+    try {
+      const notesData = JSON.parse(fs.readFileSync(SEED_NOTES_FILE, 'utf8'));
+      if (notesData && notesData.length > 0) {
+        const noteOps = notesData.map((n) => ({
+          updateOne: {
+            filter: { id: n.id },
+            update: { $set: n },
+            upsert: true,
+          },
+        }));
+        await Note.bulkWrite(noteOps, { ordered: false });
+        console.log(`✅ Synced ${notesData.length} Study Notes into MongoDB Atlas!`);
+      }
+    } catch (e) {
+      console.error('⚠️ Error syncing notes to Mongo:', e.message);
+    }
   }
 }
 
@@ -826,6 +850,61 @@ const DB = {
       paymentMethod: cleanMethod,
       walletId: cleanWallet,
     };
+  },
+
+  // NOTES
+  async getAllNotes({ examId, paper, unit, search } = {}) {
+    if (isMongoConnected) {
+      const query = {};
+      if (examId) query.examId = examId;
+      if (paper) query.paper = paper;
+      if (unit) query.unitNumber = unit;
+      if (search && search.trim()) {
+        const regex = new RegExp(search.trim(), 'i');
+        query.$or = [
+          { title: regex },
+          { titleNepali: regex },
+          { topic: regex },
+          { chapterTitle: regex },
+          { content: regex },
+        ];
+      }
+      return await Note.find(query).sort({ order: 1, unitNumber: 1 }).lean();
+    }
+
+    let list = localStore.notes || [];
+    if (list.length === 0 && fs.existsSync(SEED_NOTES_FILE)) {
+      try {
+        list = JSON.parse(fs.readFileSync(SEED_NOTES_FILE, 'utf8'));
+        localStore.notes = list;
+      } catch (_) {}
+    }
+
+    return list.filter((n) => {
+      if (examId && n.examId !== examId) return false;
+      if (paper && n.paper !== paper) return false;
+      if (unit && n.unitNumber !== unit) return false;
+      if (search && search.trim()) {
+        const q = search.toLowerCase().trim();
+        const str = `${n.title} ${n.titleNepali} ${n.topic} ${n.chapterTitle} ${n.content}`.toLowerCase();
+        if (!str.includes(q)) return false;
+      }
+      return true;
+    }).sort((a, b) => (a.order || 0) - (b.order || 0));
+  },
+
+  async getNoteById(id) {
+    if (isMongoConnected) {
+      return await Note.findOne({ id }).lean();
+    }
+    let list = localStore.notes || [];
+    if (list.length === 0 && fs.existsSync(SEED_NOTES_FILE)) {
+      try {
+        list = JSON.parse(fs.readFileSync(SEED_NOTES_FILE, 'utf8'));
+        localStore.notes = list;
+      } catch (_) {}
+    }
+    return list.find((n) => n.id === id) || null;
   },
 };
 

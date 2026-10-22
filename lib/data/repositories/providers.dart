@@ -1583,3 +1583,131 @@ class MockTestProvider extends ChangeNotifier {
     notifyListeners();
   }
 }
+
+class StudyNotesProvider extends ChangeNotifier {
+  List<StudyNote> _allNotes = [];
+  List<StudyNote> _filteredNotes = [];
+  bool _loading = false;
+  String _selectedPaper = 'all'; // 'all', 'paper1', 'paper2'
+  int? _selectedUnit; // null = all units, or 1 to 6
+  String _searchQuery = '';
+  StudyNote? _activeNote;
+  final Set<String> _bookmarkedIds = {};
+
+  List<StudyNote> get allNotes => _allNotes;
+  List<StudyNote> get notes => _filteredNotes;
+  bool get loading => _loading;
+  String get selectedPaper => _selectedPaper;
+  int? get selectedUnit => _selectedUnit;
+  String get searchQuery => _searchQuery;
+  StudyNote? get activeNote => _activeNote;
+  Set<String> get bookmarkedIds => _bookmarkedIds;
+
+  StudyNotesProvider() {
+    _restoreBookmarks();
+    fetchNotes();
+  }
+
+  static const String _prefBookmarkKey = 'loksewa_bookmarked_notes_v1';
+
+  Future<void> _restoreBookmarks() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final list = prefs.getStringList(_prefBookmarkKey) ?? [];
+      _bookmarkedIds.addAll(list);
+      notifyListeners();
+    } catch (_) {}
+  }
+
+  Future<void> toggleBookmark(String noteId) async {
+    if (_bookmarkedIds.contains(noteId)) {
+      _bookmarkedIds.remove(noteId);
+    } else {
+      _bookmarkedIds.add(noteId);
+    }
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList(_prefBookmarkKey, _bookmarkedIds.toList());
+    } catch (_) {}
+  }
+
+  bool isBookmarked(String noteId) => _bookmarkedIds.contains(noteId);
+
+  Future<void> fetchNotes({bool forceRefresh = false}) async {
+    _loading = true;
+    notifyListeners();
+
+    try {
+      final url = Uri.parse('${AppConstants.apiBaseUrl}/notes?exam_id=rbb_it_5');
+      final res = await http.get(url).timeout(const Duration(seconds: 10));
+
+      if (res.statusCode == 200) {
+        final Map<String, dynamic> body = jsonDecode(res.body);
+        final List<dynamic> list = body['notes'] ?? [];
+        if (list.isNotEmpty) {
+          _allNotes = list.map((e) => StudyNote.fromJson(e as Map<String, dynamic>)).toList();
+          _applyFilters();
+          _loading = false;
+          notifyListeners();
+          return;
+        }
+      }
+    } catch (e) {
+      debugPrint('StudyNotesProvider API fallback: $e');
+    }
+
+    // Offline / Asset fallback
+    try {
+      final jsonStr = await rootBundle.loadString('assets/data/notes.json');
+      final List<dynamic> decoded = jsonDecode(jsonStr);
+      _allNotes = decoded.map((e) => StudyNote.fromJson(e as Map<String, dynamic>)).toList();
+    } catch (e) {
+      debugPrint('Error loading notes from asset: $e');
+    }
+
+    _applyFilters();
+    _loading = false;
+    notifyListeners();
+  }
+
+  void setPaper(String paper) {
+    _selectedPaper = paper;
+    _applyFilters();
+  }
+
+  void setUnit(int? unit) {
+    _selectedUnit = unit;
+    _applyFilters();
+  }
+
+  void setSearch(String query) {
+    _searchQuery = query;
+    _applyFilters();
+  }
+
+  void setActiveNote(StudyNote? note) {
+    _activeNote = note;
+    notifyListeners();
+  }
+
+  void _applyFilters() {
+    _filteredNotes = _allNotes.where((note) {
+      if (_selectedPaper != 'all' && note.paper != _selectedPaper) {
+        return false;
+      }
+      if (_selectedUnit != null && note.unitNumber != _selectedUnit) {
+        return false;
+      }
+      if (_searchQuery.trim().isNotEmpty) {
+        final q = _searchQuery.toLowerCase().trim();
+        final combined = '${note.title} ${note.titleNepali} ${note.topic} ${note.chapterTitle} ${note.summary} ${note.content}'.toLowerCase();
+        if (!combined.contains(q)) return false;
+      }
+      return true;
+    }).toList();
+
+    _filteredNotes.sort((a, b) => a.order.compareTo(b.order));
+    notifyListeners();
+  }
+}

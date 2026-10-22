@@ -37,6 +37,7 @@ class _LokSewaAppState extends State<LokSewaApp> {
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => QuestionProvider()),
         ChangeNotifierProvider(create: (_) => MockTestProvider()),
+        ChangeNotifierProvider(create: (_) => StudyNotesProvider()),
       ],
       child: MaterialApp.router(
         title: AppConstants.appName,

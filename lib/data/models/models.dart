@@ -321,3 +321,87 @@ class AppSettings {
   };
 }
 
+class StudyNote {
+  final String id;
+  final String examId;
+  final String paper; // 'paper1' or 'paper2'
+  final String section; // 'sectionA' or 'sectionB'
+  final String category;
+  final int unitNumber;
+  final String unitTitle;
+  final String chapterTitle;
+  final String topic;
+  final String title;
+  final String titleNepali;
+  final String summary;
+  final String content;
+  final List<String> keyPoints;
+  final int order;
+  final int readTimeMinutes;
+
+  const StudyNote({
+    required this.id,
+    required this.examId,
+    required this.paper,
+    required this.section,
+    required this.category,
+    required this.unitNumber,
+    required this.unitTitle,
+    required this.chapterTitle,
+    required this.topic,
+    required this.title,
+    this.titleNepali = '',
+    this.summary = '',
+    required this.content,
+    this.keyPoints = const [],
+    this.order = 0,
+    this.readTimeMinutes = 5,
+  });
+
+  factory StudyNote.fromJson(Map<String, dynamic> json) {
+    return StudyNote(
+      id: json['id'] ?? '',
+      examId: json['examId'] ?? 'rbb_it_5',
+      paper: json['paper'] ?? 'paper1',
+      section: json['section'] ?? 'sectionA',
+      category: json['category'] ?? '',
+      unitNumber: json['unitNumber'] is int
+          ? json['unitNumber']
+          : (int.tryParse('${json['unitNumber']}') ?? 1),
+      unitTitle: json['unitTitle'] ?? '',
+      chapterTitle: json['chapterTitle'] ?? '',
+      topic: json['topic'] ?? '',
+      title: json['title'] ?? '',
+      titleNepali: json['titleNepali'] ?? '',
+      summary: json['summary'] ?? '',
+      content: json['content'] ?? '',
+      keyPoints: List<String>.from(json['keyPoints'] ?? const []),
+      order: json['order'] is int
+          ? json['order']
+          : (int.tryParse('${json['order']}') ?? 0),
+      readTimeMinutes: json['readTimeMinutes'] is int
+          ? json['readTimeMinutes']
+          : (int.tryParse('${json['readTimeMinutes']}') ?? 5),
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'examId': examId,
+    'paper': paper,
+    'section': section,
+    'category': category,
+    'unitNumber': unitNumber,
+    'unitTitle': unitTitle,
+    'chapterTitle': chapterTitle,
+    'topic': topic,
+    'title': title,
+    'titleNepali': titleNepali,
+    'summary': summary,
+    'content': content,
+    'keyPoints': keyPoints,
+    'order': order,
+    'readTimeMinutes': readTimeMinutes,
+  };
+}
+

@@ -12,6 +12,7 @@ import '../../core/constants/app_constants.dart';
 import '../../data/models/models.dart';
 import '../../data/repositories/providers.dart';
 import 'model_questions_tab.dart';
+import 'study_notes_tab.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -122,6 +123,11 @@ class _DashboardPageState extends State<DashboardPage> {
                             selectedIcon: const Icon(Icons.article, size: 20),
                             label: isSmallMobile ? 'Model' : 'Model Q',
                           ),
+                          NavigationDestination(
+                            icon: const Icon(Icons.auto_stories_outlined, size: 20),
+                            selectedIcon: const Icon(Icons.auto_stories, size: 20),
+                            label: isSmallMobile ? 'Notes' : 'Notes',
+                          ),
                         ],
                       ),
                     ),
@@ -155,6 +161,7 @@ class _DashboardPageState extends State<DashboardPage> {
               SyllabusTab(onGoToExams: () => _setTab(0)),
               DonateQuestionsTab(onGoToExams: () => _setTab(0)),
               ModelQuestionsTab(onGoToExams: () => _setTab(0)),
+              StudyNotesTab(onGoToExams: () => _setTab(0)),
             ],
           ),
         ),
@@ -184,6 +191,7 @@ class _SideNav extends StatelessWidget {
     (Icons.description_outlined, Icons.description_rounded, 'Exam Syllabus'),
     (Icons.volunteer_activism_outlined, Icons.volunteer_activism_rounded, 'Donate & Earn (रू 5)'),
     (Icons.article_outlined, Icons.article_rounded, 'Model Questions'),
+    (Icons.auto_stories_outlined, Icons.auto_stories_rounded, 'Study Notes'),
   ];
 
   @override
