@@ -13,6 +13,7 @@ import '../../data/models/models.dart';
 import '../../data/repositories/providers.dart';
 import 'model_questions_tab.dart';
 import 'study_notes_tab.dart';
+import 'pdf_notes_tab.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -128,6 +129,11 @@ class _DashboardPageState extends State<DashboardPage> {
                             selectedIcon: const Icon(Icons.auto_stories, size: 20),
                             label: isSmallMobile ? 'Notes' : 'Notes',
                           ),
+                          NavigationDestination(
+                            icon: const Icon(Icons.picture_as_pdf_outlined, size: 20),
+                            selectedIcon: const Icon(Icons.picture_as_pdf, size: 20),
+                            label: isSmallMobile ? 'PDF' : 'PDF Notes',
+                          ),
                         ],
                       ),
                     ),
@@ -162,6 +168,7 @@ class _DashboardPageState extends State<DashboardPage> {
               DonateQuestionsTab(onGoToExams: () => _setTab(0)),
               ModelQuestionsTab(onGoToExams: () => _setTab(0)),
               StudyNotesTab(onGoToExams: () => _setTab(0)),
+              PdfNotesTab(onGoToExams: () => _setTab(0)),
             ],
           ),
         ),
@@ -192,6 +199,7 @@ class _SideNav extends StatelessWidget {
     (Icons.volunteer_activism_outlined, Icons.volunteer_activism_rounded, 'Donate & Earn (रू 5)'),
     (Icons.article_outlined, Icons.article_rounded, 'Model Questions'),
     (Icons.auto_stories_outlined, Icons.auto_stories_rounded, 'Study Notes'),
+    (Icons.picture_as_pdf_outlined, Icons.picture_as_pdf_rounded, 'PDF Notes'),
   ];
 
   @override
