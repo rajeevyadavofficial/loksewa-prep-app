@@ -2,14 +2,13 @@
 import 'dart:html' as html;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../data/models/models.dart';
 import '../../data/repositories/providers.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// STUDY NOTES TAB — Syllabus-Aligned Chapter & Topic Wise Notes (Paper 1 & 2)
-// Data loaded dynamically from Database (Node.js/MongoDB with local asset fallback)
+// STUDY NOTES TAB — Authentic Black & White Lok Sewa Textbook Reader
+// Complete Table of Contents (विषय-सूची) & Detailed Chapter-wise Study Materials
 // ─────────────────────────────────────────────────────────────────────────────
 
 class StudyNotesTab extends StatefulWidget {
@@ -22,7 +21,25 @@ class StudyNotesTab extends StatefulWidget {
 
 class _StudyNotesTabState extends State<StudyNotesTab> {
   final TextEditingController _searchController = TextEditingController();
-  double _contentFontSize = 14.5;
+  double _contentFontSize = 15.0;
+  bool _showTocSidebar = true;
+  String _activePaperTab = 'paper1'; // 'paper1' or 'paper2'
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final prov = context.read<StudyNotesProvider>();
+      if (prov.activeNote == null && prov.allNotes.isNotEmpty) {
+        // Automatically open the first chapter of Paper 1
+        final first = prov.allNotes.firstWhere(
+          (n) => n.paper == 'paper1',
+          orElse: () => prov.allNotes.first,
+        );
+        prov.setActiveNote(first);
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -30,7 +47,7 @@ class _StudyNotesTabState extends State<StudyNotesTab> {
     super.dispose();
   }
 
-  void _printNote() {
+  void _printChapter() {
     if (kIsWeb) {
       try {
         html.window.print();
@@ -41,358 +58,169 @@ class _StudyNotesTabState extends State<StudyNotesTab> {
   @override
   Widget build(BuildContext context) {
     final notesProv = context.watch<StudyNotesProvider>();
-    final activeNote = notesProv.activeNote;
+    final w = MediaQuery.of(context).size.width;
+    final isMobile = w < 840;
+
+    // Filter notes for the Table of Contents based on paper tab and search
+    final paperNotes = notesProv.allNotes.where((n) {
+      if (n.paper != _activePaperTab) return false;
+      if (_searchController.text.trim().isNotEmpty) {
+        final q = _searchController.text.toLowerCase().trim();
+        final combined = '${n.title} ${n.titleNepali} ${n.topic} ${n.chapterTitle} ${n.summary} ${n.content}'.toLowerCase();
+        return combined.contains(q);
+      }
+      return true;
+    }).toList();
+
+    // Group notes by Unit Number for the Table of Contents
+    final Map<int, List<StudyNote>> groupedByUnit = {};
+    for (final note in paperNotes) {
+      groupedByUnit.putIfAbsent(note.unitNumber, () => []).add(note);
+    }
+
+    final activeNote = notesProv.activeNote ?? (paperNotes.isNotEmpty ? paperNotes.first : null);
 
     return Container(
-      color: const Color(0xFFF8FAFC),
-      child: activeNote != null
-          ? _buildReaderView(context, notesProv, activeNote)
-          : _buildCatalogView(context, notesProv),
-    );
-  }
-
-  // ───────────────────────────────────────────────────────────────────────────
-  // CATALOG / LIST VIEW
-  // ───────────────────────────────────────────────────────────────────────────
-  Widget _buildCatalogView(BuildContext context, StudyNotesProvider prov) {
-    final w = MediaQuery.of(context).size.width;
-    final isMobile = w < 768;
-    final notes = prov.notes;
-
-    return CustomScrollView(
-      slivers: [
-        // Top Banner
-        SliverToBoxAdapter(
-          child: Container(
+      color: const Color(0xFFF3F4F6), // Neutral book desk surface
+      child: Column(
+        children: [
+          // ─── BOOK HEADER BAR (Pure Black & White) ──────────────────────
+          Container(
             padding: EdgeInsets.symmetric(
-              horizontal: isMobile ? 16 : 32,
-              vertical: isMobile ? 18 : 24,
+              horizontal: isMobile ? 12 : 24,
+              vertical: isMobile ? 8 : 12,
             ),
             decoration: const BoxDecoration(
               color: Colors.white,
-              border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0), width: 1)),
+              border: Border(bottom: BorderSide(color: Colors.black, width: 1.2)),
             ),
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 1200),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFF0369A1), Color(0xFF0284C7)],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
-                            borderRadius: BorderRadius.circular(10),
-                            boxShadow: [
-                              BoxShadow(
-                                color: const Color(0xFF0284C7).withOpacity(0.25),
-                                blurRadius: 8,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: const Icon(Icons.auto_stories_rounded, color: Colors.white, size: 24),
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'राष्ट्रिय वाणिज्य बैंक (RBB) IT Level 5 — पाठ्यक्रममा आधारित अध्ययन नोटहरू',
-                                style: TextStyle(
-                                  fontSize: isMobile ? 15.5 : 20,
-                                  fontWeight: FontWeight.w800,
-                                  color: const Color(0xFF0F172A),
-                                  letterSpacing: -0.2,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'Detailed & Simple Language Notes for Paper 1 (Banking & Management) and Paper 2 (IT & Management) • Saved in Database',
-                                style: TextStyle(
-                                  fontSize: isMobile ? 11.5 : 13,
-                                  color: const Color(0xFF64748B),
-                                  fontWeight: FontWeight.w500,
-                                  height: 1.4,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 14),
-                    // Stats chips
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        _buildStatChip(
-                          icon: Icons.menu_book,
-                          label: '${prov.allNotes.length} Comprehensive Notes',
-                          color: const Color(0xFF0284C7),
-                          bgColor: const Color(0xFFF0F9FF),
-                        ),
-                        _buildStatChip(
-                          icon: Icons.account_balance,
-                          label: 'Paper 1: 13 Banking Topics',
-                          color: const Color(0xFFDC2626),
-                          bgColor: const Color(0xFFFEF2F2),
-                        ),
-                        _buildStatChip(
-                          icon: Icons.terminal,
-                          label: 'Paper 2: 12 IT Topics',
-                          color: const Color(0xFF16A34A),
-                          bgColor: const Color(0xFFF0FDF4),
-                        ),
-                        _buildStatChip(
-                          icon: Icons.cloud_done_outlined,
-                          label: 'Cloud Database Connected',
-                          color: const Color(0xFF9333EA),
-                          bgColor: const Color(0xFFFAF5FF),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-
-        // Filter & Search Controls
-        SliverToBoxAdapter(
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 1200),
-              child: Padding(
-                padding: EdgeInsets.symmetric(
-                  horizontal: isMobile ? 16 : 32,
-                  vertical: 16,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Paper switcher pills
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        _buildPaperFilterPill(
-                          label: 'All Notes (${prov.allNotes.length})',
-                          isSelected: prov.selectedPaper == 'all',
-                          onTap: () => prov.setPaper('all'),
-                        ),
-                        _buildPaperFilterPill(
-                          label: '🏛️ Paper 1: Banking & Management',
-                          isSelected: prov.selectedPaper == 'paper1',
-                          onTap: () => prov.setPaper('paper1'),
-                        ),
-                        _buildPaperFilterPill(
-                          label: '💻 Paper 2: IT & Management',
-                          isSelected: prov.selectedPaper == 'paper2',
-                          onTap: () => prov.setPaper('paper2'),
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 12),
-
-                    // Unit Filter & Search Bar Row
-                    Row(
-                      children: [
-                        // Unit Dropdown / Selector
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: const Color(0xFFCBD5E1)),
-                          ),
-                          child: DropdownButtonHideUnderline(
-                            child: DropdownButton<int?>(
-                              value: prov.selectedUnit,
-                              hint: const Text('All Units (१–६)', style: TextStyle(fontSize: 12.5)),
-                              icon: const Icon(Icons.arrow_drop_down, size: 20),
-                              isDense: true,
-                              style: const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                                color: Color(0xFF0F172A),
-                              ),
-                              onChanged: (u) => prov.setUnit(u),
-                              items: [
-                                const DropdownMenuItem<int?>(
-                                  value: null,
-                                  child: Text('All Units (सबै एकाइ)'),
-                                ),
-                                ...[1, 2, 3, 4, 5, 6].map((u) {
-                                  return DropdownMenuItem<int?>(
-                                    value: u,
-                                    child: Text('Unit $u (एकाइ $u)'),
-                                  );
-                                }),
-                              ],
-                            ),
-                          ),
-                        ),
-
-                        const SizedBox(width: 10),
-
-                        // Search Field
-                        Expanded(
-                          child: SizedBox(
-                            height: 38,
-                            child: TextField(
-                              controller: _searchController,
-                              onChanged: (val) => prov.setSearch(val),
-                              decoration: InputDecoration(
-                                hintText: 'Search notes (e.g. CRR, BAFIA, DRP, Normalization)...',
-                                hintStyle: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
-                                prefixIcon: const Icon(Icons.search, size: 16, color: Color(0xFF64748B)),
-                                suffixIcon: _searchController.text.isNotEmpty
-                                    ? IconButton(
-                                        icon: const Icon(Icons.clear, size: 16),
-                                        onPressed: () {
-                                          _searchController.clear();
-                                          prov.setSearch('');
-                                        },
-                                      )
-                                    : null,
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
-                                filled: true,
-                                fillColor: Colors.white,
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                  borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
-                                ),
-                                enabledBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                  borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
-                                ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                  borderSide: const BorderSide(color: Color(0xFF0284C7), width: 1.5),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-
-        // Notes List / Empty State
-        if (prov.loading)
-          const SliverFillRemaining(
-            child: Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  CircularProgressIndicator(strokeWidth: 2.5),
-                  SizedBox(height: 12),
-                  Text('Loading syllabus study notes from database...', style: TextStyle(color: Color(0xFF64748B))),
-                ],
-              ),
-            ),
-          )
-        else if (notes.isEmpty)
-          SliverFillRemaining(
-            child: Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.search_off, size: 48, color: Color(0xFF94A3B8)),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'No study notes found matching your filter',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF334155)),
+            child: Row(
+              children: [
+                // Toggle TOC Button
+                OutlinedButton.icon(
+                  onPressed: () {
+                    if (isMobile) {
+                      _openMobileTocDrawer(context, notesProv, groupedByUnit);
+                    } else {
+                      setState(() => _showTocSidebar = !_showTocSidebar);
+                    }
+                  },
+                  icon: Icon(
+                    _showTocSidebar && !isMobile ? Icons.menu_open : Icons.list_alt,
+                    size: 16,
+                    color: Colors.black,
                   ),
-                  const SizedBox(height: 6),
-                  TextButton(
-                    onPressed: () {
-                      _searchController.clear();
-                      prov.setPaper('all');
-                      prov.setUnit(null);
-                      prov.setSearch('');
-                    },
-                    child: const Text('Reset Filters (सबै फिल्टर हटाउनुहोस्)'),
+                  label: Text(
+                    isMobile
+                        ? 'विषय-सूची'
+                        : (_showTocSidebar ? 'विषय-सूची लुकाउनुहोस्' : 'विषय-सूची (Table of Contents)'),
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.black,
+                    ),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.black,
+                    side: const BorderSide(color: Colors.black, width: 1.0),
+                    padding: EdgeInsets.symmetric(horizontal: isMobile ? 10 : 14, vertical: 8),
+                  ),
+                ),
+
+                const SizedBox(width: 14),
+
+                // Textbook Title Banner
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'राष्ट्रिय वाणिज्य बैंक लिमिटेड — वरिष्ठ सहायक (सूचना प्रविधि) तह ५',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: isMobile ? 13 : 15.5,
+                          fontWeight: FontWeight.w900,
+                          color: Colors.black,
+                          letterSpacing: -0.2,
+                        ),
+                      ),
+                      Text(
+                        'पाठ्यक्रममा आधारित सम्पूर्ण अध्ययन सामग्री (Textbook Study Guide)',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: isMobile ? 10.5 : 12,
+                          color: const Color(0xFF4B5563),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Text Size Controls
+                IconButton(
+                  tooltip: 'अक्षर सानो बनाउनुहोस् (A-)',
+                  icon: const Icon(Icons.text_decrease, size: 18, color: Colors.black),
+                  onPressed: _contentFontSize > 12.5
+                      ? () => setState(() => _contentFontSize -= 1.0)
+                      : null,
+                ),
+                IconButton(
+                  tooltip: 'अक्षर ठूलो बनाउनुहोस् (A+)',
+                  icon: const Icon(Icons.text_increase, size: 18, color: Colors.black),
+                  onPressed: _contentFontSize < 22.0
+                      ? () => setState(() => _contentFontSize += 1.0)
+                      : null,
+                ),
+
+                if (kIsWeb) ...[
+                  const SizedBox(width: 4),
+                  OutlinedButton.icon(
+                    onPressed: _printChapter,
+                    icon: const Icon(Icons.print_outlined, size: 16, color: Colors.black),
+                    label: Text(isMobile ? 'Print' : 'प्रिन्ट गर्नुहोस् (Print)'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.black,
+                      side: const BorderSide(color: Colors.black, width: 1.0),
+                      padding: EdgeInsets.symmetric(horizontal: isMobile ? 8 : 12, vertical: 8),
+                      textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                    ),
                   ),
                 ],
-              ),
-            ),
-          )
-        else
-          SliverPadding(
-            padding: EdgeInsets.only(
-              left: isMobile ? 16 : 32,
-              right: isMobile ? 16 : 32,
-              bottom: 40,
-            ),
-            sliver: SliverToBoxAdapter(
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 1200),
-                  child: ListView.separated(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: notes.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 14),
-                    itemBuilder: (context, idx) {
-                      final note = notes[idx];
-                      return _NoteCard(
-                        note: note,
-                        isBookmarked: prov.isBookmarked(note.id),
-                        onToggleBookmark: () => prov.toggleBookmark(note.id),
-                        onOpen: () => prov.setActiveNote(note),
-                      );
-                    },
-                  ),
-                ),
-              ),
+              ],
             ),
           ),
-      ],
-    );
-  }
 
-  Widget _buildStatChip({
-    required IconData icon,
-    required String label,
-    required Color color,
-    required Color bgColor,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: color.withOpacity(0.2)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: color),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 11.5,
-              fontWeight: FontWeight.w700,
-              color: color,
+          // ─── BOOK SPLIT WORKSPACE: TOC (Left) + CHAPTER PAGE (Right) ─────
+          Expanded(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Table of Contents Sidebar (Desktop)
+                if (_showTocSidebar && !isMobile)
+                  Container(
+                    width: 320,
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      border: Border(right: BorderSide(color: Color(0xFFD1D5DB), width: 1.0)),
+                    ),
+                    child: _buildTocWidget(context, notesProv, groupedByUnit, isDrawer: false),
+                  ),
+
+                // Main Reading Page Area
+                Expanded(
+                  child: activeNote == null
+                      ? const Center(
+                          child: Text(
+                            'कृपया विषय-सूचीबाट कुनै अध्याय छान्नुहोस्।',
+                            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                          ),
+                        )
+                      : _buildBookPage(context, notesProv, activeNote),
+                ),
+              ],
             ),
           ),
         ],
@@ -400,597 +228,543 @@ class _StudyNotesTabState extends State<StudyNotesTab> {
     );
   }
 
-  Widget _buildPaperFilterPill({
+  // ───────────────────────────────────────────────────────────────────────────
+  // TABLE OF CONTENTS (विषय-सूची)
+  // ───────────────────────────────────────────────────────────────────────────
+  Widget _buildTocWidget(
+    BuildContext context,
+    StudyNotesProvider prov,
+    Map<int, List<StudyNote>> groupedByUnit, {
+    required bool isDrawer,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // TOC Top Section Header
+        Container(
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+          decoration: const BoxDecoration(
+            color: Color(0xFFF9FAFB),
+            border: Border(bottom: BorderSide(color: Color(0xFFE5E7EB), width: 1.0)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'विषय-सूची (Table of Contents)',
+                style: TextStyle(
+                  fontSize: 14.5,
+                  fontWeight: FontWeight.w900,
+                  color: Colors.black,
+                  letterSpacing: -0.2,
+                ),
+              ),
+              const SizedBox(height: 10),
+
+              // Paper 1 / Paper 2 Switcher Tabs
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildPaperTabPill(
+                      label: 'प्रथम पत्र\n(बैंकिङ्ग)',
+                      isSelected: _activePaperTab == 'paper1',
+                      onTap: () {
+                        setState(() => _activePaperTab = 'paper1');
+                        final first = prov.allNotes.firstWhere(
+                          (n) => n.paper == 'paper1',
+                          orElse: () => prov.allNotes.first,
+                        );
+                        prov.setActiveNote(first);
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: _buildPaperTabPill(
+                      label: 'द्वितीय पत्र\n(सूचना प्रविधि)',
+                      isSelected: _activePaperTab == 'paper2',
+                      onTap: () {
+                        setState(() => _activePaperTab = 'paper2');
+                        final first = prov.allNotes.firstWhere(
+                          (n) => n.paper == 'paper2',
+                          orElse: () => prov.allNotes.first,
+                        );
+                        prov.setActiveNote(first);
+                      },
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 10),
+
+              // Search in Book Field
+              SizedBox(
+                height: 36,
+                child: TextField(
+                  controller: _searchController,
+                  onChanged: (val) => setState(() {}),
+                  decoration: InputDecoration(
+                    hintText: 'Search in topics...',
+                    hintStyle: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+                    prefixIcon: const Icon(Icons.search, size: 15, color: Colors.black87),
+                    suffixIcon: _searchController.text.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear, size: 14),
+                            onPressed: () {
+                              _searchController.clear();
+                              setState(() {});
+                            },
+                          )
+                        : null,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+                    filled: true,
+                    fillColor: Colors.white,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(6),
+                      borderSide: const BorderSide(color: Color(0xFF9CA3AF)),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(6),
+                      borderSide: const BorderSide(color: Color(0xFF9CA3AF)),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(6),
+                      borderSide: const BorderSide(color: Colors.black, width: 1.5),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // List of Units & Chapters
+        Expanded(
+          child: groupedByUnit.isEmpty
+              ? const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Text(
+                      'कुनै पाठ फेला परेन।',
+                      style: TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
+                    ),
+                  ),
+                )
+              : ListView.builder(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  itemCount: groupedByUnit.keys.length,
+                  itemBuilder: (context, idx) {
+                    final unitNum = groupedByUnit.keys.elementAt(idx);
+                    final unitNotes = groupedByUnit[unitNum]!;
+                    final unitTitle = unitNotes.first.unitTitle;
+
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // Unit Header Accordion Bar
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                          color: const Color(0xFFF3F4F6),
+                          child: Text(
+                            unitTitle,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w900,
+                              color: Colors.black,
+                            ),
+                          ),
+                        ),
+
+                        // List of Topics in this Unit
+                        ...unitNotes.map((note) {
+                          final isSelected = prov.activeNote?.id == note.id;
+
+                          return InkWell(
+                            onTap: () {
+                              prov.setActiveNote(note);
+                              if (isDrawer) Navigator.of(context).pop();
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                              decoration: BoxDecoration(
+                                color: isSelected ? Colors.black : Colors.transparent,
+                                border: const Border(
+                                  bottom: BorderSide(color: Color(0xFFF3F4F6), width: 1.0),
+                                ),
+                              ),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    isSelected ? '▶ ' : '• ',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w900,
+                                      color: isSelected ? Colors.white : Colors.black87,
+                                    ),
+                                  ),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          note.chapterTitle,
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w700,
+                                            color: isSelected ? const Color(0xFFD1D5DB) : const Color(0xFF4B5563),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          note.title,
+                                          style: TextStyle(
+                                            fontSize: 12.5,
+                                            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                                            color: isSelected ? Colors.white : Colors.black,
+                                            height: 1.3,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        }),
+                      ],
+                    );
+                  },
+                ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPaperTabPill({
     required String label,
     required bool isSelected,
     required VoidCallback onTap,
   }) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(6),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF0F172A) : Colors.white,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: isSelected ? const Color(0xFF0F172A) : const Color(0xFFCBD5E1),
-          ),
+          color: isSelected ? Colors.black : Colors.white,
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: Colors.black, width: 1.2),
         ),
+        alignment: Alignment.center,
         child: Text(
           label,
+          textAlign: TextAlign.center,
           style: TextStyle(
-            fontSize: 12.5,
-            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-            color: isSelected ? Colors.white : const Color(0xFF334155),
+            fontSize: 11,
+            fontWeight: FontWeight.w800,
+            color: isSelected ? Colors.white : Colors.black,
+            height: 1.2,
           ),
         ),
       ),
     );
   }
 
+  void _openMobileTocDrawer(
+    BuildContext context,
+    StudyNotesProvider prov,
+    Map<int, List<StudyNote>> groupedByUnit,
+  ) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) {
+        return SizedBox(
+          height: MediaQuery.of(context).size.height * 0.85,
+          child: _buildTocWidget(context, prov, groupedByUnit, isDrawer: true),
+        );
+      },
+    );
+  }
+
   // ───────────────────────────────────────────────────────────────────────────
-  // READER VIEW
+  // TEXTBOOK PAGE (Right Reading Area — Full Black & White)
   // ───────────────────────────────────────────────────────────────────────────
-  Widget _buildReaderView(BuildContext context, StudyNotesProvider prov, StudyNote note) {
+  Widget _buildBookPage(BuildContext context, StudyNotesProvider prov, StudyNote note) {
     final w = MediaQuery.of(context).size.width;
-    final isMobile = w < 768;
-    final isBookmarked = prov.isBookmarked(note.id);
+    final isMobile = w < 840;
 
-    final currentIndex = prov.allNotes.indexWhere((n) => n.id == note.id);
+    final currentNotesList = prov.allNotes.where((n) => n.paper == note.paper).toList();
+    final currentIndex = currentNotesList.indexWhere((n) => n.id == note.id);
     final hasPrev = currentIndex > 0;
-    final hasNext = currentIndex >= 0 && currentIndex < prov.allNotes.length - 1;
+    final hasNext = currentIndex >= 0 && currentIndex < currentNotesList.length - 1;
 
-    return Column(
-      children: [
-        // Reader Top Toolbar
-        Container(
-          padding: EdgeInsets.symmetric(
-            horizontal: isMobile ? 12 : 24,
-            vertical: isMobile ? 8 : 12,
-          ),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0), width: 1)),
-          ),
-          child: Row(
-            children: [
-              OutlinedButton.icon(
-                onPressed: () => prov.setActiveNote(null),
-                icon: const Icon(Icons.arrow_back, size: 16),
-                label: Text(isMobile ? 'Notes' : 'All Notes (सबै नोटहरू)'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: const Color(0xFF0F172A),
-                  side: const BorderSide(color: Color(0xFFCBD5E1)),
-                  padding: EdgeInsets.symmetric(horizontal: isMobile ? 10 : 14, vertical: 8),
-                  textStyle: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700),
-                ),
-              ),
-
-              const SizedBox(width: 8),
-
-              // Prev / Next Note
-              if (!isMobile) ...[
-                IconButton(
-                  tooltip: 'Previous Note',
-                  onPressed: hasPrev ? () => prov.setActiveNote(prov.allNotes[currentIndex - 1]) : null,
-                  icon: const Icon(Icons.chevron_left, size: 22),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                ),
-                IconButton(
-                  tooltip: 'Next Note',
-                  onPressed: hasNext ? () => prov.setActiveNote(prov.allNotes[currentIndex + 1]) : null,
-                  icon: const Icon(Icons.chevron_right, size: 22),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                ),
-                const SizedBox(width: 8),
-              ],
-
-              const Spacer(),
-
-              // Text size adjusters
-              IconButton(
-                tooltip: 'Decrease text size',
-                icon: const Icon(Icons.text_decrease, size: 18),
-                onPressed: _contentFontSize > 12
-                    ? () => setState(() => _contentFontSize -= 1.0)
-                    : null,
-              ),
-              IconButton(
-                tooltip: 'Increase text size',
-                icon: const Icon(Icons.text_increase, size: 18),
-                onPressed: _contentFontSize < 20
-                    ? () => setState(() => _contentFontSize += 1.0)
-                    : null,
-              ),
-
-              const SizedBox(width: 4),
-
-              // Bookmark Button
-              IconButton(
-                tooltip: isBookmarked ? 'Remove Bookmark' : 'Bookmark this Note',
-                icon: Icon(
-                  isBookmarked ? Icons.bookmark : Icons.bookmark_border,
-                  color: isBookmarked ? const Color(0xFFDC2626) : const Color(0xFF64748B),
-                  size: 20,
-                ),
-                onPressed: () => prov.toggleBookmark(note.id),
-              ),
-
-              // Copy Note Text
-              IconButton(
-                tooltip: 'Copy Note to Clipboard',
-                icon: const Icon(Icons.copy, size: 18, color: Color(0xFF64748B)),
-                onPressed: () {
-                  Clipboard.setData(ClipboardData(text: '${note.title}\n\n${note.content}'));
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Note content copied to clipboard!')),
-                  );
-                },
-              ),
-
-              if (kIsWeb)
-                OutlinedButton.icon(
-                  onPressed: _printNote,
-                  icon: const Icon(Icons.print_outlined, size: 16),
-                  label: Text(isMobile ? 'Print' : 'Print Note'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFF334155),
-                    side: const BorderSide(color: Color(0xFFCBD5E1)),
-                    padding: EdgeInsets.symmetric(horizontal: isMobile ? 8 : 12, vertical: 8),
-                    textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-                  ),
-                ),
-            ],
-          ),
+    return SelectionArea(
+      child: SingleChildScrollView(
+        padding: EdgeInsets.symmetric(
+          horizontal: isMobile ? 8 : 24,
+          vertical: isMobile ? 12 : 24,
         ),
-
-        // Note Body Container
-        Expanded(
-          child: SelectionArea(
-            child: SingleChildScrollView(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 860),
+            child: Container(
               padding: EdgeInsets.symmetric(
-                horizontal: isMobile ? 12 : 32,
-                vertical: isMobile ? 16 : 28,
+                horizontal: isMobile ? 16 : 46,
+                vertical: isMobile ? 24 : 44,
               ),
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 860),
-                  child: Container(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: isMobile ? 16 : 36,
-                      vertical: isMobile ? 20 : 36,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFFE2E8F0), width: 1.2),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.04),
-                          blurRadius: 12,
-                          offset: const Offset(0, 3),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                border: Border.all(color: const Color(0xFFCBD5E1), width: 1.0),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.06),
+                    blurRadius: 16,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Book Running Head
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        note.paper == 'paper1'
+                            ? 'प्रथम पत्र — बैंकिङ्ग तथा व्यवस्थापन'
+                            : 'द्वितीय पत्र — सूचना प्रविधि तथा व्यवस्थापन',
+                        style: const TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF4B5563),
+                          letterSpacing: 0.5,
                         ),
-                      ],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        // Note Header Badges
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: note.paper == 'paper1'
-                                    ? const Color(0xFFFEF2F2)
-                                    : const Color(0xFFF0FDF4),
-                                borderRadius: BorderRadius.circular(6),
-                                border: Border.all(
-                                  color: note.paper == 'paper1'
-                                      ? const Color(0xFFFECACA)
-                                      : const Color(0xFFBBF7D0),
-                                ),
-                              ),
-                              child: Text(
-                                note.paper == 'paper1' ? 'Paper 1 (Banking)' : 'Paper 2 (IT Technical)',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w800,
-                                  color: note.paper == 'paper1'
-                                      ? const Color(0xFF991B1B)
-                                      : const Color(0xFF15803D),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFF1F5F9),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(
-                                'Unit ${note.unitNumber}',
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                  color: Color(0xFF475569),
-                                ),
-                              ),
-                            ),
-                            const Spacer(),
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(Icons.timer_outlined, size: 14, color: Color(0xFF64748B)),
-                                const SizedBox(width: 4),
-                                Text(
-                                  '${note.readTimeMinutes} min read',
-                                  style: const TextStyle(
-                                    fontSize: 11.5,
-                                    color: Color(0xFF64748B),
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
+                      ),
+                      Text(
+                        'एकाइ ${note.unitNumber}',
+                        style: const TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.black,
                         ),
+                      ),
+                    ],
+                  ),
+                  const Divider(color: Colors.black, thickness: 1.2, height: 16),
 
-                        const SizedBox(height: 12),
+                  const SizedBox(height: 10),
 
-                        // Main Title (English & Nepali)
-                        Text(
-                          note.title,
-                          style: TextStyle(
-                            fontSize: isMobile ? 18 : 22,
-                            fontWeight: FontWeight.w900,
-                            color: const Color(0xFF0F172A),
-                            height: 1.3,
-                          ),
+                  // Chapter & Topic Tag
+                  Text(
+                    '${note.unitTitle} • ${note.chapterTitle}',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF374151),
+                    ),
+                  ),
+
+                  const SizedBox(height: 6),
+
+                  // Main Heading (English)
+                  Text(
+                    note.title,
+                    style: TextStyle(
+                      fontFamily: 'serif',
+                      fontSize: isMobile ? 20 : 25,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.black,
+                      height: 1.25,
+                    ),
+                  ),
+
+                  // Nepali Title
+                  if (note.titleNepali.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      note.titleNepali,
+                      style: TextStyle(
+                        fontFamily: 'serif',
+                        fontSize: isMobile ? 15 : 18,
+                        fontWeight: FontWeight.w800,
+                        color: const Color(0xFF1F2937),
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
+
+                  const SizedBox(height: 18),
+
+                  // Quick Overview Callout Box (Black and White Book Box)
+                  if (note.summary.isNotEmpty)
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFF9FAFB),
+                        border: Border(
+                          left: BorderSide(color: Colors.black, width: 3.5),
+                          top: BorderSide(color: Color(0xFFE5E7EB), width: 1.0),
+                          bottom: BorderSide(color: Color(0xFFE5E7EB), width: 1.0),
+                          right: BorderSide(color: Color(0xFFE5E7EB), width: 1.0),
                         ),
-                        if (note.titleNepali.isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            note.titleNepali,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'विषय प्रवेश तथा सार-संक्षेप (Chapter Overview):',
                             style: TextStyle(
-                              fontSize: isMobile ? 14.5 : 16.5,
-                              fontWeight: FontWeight.w700,
-                              color: const Color(0xFF475569),
-                              height: 1.35,
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w900,
+                              color: Colors.black,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            note.summary,
+                            style: TextStyle(
+                              fontFamily: 'serif',
+                              fontSize: _contentFontSize - 1.5,
+                              height: 1.5,
+                              color: const Color(0xFF1F2937),
+                              fontWeight: FontWeight.w500,
                             ),
                           ),
                         ],
-
-                        const SizedBox(height: 8),
-
-                        Text(
-                          '${note.unitTitle} • ${note.chapterTitle}',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF0284C7),
-                          ),
-                        ),
-
-                        const SizedBox(height: 16),
-
-                        // Quick Summary Callout Box
-                        if (note.summary.isNotEmpty)
-                          Container(
-                            padding: const EdgeInsets.all(14),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF0F9FF),
-                              borderRadius: BorderRadius.circular(8),
-                              border: const Border(
-                                left: BorderSide(color: Color(0xFF0284C7), width: 3.5),
-                                top: BorderSide(color: Color(0xFFBAE6FD)),
-                                bottom: BorderSide(color: Color(0xFFBAE6FD)),
-                                right: BorderSide(color: Color(0xFFBAE6FD)),
-                              ),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Row(
-                                  children: [
-                                    Icon(Icons.lightbulb_outline, size: 16, color: Color(0xFF0284C7)),
-                                    SizedBox(width: 6),
-                                    Text(
-                                      'संक्षिप्त परिचय (Quick Summary)',
-                                      style: TextStyle(
-                                        fontSize: 12.5,
-                                        fontWeight: FontWeight.w800,
-                                        color: Color(0xFF0369A1),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 6),
-                                Text(
-                                  note.summary,
-                                  style: const TextStyle(
-                                    fontSize: 13,
-                                    height: 1.5,
-                                    color: Color(0xFF0C4A6E),
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-
-                        const SizedBox(height: 20),
-                        const Divider(color: Color(0xFFE2E8F0)),
-                        const SizedBox(height: 10),
-
-                        // Rich Note Content
-                        _NoteContentRenderer(
-                          markdownText: note.content,
-                          baseFontSize: _contentFontSize,
-                        ),
-
-                        const SizedBox(height: 28),
-
-                        // Key Takeaways Box
-                        if (note.keyPoints.isNotEmpty)
-                          Container(
-                            padding: const EdgeInsets.all(18),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFFAF5FF),
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(color: const Color(0xFFE9D5FF), width: 1.2),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Row(
-                                  children: [
-                                    Icon(Icons.star_rounded, size: 18, color: Color(0xFF9333EA)),
-                                    SizedBox(width: 8),
-                                    Text(
-                                      'मुख्य बुँदाहरू (Key Takeaways / Quick Revision)',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w800,
-                                        color: Color(0xFF6B21A8),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 10),
-                                ...note.keyPoints.map((kp) {
-                                  return Padding(
-                                    padding: const EdgeInsets.only(bottom: 6),
-                                    child: Row(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        const Text('✓  ', style: TextStyle(color: Color(0xFF9333EA), fontWeight: FontWeight.w800)),
-                                        Expanded(
-                                          child: Text(
-                                            kp,
-                                            style: const TextStyle(
-                                              fontSize: 13,
-                                              height: 1.45,
-                                              color: Color(0xFF3B0764),
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  );
-                                }),
-                              ],
-                            ),
-                          ),
-
-                        const SizedBox(height: 32),
-
-                        // Bottom Navigation Between Notes
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            if (hasPrev)
-                              OutlinedButton.icon(
-                                onPressed: () => prov.setActiveNote(prov.allNotes[currentIndex - 1]),
-                                icon: const Icon(Icons.arrow_back, size: 15),
-                                label: const Text('Previous Note'),
-                              )
-                            else
-                              const SizedBox.shrink(),
-                            if (hasNext)
-                              ElevatedButton.icon(
-                                onPressed: () => prov.setActiveNote(prov.allNotes[currentIndex + 1]),
-                                icon: const Icon(Icons.arrow_forward, size: 15),
-                                label: const Text('Next Note'),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF0F172A),
-                                  foregroundColor: Colors.white,
-                                ),
-                              )
-                            else
-                              const SizedBox.shrink(),
-                          ],
-                        ),
-                      ],
+                      ),
                     ),
+
+                  const SizedBox(height: 24),
+                  const Divider(color: Color(0xFFE5E7EB), thickness: 1.0),
+                  const SizedBox(height: 12),
+
+                  // Main Detailed Content (Black & White Textbook Renderer)
+                  _BlackAndWhiteContentRenderer(
+                    markdownText: note.content,
+                    baseFontSize: _contentFontSize,
                   ),
-                ),
+
+                  const SizedBox(height: 32),
+
+                  // Key Revision Points Box (Black & White)
+                  if (note.keyPoints.isNotEmpty)
+                    Container(
+                      padding: const EdgeInsets.all(18),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        border: Border.all(color: Colors.black, width: 1.2),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'परीक्षा दृष्टिकोणका मुख्य बुँदाहरू (Summary of Key Revision Points):',
+                            style: TextStyle(
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w900,
+                              color: Colors.black,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          ...note.keyPoints.map((kp) {
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 6),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    '■  ',
+                                    style: TextStyle(fontSize: 9, color: Colors.black, height: 1.8),
+                                  ),
+                                  Expanded(
+                                    child: Text(
+                                      kp,
+                                      style: TextStyle(
+                                        fontFamily: 'serif',
+                                        fontSize: _contentFontSize - 1.5,
+                                        height: 1.45,
+                                        color: const Color(0xFF111827),
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }),
+                        ],
+                      ),
+                    ),
+
+                  const SizedBox(height: 36),
+                  const Divider(color: Colors.black, thickness: 1.0),
+                  const SizedBox(height: 12),
+
+                  // Bottom Chapter-to-Chapter Stepper
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      if (hasPrev)
+                        OutlinedButton.icon(
+                          onPressed: () => prov.setActiveNote(currentNotesList[currentIndex - 1]),
+                          icon: const Icon(Icons.arrow_back, size: 15, color: Colors.black),
+                          label: const Text(
+                            '← अघिल्लो पाठ (Previous)',
+                            style: TextStyle(color: Colors.black, fontWeight: FontWeight.w700),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: Colors.black, width: 1.0),
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          ),
+                        )
+                      else
+                        const SizedBox.shrink(),
+
+                      if (hasNext)
+                        ElevatedButton.icon(
+                          onPressed: () => prov.setActiveNote(currentNotesList[currentIndex + 1]),
+                          icon: const Icon(Icons.arrow_forward, size: 15, color: Colors.white),
+                          label: const Text(
+                            'अर्को पाठ (Next) →',
+                            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.black,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                          ),
+                        )
+                      else
+                        const SizedBox.shrink(),
+                    ],
+                  ),
+                ],
               ),
             ),
           ),
         ),
-      ],
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// NOTE CARD COMPONENT (Catalog item)
-// ─────────────────────────────────────────────────────────────────────────────
-class _NoteCard extends StatelessWidget {
-  final StudyNote note;
-  final bool isBookmarked;
-  final VoidCallback onToggleBookmark;
-  final VoidCallback onOpen;
-
-  const _NoteCard({
-    required this.note,
-    required this.isBookmarked,
-    required this.onToggleBookmark,
-    required this.onOpen,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final isPaper1 = note.paper == 'paper1';
-
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE2E8F0), width: 1.1),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.02),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: InkWell(
-        onTap: onOpen,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(18),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Top tags row
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: isPaper1 ? const Color(0xFFFEF2F2) : const Color(0xFFF0FDF4),
-                      borderRadius: BorderRadius.circular(4),
-                      border: Border.all(
-                        color: isPaper1 ? const Color(0xFFFECACA) : const Color(0xFFBBF7D0),
-                      ),
-                    ),
-                    child: Text(
-                      isPaper1 ? 'Paper 1 (Banking)' : 'Paper 2 (IT Technical)',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                        color: isPaper1 ? const Color(0xFF991B1B) : const Color(0xFF15803D),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Unit ${note.unitNumber} • ${note.chapterTitle}',
-                    style: const TextStyle(
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF64748B),
-                    ),
-                  ),
-                  const Spacer(),
-                  IconButton(
-                    icon: Icon(
-                      isBookmarked ? Icons.bookmark : Icons.bookmark_border,
-                      size: 18,
-                      color: isBookmarked ? const Color(0xFFDC2626) : const Color(0xFF94A3B8),
-                    ),
-                    onPressed: onToggleBookmark,
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 8),
-
-              // Title
-              Text(
-                note.title,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                  color: Color(0xFF0F172A),
-                  height: 1.3,
-                ),
-              ),
-              if (note.titleNepali.isNotEmpty) ...[
-                const SizedBox(height: 3),
-                Text(
-                  note.titleNepali,
-                  style: const TextStyle(
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF475569),
-                  ),
-                ),
-              ],
-
-              const SizedBox(height: 10),
-
-              // Summary
-              if (note.summary.isNotEmpty)
-                Text(
-                  note.summary,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 12.5,
-                    color: Color(0xFF334155),
-                    height: 1.45,
-                  ),
-                ),
-
-              const SizedBox(height: 12),
-
-              // Bottom action row
-              Row(
-                children: [
-                  const Icon(Icons.timer_outlined, size: 14, color: Color(0xFF64748B)),
-                  const SizedBox(width: 4),
-                  Text(
-                    '${note.readTimeMinutes} min read',
-                    style: const TextStyle(fontSize: 11.5, color: Color(0xFF64748B), fontWeight: FontWeight.w500),
-                  ),
-                  const Spacer(),
-                  Text(
-                    'Read Full Note (विस्तृत अध्ययन) →',
-                    style: TextStyle(
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w800,
-                      color: isPaper1 ? const Color(0xFFDC2626) : const Color(0xFF0284C7),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// NOTE CONTENT MARKDOWN & TABLE RENDERER
+// BLACK & WHITE TEXTBOOK CONTENT & TABLE RENDERER
 // ─────────────────────────────────────────────────────────────────────────────
-class _NoteContentRenderer extends StatelessWidget {
+class _BlackAndWhiteContentRenderer extends StatelessWidget {
   final String markdownText;
   final double baseFontSize;
 
-  const _NoteContentRenderer({
+  const _BlackAndWhiteContentRenderer({
     required this.markdownText,
     required this.baseFontSize,
   });
@@ -1017,7 +791,7 @@ class _NoteContentRenderer extends StatelessWidget {
           tableLines.add(lines[i].trim());
           i++;
         }
-        widgets.add(_buildTableWidget(tableLines));
+        widgets.add(_buildBookTable(tableLines));
         continue;
       }
 
@@ -1026,15 +800,23 @@ class _NoteContentRenderer extends StatelessWidget {
         final h = line.substring(4).trim();
         widgets.add(
           Padding(
-            padding: const EdgeInsets.only(top: 18, bottom: 6),
-            child: Text(
-              h,
-              style: TextStyle(
-                fontSize: baseFontSize + 3.0,
-                fontWeight: FontWeight.w900,
-                color: const Color(0xFF0F172A),
-                letterSpacing: -0.2,
-              ),
+            padding: const EdgeInsets.only(top: 22, bottom: 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  h,
+                  style: TextStyle(
+                    fontFamily: 'serif',
+                    fontSize: baseFontSize + 2.5,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.black,
+                    letterSpacing: -0.2,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                const Divider(color: Colors.black, thickness: 0.8, height: 1),
+              ],
             ),
           ),
         );
@@ -1042,18 +824,19 @@ class _NoteContentRenderer extends StatelessWidget {
         continue;
       }
 
-      // Heading 4 or bold subhead: ####
+      // Heading 4: ####
       if (line.startsWith('#### ')) {
         final h = line.substring(5).trim();
         widgets.add(
           Padding(
-            padding: const EdgeInsets.only(top: 12, bottom: 4),
+            padding: const EdgeInsets.only(top: 14, bottom: 6),
             child: Text(
               h,
               style: TextStyle(
-                fontSize: baseFontSize + 1.5,
+                fontFamily: 'serif',
+                fontSize: baseFontSize + 1.2,
                 fontWeight: FontWeight.w800,
-                color: const Color(0xFF1E293B),
+                color: const Color(0xFF111827),
               ),
             ),
           ),
@@ -1062,7 +845,7 @@ class _NoteContentRenderer extends StatelessWidget {
         continue;
       }
 
-      // Blockquote: >
+      // Blockquote / Formula / Callout: >
       if (line.startsWith('>')) {
         final quoteLines = <String>[];
         while (i < lines.length && lines[i].trim().startsWith('>')) {
@@ -1073,16 +856,18 @@ class _NoteContentRenderer extends StatelessWidget {
           Container(
             margin: const EdgeInsets.symmetric(vertical: 10),
             padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: const Color(0xFFFEF3C7),
-              borderRadius: BorderRadius.circular(6),
-              border: const Border(
-                left: BorderSide(color: Color(0xFFD97706), width: 4),
+            decoration: const BoxDecoration(
+              color: Color(0xFFF9FAFB),
+              border: Border(
+                left: BorderSide(color: Colors.black, width: 3.5),
+                top: BorderSide(color: Color(0xFFE5E7EB)),
+                bottom: BorderSide(color: Color(0xFFE5E7EB)),
+                right: BorderSide(color: Color(0xFFE5E7EB)),
               ),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: quoteLines.map((q) => Text(q, style: TextStyle(fontSize: baseFontSize, fontWeight: FontWeight.w600, color: const Color(0xFF78350F)))).toList(),
+              children: quoteLines.map((q) => Text(q, style: TextStyle(fontFamily: 'serif', fontSize: baseFontSize - 1.0, fontWeight: FontWeight.w600, color: Colors.black))).toList(),
             ),
           ),
         );
@@ -1091,7 +876,7 @@ class _NoteContentRenderer extends StatelessWidget {
 
       // Divider: ---
       if (line == '---') {
-        widgets.add(const Divider(height: 24, color: Color(0xFFE2E8F0)));
+        widgets.add(const Divider(height: 24, color: Color(0xFFD1D5DB)));
         i++;
         continue;
       }
@@ -1105,7 +890,7 @@ class _NoteContentRenderer extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('•  ', style: TextStyle(color: Color(0xFF0284C7), fontWeight: FontWeight.w900)),
+                const Text('•  ', style: TextStyle(color: Colors.black, fontWeight: FontWeight.w900)),
                 Expanded(child: _richText(body, baseFontSize)),
               ],
             ),
@@ -1126,7 +911,7 @@ class _NoteContentRenderer extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('$numPrefix ', style: TextStyle(fontWeight: FontWeight.w800, fontSize: baseFontSize, color: const Color(0xFF0F172A))),
+                Text('$numPrefix ', style: TextStyle(fontFamily: 'serif', fontWeight: FontWeight.w800, fontSize: baseFontSize, color: Colors.black)),
                 Expanded(child: _richText(body, baseFontSize)),
               ],
             ),
@@ -1152,7 +937,7 @@ class _NoteContentRenderer extends StatelessWidget {
     );
   }
 
-  Widget _buildTableWidget(List<String> tableLines) {
+  Widget _buildBookTable(List<String> tableLines) {
     if (tableLines.length < 2) return const SizedBox.shrink();
 
     final headerRow = tableLines[0].split('|').map((c) => c.trim()).where((c) => c.isNotEmpty).toList();
@@ -1160,34 +945,33 @@ class _NoteContentRenderer extends StatelessWidget {
 
     for (int r = 1; r < tableLines.length; r++) {
       final line = tableLines[r];
-      if (line.contains('---')) continue; // Skip separator line
+      if (line.contains('---')) continue;
       final cols = line.split('|').map((c) => c.trim()).where((c) => c.isNotEmpty).toList();
       if (cols.isNotEmpty) bodyRows.add(cols);
     }
 
     return Container(
-      margin: const EdgeInsets.symmetric(vertical: 12),
+      margin: const EdgeInsets.symmetric(vertical: 14),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFFCBD5E1), width: 1.0),
+        border: Border.all(color: Colors.black, width: 1.0),
       ),
-      clipBehavior: Clip.antiAlias,
       child: Table(
-        border: TableBorder.all(color: const Color(0xFFE2E8F0), width: 0.8),
+        border: TableBorder.all(color: const Color(0xFFD1D5DB), width: 0.8),
         defaultVerticalAlignment: TableCellVerticalAlignment.middle,
         children: [
-          // Header Row
+          // Header Row (Clean Black & White)
           TableRow(
-            decoration: const BoxDecoration(color: Color(0xFFF1F5F9)),
+            decoration: const BoxDecoration(color: Color(0xFFF3F4F6)),
             children: headerRow.map((h) {
               return Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                 child: Text(
                   h.replaceAll('**', ''),
                   style: TextStyle(
-                    fontSize: baseFontSize - 1.0,
-                    fontWeight: FontWeight.w800,
-                    color: const Color(0xFF0F172A),
+                    fontFamily: 'serif',
+                    fontSize: baseFontSize - 1.5,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.black,
                   ),
                 ),
               );
@@ -1200,7 +984,7 @@ class _NoteContentRenderer extends StatelessWidget {
               children: row.map((cell) {
                 return Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-                  child: _richText(cell, baseFontSize - 1.5),
+                  child: _richText(cell, baseFontSize - 2.0),
                 );
               }).toList(),
             );
@@ -1215,9 +999,10 @@ class _NoteContentRenderer extends StatelessWidget {
     final regex = RegExp(r'(\*\*\*([^\*]+?)\*\*\*|\*\*([^\*]+?)\*\*|\*([^\*]+?)\*|`([^`]+?)`)');
     int lastEnd = 0;
     final base = TextStyle(
+      fontFamily: 'serif',
       fontSize: fontSize,
-      color: const Color(0xFF1E293B),
-      height: 1.55,
+      color: const Color(0xFF1F2937),
+      height: 1.6,
       fontWeight: FontWeight.w500,
     );
 
@@ -1230,7 +1015,7 @@ class _NoteContentRenderer extends StatelessWidget {
       final b1 = match.group(4); // *italic*
       final code = match.group(5); // `code`
       if (b2 != null && b2.isNotEmpty) {
-        spans.add(TextSpan(text: b2, style: base.copyWith(fontWeight: FontWeight.w800, color: const Color(0xFF0F172A))));
+        spans.add(TextSpan(text: b2, style: base.copyWith(fontWeight: FontWeight.w900, color: Colors.black)));
       } else if (b1 != null && b1.isNotEmpty) {
         spans.add(TextSpan(text: b1, style: base.copyWith(fontStyle: FontStyle.italic)));
       } else if (code != null && code.isNotEmpty) {
@@ -1238,9 +1023,9 @@ class _NoteContentRenderer extends StatelessWidget {
           text: code,
           style: base.copyWith(
             fontFamily: 'monospace',
-            backgroundColor: const Color(0xFFF1F5F9),
+            backgroundColor: const Color(0xFFF3F4F6),
             fontWeight: FontWeight.w700,
-            color: const Color(0xFFDC2626),
+            color: Colors.black,
           ),
         ));
       }
