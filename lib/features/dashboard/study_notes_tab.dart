@@ -24,6 +24,7 @@ class _StudyNotesTabState extends State<StudyNotesTab> {
   double _contentFontSize = 15.0;
   bool _showTocSidebar = true;
   String _activePaperTab = 'paper1'; // 'paper1' or 'paper2'
+  String _selectedLanguageMode = 'bilingual'; // 'bilingual', 'english', 'nepali'
 
   @override
   void initState() {
@@ -473,6 +474,30 @@ class _StudyNotesTabState extends State<StudyNotesTab> {
     );
   }
 
+  Widget _buildLangModePill(String mode, String label) {
+    final isSelected = _selectedLanguageMode == mode;
+    return InkWell(
+      onTap: () => setState(() => _selectedLanguageMode = mode),
+      borderRadius: BorderRadius.circular(4),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.black : Colors.white,
+          borderRadius: BorderRadius.circular(4),
+          border: Border.all(color: Colors.black, width: 1.0),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+            color: isSelected ? Colors.white : Colors.black,
+          ),
+        ),
+      ),
+    );
+  }
+
   void _openMobileTocDrawer(
     BuildContext context,
     StudyNotesProvider prov,
@@ -505,6 +530,27 @@ class _StudyNotesTabState extends State<StudyNotesTab> {
     final currentIndex = currentNotesList.indexWhere((n) => n.id == note.id);
     final hasPrev = currentIndex > 0;
     final hasNext = currentIndex >= 0 && currentIndex < currentNotesList.length - 1;
+
+    String contentText = note.content;
+    if (_selectedLanguageMode == 'english' && note.contentEnglish.isNotEmpty) {
+      contentText = note.contentEnglish;
+    } else if (_selectedLanguageMode == 'nepali' && note.contentNepali.isNotEmpty) {
+      contentText = note.contentNepali;
+    }
+
+    String summaryText = note.summary;
+    if (_selectedLanguageMode == 'english' && note.summaryEnglish.isNotEmpty) {
+      summaryText = note.summaryEnglish;
+    } else if (_selectedLanguageMode == 'nepali' && note.summaryNepali.isNotEmpty) {
+      summaryText = note.summaryNepali;
+    }
+
+    List<String> keyPointsList = note.keyPoints;
+    if (_selectedLanguageMode == 'english' && note.keyPointsEnglish.isNotEmpty) {
+      keyPointsList = note.keyPointsEnglish;
+    } else if (_selectedLanguageMode == 'nepali' && note.keyPointsNepali.isNotEmpty) {
+      keyPointsList = note.keyPointsNepali;
+    }
 
     return SelectionArea(
       child: SingleChildScrollView(
@@ -561,7 +607,27 @@ class _StudyNotesTabState extends State<StudyNotesTab> {
                   ),
                   const Divider(color: Colors.black, thickness: 1.2, height: 16),
 
-                  const SizedBox(height: 10),
+                  // Language Mode Selector Bar (Bilingual, English, Nepali)
+                  Row(
+                    children: [
+                      const Text(
+                        'भाषा माध्यम (Medium):',
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF374151),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      _buildLangModePill('bilingual', 'दुवै (Bilingual: Eng + Nep)'),
+                      const SizedBox(width: 6),
+                      _buildLangModePill('english', 'English Only'),
+                      const SizedBox(width: 6),
+                      _buildLangModePill('nepali', 'नेपाली मात्र'),
+                    ],
+                  ),
+
+                  const SizedBox(height: 12),
 
                   // Chapter & Topic Tag
                   Text(
@@ -605,7 +671,7 @@ class _StudyNotesTabState extends State<StudyNotesTab> {
                   const SizedBox(height: 18),
 
                   // Quick Overview Callout Box (Black and White Book Box)
-                  if (note.summary.isNotEmpty)
+                  if (summaryText.isNotEmpty)
                     Container(
                       padding: const EdgeInsets.all(14),
                       decoration: const BoxDecoration(
@@ -630,7 +696,7 @@ class _StudyNotesTabState extends State<StudyNotesTab> {
                           ),
                           const SizedBox(height: 6),
                           Text(
-                            note.summary,
+                            summaryText,
                             style: TextStyle(
                               fontFamily: 'serif',
                               fontSize: _contentFontSize - 1.5,
@@ -649,14 +715,14 @@ class _StudyNotesTabState extends State<StudyNotesTab> {
 
                   // Main Detailed Content (Black & White Textbook Renderer)
                   _BlackAndWhiteContentRenderer(
-                    markdownText: note.content,
+                    markdownText: contentText,
                     baseFontSize: _contentFontSize,
                   ),
 
                   const SizedBox(height: 32),
 
                   // Key Revision Points Box (Black & White)
-                  if (note.keyPoints.isNotEmpty)
+                  if (keyPointsList.isNotEmpty)
                     Container(
                       padding: const EdgeInsets.all(18),
                       decoration: BoxDecoration(
@@ -675,7 +741,7 @@ class _StudyNotesTabState extends State<StudyNotesTab> {
                             ),
                           ),
                           const SizedBox(height: 10),
-                          ...note.keyPoints.map((kp) {
+                          ...keyPointsList.map((kp) {
                             return Padding(
                               padding: const EdgeInsets.only(bottom: 6),
                               child: Row(

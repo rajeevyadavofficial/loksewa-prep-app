@@ -334,8 +334,14 @@ class StudyNote {
   final String title;
   final String titleNepali;
   final String summary;
+  final String summaryEnglish;
+  final String summaryNepali;
   final String content;
+  final String contentEnglish;
+  final String contentNepali;
   final List<String> keyPoints;
+  final List<String> keyPointsEnglish;
+  final List<String> keyPointsNepali;
   final int order;
   final int readTimeMinutes;
 
@@ -352,10 +358,16 @@ class StudyNote {
     required this.title,
     this.titleNepali = '',
     this.summary = '',
+    this.summaryEnglish = '',
+    this.summaryNepali = '',
     required this.content,
+    this.contentEnglish = '',
+    this.contentNepali = '',
     this.keyPoints = const [],
+    this.keyPointsEnglish = const [],
+    this.keyPointsNepali = const [],
     this.order = 0,
-    this.readTimeMinutes = 5,
+    this.readTimeMinutes = 8,
   });
 
   factory StudyNote.fromJson(Map<String, dynamic> json) {
@@ -374,14 +386,20 @@ class StudyNote {
       title: json['title'] ?? '',
       titleNepali: json['titleNepali'] ?? '',
       summary: json['summary'] ?? '',
+      summaryEnglish: json['summaryEnglish'] ?? '',
+      summaryNepali: json['summaryNepali'] ?? '',
       content: json['content'] ?? '',
+      contentEnglish: json['contentEnglish'] ?? '',
+      contentNepali: json['contentNepali'] ?? '',
       keyPoints: List<String>.from(json['keyPoints'] ?? const []),
+      keyPointsEnglish: List<String>.from(json['keyPointsEnglish'] ?? const []),
+      keyPointsNepali: List<String>.from(json['keyPointsNepali'] ?? const []),
       order: json['order'] is int
           ? json['order']
           : (int.tryParse('${json['order']}') ?? 0),
       readTimeMinutes: json['readTimeMinutes'] is int
           ? json['readTimeMinutes']
-          : (int.tryParse('${json['readTimeMinutes']}') ?? 5),
+          : (int.tryParse('${json['readTimeMinutes']}') ?? 8),
     );
   }
 
@@ -398,8 +416,14 @@ class StudyNote {
     'title': title,
     'titleNepali': titleNepali,
     'summary': summary,
+    'summaryEnglish': summaryEnglish,
+    'summaryNepali': summaryNepali,
     'content': content,
+    'contentEnglish': contentEnglish,
+    'contentNepali': contentNepali,
     'keyPoints': keyPoints,
+    'keyPointsEnglish': keyPointsEnglish,
+    'keyPointsNepali': keyPointsNepali,
     'order': order,
     'readTimeMinutes': readTimeMinutes,
   };
